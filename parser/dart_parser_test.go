@@ -14,7 +14,7 @@ func TestParseImports_BasicImports(t *testing.T) {
 		import 'dart:io';
 		import 'dart:async';
 		import 'package:flutter/material.dart';
-		
+
 		void main() {
 		  print('Hello');
 		}
@@ -23,9 +23,10 @@ func TestParseImports_BasicImports(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 3)
-	assert.Contains(t, imports, "dart:io")
-	assert.Contains(t, imports, "dart:async")
-	assert.Contains(t, imports, "package:flutter/material.dart")
+
+	assert.Contains(t, imports, PackageImport{"dart:io"})
+	assert.Contains(t, imports, PackageImport{"dart:async"})
+	assert.Contains(t, imports, PackageImport{"package:flutter/material.dart"})
 }
 
 func TestParseImports_WithPrefixes(t *testing.T) {
@@ -37,8 +38,9 @@ func TestParseImports_WithPrefixes(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 2)
-	assert.Contains(t, imports, "package:lib1/lib1.dart")
-	assert.Contains(t, imports, "package:lib2/lib2.dart")
+
+	assert.Contains(t, imports, PackageImport{"package:lib1/lib1.dart"})
+	assert.Contains(t, imports, PackageImport{"package:lib2/lib2.dart"})
 }
 
 func TestParseImports_WithShowHide(t *testing.T) {
@@ -50,8 +52,9 @@ func TestParseImports_WithShowHide(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 2)
-	assert.Contains(t, imports, "package:lib1/lib1.dart")
-	assert.Contains(t, imports, "package:lib2/lib2.dart")
+
+	assert.Contains(t, imports, PackageImport{"package:lib1/lib1.dart"})
+	assert.Contains(t, imports, PackageImport{"package:lib2/lib2.dart"})
 }
 
 func TestParseImports_RelativePaths(t *testing.T) {
@@ -64,9 +67,10 @@ func TestParseImports_RelativePaths(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 3)
-	assert.Contains(t, imports, "src/helper.dart")
-	assert.Contains(t, imports, "../utils/common.dart")
-	assert.Contains(t, imports, "models/user.dart")
+
+	assert.Contains(t, imports, ProjectImport{"src/helper.dart"})
+	assert.Contains(t, imports, ProjectImport{"../utils/common.dart"})
+	assert.Contains(t, imports, ProjectImport{"models/user.dart"})
 }
 
 func TestParseImports_EmptyFile(t *testing.T) {
@@ -98,8 +102,9 @@ func TestParseImports_MixedQuotes(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 2)
-	assert.Contains(t, imports, "dart:io")
-	assert.Contains(t, imports, "package:flutter/material.dart")
+
+	assert.Contains(t, imports, PackageImport{"dart:io"})
+	assert.Contains(t, imports, PackageImport{"package:flutter/material.dart"})
 }
 
 func TestParseImports_InvalidDartCode(t *testing.T) {
@@ -116,7 +121,7 @@ func TestParseImports_InvalidDartCode(t *testing.T) {
 }
 
 func TestExtractImports_FileNotFound(t *testing.T) {
-	_, err := ExtractImports("/nonexistent/file/path.dart")
+	_, err := Imports("/nonexistent/file/path.dart")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read file")
@@ -130,19 +135,20 @@ func TestExtractImports_ValidFile(t *testing.T) {
 	content := `
 		import 'dart:io';
 		import 'package:flutter/material.dart';
-		
+
 		void main() {}
 `
 	err := os.WriteFile(tmpFile, []byte(content), 0644)
 	require.NoError(t, err)
 
 	// Extract imports
-	imports, err := ExtractImports(tmpFile)
+	imports, err := Imports(tmpFile)
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 2)
-	assert.Contains(t, imports, "dart:io")
-	assert.Contains(t, imports, "package:flutter/material.dart")
+
+	assert.Contains(t, imports, PackageImport{"dart:io"})
+	assert.Contains(t, imports, PackageImport{"package:flutter/material.dart"})
 }
 
 func TestParseImports_ComplexExample(t *testing.T) {
@@ -155,7 +161,7 @@ func TestParseImports_ComplexExample(t *testing.T) {
 		import 'src/models/user.dart';
 		import '../utils/helper.dart' show formatDate, formatTime;
 		import 'services/api.dart' hide privateFunction;
-		
+
 		class MyApp extends StatelessWidget {
 		  @override
 		  Widget build(BuildContext context) {
@@ -169,11 +175,12 @@ func TestParseImports_ComplexExample(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, imports, 7)
-	assert.Contains(t, imports, "dart:io")
-	assert.Contains(t, imports, "dart:async")
-	assert.Contains(t, imports, "package:flutter/material.dart")
-	assert.Contains(t, imports, "package:provider/provider.dart")
-	assert.Contains(t, imports, "src/models/user.dart")
-	assert.Contains(t, imports, "../utils/helper.dart")
-	assert.Contains(t, imports, "services/api.dart")
+
+	assert.Contains(t, imports, PackageImport{"dart:io"})
+	assert.Contains(t, imports, PackageImport{"dart:async"})
+	assert.Contains(t, imports, PackageImport{"package:flutter/material.dart"})
+	assert.Contains(t, imports, PackageImport{"package:provider/provider.dart"})
+	assert.Contains(t, imports, ProjectImport{"src/models/user.dart"})
+	assert.Contains(t, imports, ProjectImport{"../utils/helper.dart"})
+	assert.Contains(t, imports, ProjectImport{"services/api.dart"})
 }

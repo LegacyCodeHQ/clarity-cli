@@ -11,9 +11,38 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-// ExtractImports reads a Dart file and extracts all import statements.
-// Returns a slice of import URIs (the string content inside the import statement).
-func ExtractImports(filePath string) ([]string, error) {
+type Import interface {
+	URI() string
+}
+
+// PackageImport represents an external dependency (dart:* or package:*)
+type PackageImport struct {
+	uri string
+}
+
+func (p PackageImport) URI() string {
+	return p.uri
+}
+
+// ProjectImport represents an internal project file (relative paths)
+type ProjectImport struct {
+	uri string
+}
+
+func (p ProjectImport) URI() string {
+	return p.uri
+}
+
+func (p ProjectImport) isImport() {}
+
+func classifyImport(uri string) Import {
+	if strings.HasPrefix(uri, "dart:") || strings.HasPrefix(uri, "package:") {
+		return PackageImport{uri: uri}
+	}
+	return ProjectImport{uri: uri}
+}
+
+func Imports(filePath string) ([]Import, error) {
 	sourceCode, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
@@ -22,9 +51,7 @@ func ExtractImports(filePath string) ([]string, error) {
 	return ParseImports(sourceCode)
 }
 
-// ParseImports parses Dart source code and extracts import statements.
-// This function is separate to allow testing without file I/O.
-func ParseImports(sourceCode []byte) ([]string, error) {
+func ParseImports(sourceCode []byte) ([]Import, error) {
 	lang := tree_sitter_dart.GetLanguage()
 
 	parser := sitter.NewParser()
@@ -51,7 +78,7 @@ func ParseImports(sourceCode []byte) ([]string, error) {
 	}
 
 	// No error but also no imports found - return empty slice
-	return []string{}, nil
+	return []Import{}, nil
 }
 
 const primaryQueryPattern = `
@@ -69,7 +96,7 @@ var fallbackQueryPatterns = []string{
 }
 
 // queryImports executes a tree-sitter query and extracts import URIs
-func queryImports(rootNode *sitter.Node, sourceCode []byte, pattern string) ([]string, error) {
+func queryImports(rootNode *sitter.Node, sourceCode []byte, pattern string) ([]Import, error) {
 	lang := tree_sitter_dart.GetLanguage()
 
 	query, err := sitter.NewQuery([]byte(pattern), lang)
@@ -83,7 +110,7 @@ func queryImports(rootNode *sitter.Node, sourceCode []byte, pattern string) ([]s
 
 	cursor.Exec(query, rootNode)
 
-	var imports []string
+	var imports []Import
 
 	for {
 		match, ok := cursor.NextMatch()
@@ -97,7 +124,7 @@ func queryImports(rootNode *sitter.Node, sourceCode []byte, pattern string) ([]s
 			content := capture.Node.Content(sourceCode)
 			// Remove quotes from string literal
 			importURI := cleanImportURI(content)
-			imports = append(imports, importURI)
+			imports = append(imports, classifyImport(importURI))
 		}
 	}
 
