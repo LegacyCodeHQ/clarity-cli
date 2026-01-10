@@ -29,9 +29,8 @@ Supports three modes:
   3. Commit analysis: Analyze files changed in a commit (--repo --commit)
 
 Output formats:
-  - list: Simple text list (default)
+  - dot: Graphviz DOT format for visualization (default)
   - json: JSON format
-  - dot: Graphviz DOT format for visualization
 
 Example usage:
   sanity graph file1.dart file2.dart file3.dart
@@ -101,11 +100,8 @@ Example usage:
 		case "dot":
 			fmt.Print(graph.ToDOT())
 
-		case "list":
-			fmt.Print(graph.ToList())
-
 		default:
-			return fmt.Errorf("unknown output format: %s (valid options: list, json, dot)", outputFormat)
+			return fmt.Errorf("unknown output format: %s (valid options: dot, json)", outputFormat)
 		}
 
 		return nil
@@ -114,7 +110,7 @@ Example usage:
 
 func init() {
 	// Add format flag
-	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "list", "Output format (list, json, dot)")
+	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json)")
 	// Add repo flag
 	graphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path to analyze uncommitted files")
 	// Add commit flag

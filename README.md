@@ -1,6 +1,7 @@
 # Sanity
 
-Sanity is a CLI tool for analyzing and visualizing dependency graphs in your codebase, with support for Dart and Go files.
+Sanity is a CLI tool for analyzing and visualizing dependency graphs in your codebase, with support for Dart and Go
+files.
 
 ## Usage
 
@@ -8,29 +9,30 @@ Sanity is a CLI tool for analyzing and visualizing dependency graphs in your cod
 
 #### `sanity graph`
 
-Generate dependency graphs for project files. Analyzes Dart and Go files to show import relationships.
+Generate dependency graphs for Dart and Go files.
 
 **Flags**:
-- `--format, -f`: Output format (list, json, dot) - default: "list"
-- `--repo, -r`: Git repository path to analyze uncommitted files
-- `--commit, -c`: Git commit to analyze (requires --repo)
+
+| Flag           | Description                                      | Notes             |
+|----------------|--------------------------------------------------|-------------------|
+| `--repo, -r`   | Git repository path to analyze uncommitted files |                   |
+| `--commit, -c` | Git commit to analyze                            | Requires `--repo` |
+| `--format, -f` | Output format (dot, json)                        | Default: "dot"    |
 
 **Examples**:
+
 ```bash
 # Analyze uncommitted files in current repository (most common use case)
 sanity graph --repo .
 
+# Output dependency graph in JSON format
+sanity graph --repo . --format=json
+
 # Analyze files changed in a specific commit
 sanity graph --repo . --commit 8d4f78
 
-# Output in JSON format
-sanity graph --repo . --format=json
-
 # Analyze uncommitted files in a different repository
 sanity graph --repo /path/to/repo
-
-# Output in Graphviz DOT format for visualization
-sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
 
 # Analyze specific files directly
 sanity graph file1.dart file2.dart file3.dart

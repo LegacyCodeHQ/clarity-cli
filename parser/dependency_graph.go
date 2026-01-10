@@ -269,20 +269,3 @@ func (g DependencyGraph) ToDOT() string {
 	sb.WriteString("}\n")
 	return sb.String()
 }
-
-// ToList converts the dependency graph to a simple readable list format
-func (g DependencyGraph) ToList() string {
-	var sb strings.Builder
-	for source, deps := range g {
-		sb.WriteString(fmt.Sprintf("%s:\n", source))
-		if len(deps) == 0 {
-			sb.WriteString("  (no project dependencies)\n")
-		} else {
-			for _, dep := range deps {
-				sb.WriteString(fmt.Sprintf("  -> %s\n", dep))
-			}
-		}
-		sb.WriteString("\n")
-	}
-	return sb.String()
-}
