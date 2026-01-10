@@ -21,11 +21,11 @@ jobs:
             goarch: amd64
 
           # macOS builds
-          - os: macos-13  # Intel
+          - os: macos-15-intel  # Intel (x86_64)
             goos: darwin
             goarch: amd64
 
-          - os: macos-latest  # Apple Silicon (M1)
+          - os: macos-latest  # Apple Silicon (arm64)
             goos: darwin
             goarch: arm64
 
