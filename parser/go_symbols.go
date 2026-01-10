@@ -60,20 +60,45 @@ func ExtractGoSymbols(filePath string) (*GoSymbolInfo, error) {
 		}
 	}
 
-	// Extract referenced symbols
+	// Build a set of built-in types and functions that should be ignored
+	builtins := map[string]bool{
+		// Built-in types
+		"bool": true, "byte": true, "complex64": true, "complex128": true,
+		"error": true, "float32": true, "float64": true, "int": true,
+		"int8": true, "int16": true, "int32": true, "int64": true,
+		"rune": true, "string": true, "uint": true, "uint8": true,
+		"uint16": true, "uint32": true, "uint64": true, "uintptr": true,
+		// Built-in constants
+		"true": true, "false": true, "iota": true, "nil": true,
+		// Built-in functions
+		"append": true, "cap": true, "close": true, "complex": true,
+		"copy": true, "delete": true, "imag": true, "len": true,
+		"make": true, "new": true, "panic": true, "print": true,
+		"println": true, "real": true, "recover": true,
+		// Special functions that don't create dependencies
+		"init": true, "main": true,
+	}
+
+	// Extract referenced symbols - only track identifiers that could be package-level symbols
+	// Filter out built-ins, package names, and locally defined symbols
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.Ident:
-			// Skip package names and defined symbols
-			if x.Obj == nil && x.Name != "_" && x.Name != info.Package {
+			// Only track identifiers that:
+			// 1. Don't have a local object (x.Obj == nil) - meaning they might be from another file
+			// 2. Are not the blank identifier
+			// 3. Are not the package name
+			// 4. Are not built-in types/functions/constants (including init/main)
+			// 5. Are not already defined in this file (checked via x.Obj == nil)
+			if x.Obj == nil && x.Name != "_" && x.Name != info.Package && !builtins[x.Name] {
 				info.Referenced[x.Name] = true
 			}
 		case *ast.SelectorExpr:
 			// For qualified identifiers like fmt.Println, we only care about
 			// package-local references, not external packages
 			if ident, ok := x.X.(*ast.Ident); ok {
-				// This is a selector like x.Field - track x
-				if ident.Obj == nil {
+				// This is a selector like x.Field - track x only if it could be a package-level symbol
+				if ident.Obj == nil && ident.Name != info.Package && !builtins[ident.Name] {
 					info.Referenced[ident.Name] = true
 				}
 			}
