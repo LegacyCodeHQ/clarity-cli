@@ -243,3 +243,268 @@ func TestBuildDependencyGraph_IncludesNonDartFiles(t *testing.T) {
 	assert.Contains(t, graph, readmePath)
 	assert.Empty(t, graph[readmePath], "non-dart file should have no dependencies")
 }
+
+func TestBuildDependencyGraph_GoFiles(t *testing.T) {
+	// Create temporary directory with test Go files
+	tmpDir := t.TempDir()
+
+	// Create go.mod
+	goModContent := `module testproject
+
+go 1.25
+`
+	goModPath := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(goModPath, []byte(goModContent), 0644)
+	require.NoError(t, err)
+
+	// Create main.go
+	mainContent := `package main
+
+import (
+	"fmt"
+	"testproject/models"
+	"testproject/services"
+)
+
+func main() {
+	fmt.Println("Hello")
+}
+`
+	mainPath := filepath.Join(tmpDir, "main.go")
+	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Create models directory and user.go
+	modelsDir := filepath.Join(tmpDir, "models")
+	err = os.Mkdir(modelsDir, 0755)
+	require.NoError(t, err)
+
+	userContent := `package models
+
+import "testproject/utils"
+
+type User struct {
+	Name string
+}
+`
+	userPath := filepath.Join(modelsDir, "user.go")
+	err = os.WriteFile(userPath, []byte(userContent), 0644)
+	require.NoError(t, err)
+
+	// Create services directory and api.go
+	servicesDir := filepath.Join(tmpDir, "services")
+	err = os.Mkdir(servicesDir, 0755)
+	require.NoError(t, err)
+
+	apiContent := `package services
+
+import (
+	"net/http"
+	"testproject/models"
+)
+
+type Api struct {}
+`
+	apiPath := filepath.Join(servicesDir, "api.go")
+	err = os.WriteFile(apiPath, []byte(apiContent), 0644)
+	require.NoError(t, err)
+
+	// Create utils directory and validator.go
+	utilsDir := filepath.Join(tmpDir, "utils")
+	err = os.Mkdir(utilsDir, 0755)
+	require.NoError(t, err)
+
+	validatorContent := `package utils
+
+type Validator struct {}
+`
+	validatorPath := filepath.Join(utilsDir, "validator.go")
+	err = os.WriteFile(validatorPath, []byte(validatorContent), 0644)
+	require.NoError(t, err)
+
+	// Build dependency graph
+	// Note: Go imports refer to packages (directories), but the graph maps
+	// file to file dependencies (all files in the imported package)
+	files := []string{mainPath, userPath, apiPath, validatorPath}
+	graph, err := BuildDependencyGraph(files)
+
+	require.NoError(t, err)
+	assert.Len(t, graph, 4)
+
+	// Check main.go dependencies (should reference user.go and api.go files)
+	mainDeps := graph[mainPath]
+	assert.Len(t, mainDeps, 2)
+	assert.Contains(t, mainDeps, userPath)
+	assert.Contains(t, mainDeps, apiPath)
+
+	// Check user.go dependencies (should reference validator.go file)
+	userDeps := graph[userPath]
+	assert.Len(t, userDeps, 1)
+	assert.Contains(t, userDeps, validatorPath)
+
+	// Check api.go dependencies (should reference user.go file)
+	apiDeps := graph[apiPath]
+	assert.Len(t, apiDeps, 1)
+	assert.Contains(t, apiDeps, userPath)
+
+	// Check validator.go dependencies (should have none)
+	validatorDeps := graph[validatorPath]
+	assert.Empty(t, validatorDeps)
+}
+
+func TestBuildDependencyGraph_MixedDartAndGo(t *testing.T) {
+	// Create temporary directory with mixed files
+	tmpDir := t.TempDir()
+
+	// Create go.mod for Go support
+	goModContent := `module mixedproject
+
+go 1.25
+`
+	goModPath := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(goModPath, []byte(goModContent), 0644)
+	require.NoError(t, err)
+
+	// Create a Dart file
+	dartContent := `
+		import 'dart:io';
+		import 'helper.dart';
+
+		void main() {}
+	`
+	dartPath := filepath.Join(tmpDir, "main.dart")
+	err = os.WriteFile(dartPath, []byte(dartContent), 0644)
+	require.NoError(t, err)
+
+	helperContent := `
+		class Helper {}
+	`
+	helperPath := filepath.Join(tmpDir, "helper.dart")
+	err = os.WriteFile(helperPath, []byte(helperContent), 0644)
+	require.NoError(t, err)
+
+	// Create a Go file
+	goContent := `package main
+
+import (
+	"fmt"
+	"mixedproject/utils"
+)
+
+func main() {}
+`
+	goPath := filepath.Join(tmpDir, "main.go")
+	err = os.WriteFile(goPath, []byte(goContent), 0644)
+	require.NoError(t, err)
+
+	// Create utils directory
+	utilsDir := filepath.Join(tmpDir, "utils")
+	err = os.Mkdir(utilsDir, 0755)
+	require.NoError(t, err)
+
+	utilsContent := `package utils
+
+func Helper() {}
+`
+	utilsPath := filepath.Join(utilsDir, "helper.go")
+	err = os.WriteFile(utilsPath, []byte(utilsContent), 0644)
+	require.NoError(t, err)
+
+	// Build dependency graph with both Dart and Go files
+	files := []string{dartPath, helperPath, goPath, utilsPath}
+	graph, err := BuildDependencyGraph(files)
+
+	require.NoError(t, err)
+	assert.Len(t, graph, 4)
+
+	// Check Dart file dependencies
+	dartDeps := graph[dartPath]
+	assert.Len(t, dartDeps, 1)
+	assert.Contains(t, dartDeps, helperPath)
+
+	// Check Go file dependencies (should reference helper.go file in utils package)
+	goDeps := graph[goPath]
+	assert.Len(t, goDeps, 1)
+	assert.Contains(t, goDeps, utilsPath)
+}
+
+func TestBuildDependencyGraph_GoSymbolLevel(t *testing.T) {
+	// Create temporary directory with Go files in same package
+	tmpDir := t.TempDir()
+
+	// Create go.mod
+	goModContent := `module symboltest
+
+go 1.25
+`
+	goModPath := filepath.Join(tmpDir, "go.mod")
+	err := os.WriteFile(goModPath, []byte(goModContent), 0644)
+	require.NoError(t, err)
+
+	// Create types.go with type definitions
+	typesContent := `package main
+
+type User struct {
+	Name string
+}
+
+type Product struct {
+	Title string
+}
+`
+	typesPath := filepath.Join(tmpDir, "types.go")
+	err = os.WriteFile(typesPath, []byte(typesContent), 0644)
+	require.NoError(t, err)
+
+	// Create helpers.go with helper functions
+	helpersContent := `package main
+
+func FormatUser(u User) string {
+	return u.Name
+}
+`
+	helpersPath := filepath.Join(tmpDir, "helpers.go")
+	err = os.WriteFile(helpersPath, []byte(helpersContent), 0644)
+	require.NoError(t, err)
+
+	// Create main.go that uses both User and FormatUser
+	mainContent := `package main
+
+import "fmt"
+
+func main() {
+	u := User{Name: "Alice"}
+	fmt.Println(FormatUser(u))
+
+	p := Product{Title: "Book"}
+	fmt.Println(p.Title)
+}
+`
+	mainPath := filepath.Join(tmpDir, "main.go")
+	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Build dependency graph
+	files := []string{typesPath, helpersPath, mainPath}
+	graph, err := BuildDependencyGraph(files)
+
+	require.NoError(t, err)
+	assert.Len(t, graph, 3)
+
+	// Check main.go dependencies (should depend on both types.go and helpers.go)
+	// because it uses User and Product from types.go, and FormatUser from helpers.go
+	mainDeps := graph[mainPath]
+	assert.Len(t, mainDeps, 2, "main.go should depend on both types.go and helpers.go")
+	assert.Contains(t, mainDeps, typesPath, "main.go uses User and Product")
+	assert.Contains(t, mainDeps, helpersPath, "main.go uses FormatUser")
+
+	// Check helpers.go dependencies (should depend on types.go)
+	// because it uses User type
+	helpersDeps := graph[helpersPath]
+	assert.Len(t, helpersDeps, 1, "helpers.go should depend on types.go")
+	assert.Contains(t, helpersDeps, typesPath, "helpers.go uses User type")
+
+	// Check types.go dependencies (should have none)
+	typesDeps := graph[typesPath]
+	assert.Empty(t, typesDeps, "types.go has no dependencies")
+}

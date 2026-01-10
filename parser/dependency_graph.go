@@ -1,8 +1,10 @@
 package parser
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -11,19 +13,26 @@ import (
 type DependencyGraph map[string][]string
 
 // BuildDependencyGraph analyzes a list of files and builds a dependency graph
-// containing only project imports (excluding package: and dart: imports).
+// containing only project imports (excluding package:/dart: imports for Dart,
+// and standard library/external imports for Go).
 // Only dependencies that are in the supplied file list are included in the graph.
 func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 	graph := make(DependencyGraph)
 
 	// First pass: build a set of all supplied file paths (as absolute paths)
+	// Also build a map from directories to files for Go package resolution
 	suppliedFiles := make(map[string]bool)
+	dirToFiles := make(map[string][]string)
 	for _, filePath := range filePaths {
 		absPath, err := filepath.Abs(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve path %s: %w", filePath, err)
 		}
 		suppliedFiles[absPath] = true
+
+		// Map directory to file for Go package imports
+		dir := filepath.Dir(absPath)
+		dirToFiles[dir] = append(dirToFiles[dir], absPath)
 	}
 
 	// Second pass: build the dependency graph
@@ -34,29 +43,64 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 			return nil, fmt.Errorf("failed to resolve path %s: %w", filePath, err)
 		}
 
-		// Check if this is a Dart file
-		if filepath.Ext(absPath) != ".dart" {
-			// Non-Dart files are included in the graph with no dependencies
+		ext := filepath.Ext(absPath)
+
+		// Check if this is a supported file type
+		if ext != ".dart" && ext != ".go" {
+			// Unsupported files are included in the graph with no dependencies
 			graph[absPath] = []string{}
 			continue
 		}
 
-		// Parse imports for Dart files
-		imports, err := Imports(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
-		}
-
-		// Filter for project imports only that are in the supplied file list
+		// Parse imports based on file type
 		var projectImports []string
-		for _, imp := range imports {
-			if projImp, ok := imp.(ProjectImport); ok {
-				// Resolve relative path to absolute
-				resolvedPath := resolveImportPath(absPath, projImp.URI())
 
-				// Only include if the dependency is in the supplied files
-				if suppliedFiles[resolvedPath] {
-					projectImports = append(projectImports, resolvedPath)
+		if ext == ".dart" {
+			imports, err := Imports(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+			}
+
+			// Filter for project imports only that are in the supplied file list
+			for _, imp := range imports {
+				if projImp, ok := imp.(ProjectImport); ok {
+					// Resolve relative path to absolute
+					resolvedPath := resolveImportPath(absPath, projImp.URI(), ext)
+
+					// Only include if the dependency is in the supplied files
+					if suppliedFiles[resolvedPath] {
+						projectImports = append(projectImports, resolvedPath)
+					}
+				}
+			}
+		} else if ext == ".go" {
+			imports, err := GoImports(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+			}
+
+			// Determine if this is a test file
+			isTestFile := strings.HasSuffix(absPath, "_test.go")
+
+			// Filter for internal imports only that are in the supplied file list
+			for _, imp := range imports {
+				if intImp, ok := imp.(InternalImport); ok {
+					// Resolve import path to package directory
+					packageDir := resolveGoImportPath(absPath, intImp.Path())
+
+					// Find all files in the supplied list that are in this package
+					if files, ok := dirToFiles[packageDir]; ok {
+						for _, depFile := range files {
+							// Don't add self-dependencies
+							if depFile != absPath {
+								// Non-test files should not depend on test files from imported packages
+								if !isTestFile && strings.HasSuffix(depFile, "_test.go") {
+									continue
+								}
+								projectImports = append(projectImports, depFile)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -64,23 +108,136 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 		graph[absPath] = projectImports
 	}
 
+	// Third pass: Add intra-package dependencies for Go files
+	// This handles dependencies between files in the same package (which don't import each other)
+	goFiles := []string{}
+	for _, filePath := range filePaths {
+		absPath, _ := filepath.Abs(filePath)
+		if filepath.Ext(absPath) == ".go" {
+			goFiles = append(goFiles, absPath)
+		}
+	}
+
+	if len(goFiles) > 0 {
+		intraDeps, err := BuildIntraPackageDependencies(goFiles)
+		if err != nil {
+			// Don't fail if intra-package analysis fails, just skip it
+			return graph, nil
+		}
+
+		// Merge intra-package dependencies into the graph
+		for file, deps := range intraDeps {
+			if existingDeps, ok := graph[file]; ok {
+				// Combine and deduplicate
+				depSet := make(map[string]bool)
+				for _, dep := range existingDeps {
+					depSet[dep] = true
+				}
+				for _, dep := range deps {
+					depSet[dep] = true
+				}
+
+				// Convert back to slice
+				merged := make([]string, 0, len(depSet))
+				for dep := range depSet {
+					merged = append(merged, dep)
+				}
+				graph[file] = merged
+			}
+		}
+	}
+
 	return graph, nil
 }
 
 // resolveImportPath converts a relative import URI to an absolute path
-func resolveImportPath(sourceFile, importURI string) string {
+func resolveImportPath(sourceFile, importURI, fileExt string) string {
 	// Get directory of source file
 	sourceDir := filepath.Dir(sourceFile)
 
 	// Resolve relative import
 	absImport := filepath.Join(sourceDir, importURI)
 
-	// Add .dart extension if not present
-	if !strings.HasSuffix(absImport, ".dart") {
-		absImport += ".dart"
+	// Add file extension if not present
+	if !strings.HasSuffix(absImport, fileExt) {
+		absImport += fileExt
 	}
 
 	return filepath.Clean(absImport)
+}
+
+// resolveGoImportPath resolves a Go import path to an absolute file path
+func resolveGoImportPath(sourceFile, importPath string) string {
+	// For Go files, we need to find the module root and resolve the import
+	// This is a simplified version that assumes the project follows standard Go module structure
+
+	// Find the go.mod file by walking up from the source file
+	moduleRoot := findModuleRoot(filepath.Dir(sourceFile))
+	if moduleRoot == "" {
+		// If no module root found, return empty string
+		return ""
+	}
+
+	// Get the module name from go.mod
+	moduleName := getModuleName(moduleRoot)
+	if moduleName == "" {
+		return ""
+	}
+
+	// Check if the import path starts with the module name
+	if !strings.HasPrefix(importPath, moduleName) {
+		// Not an internal import relative to this module
+		return ""
+	}
+
+	// Remove module name prefix to get relative path
+	relativePath := strings.TrimPrefix(importPath, moduleName+"/")
+
+	// Construct absolute path
+	absPath := filepath.Join(moduleRoot, relativePath)
+
+	// For Go, we don't add .go extension here because imports refer to packages (directories)
+	// We'll need to look for any .go file in that directory
+	// For now, we'll return the directory path
+	return filepath.Clean(absPath)
+}
+
+// findModuleRoot walks up the directory tree to find the go.mod file
+func findModuleRoot(startDir string) string {
+	dir := startDir
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			return dir
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root directory
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// getModuleName reads the module name from go.mod
+func getModuleName(moduleRoot string) string {
+	goModPath := filepath.Join(moduleRoot, "go.mod")
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module"))
+		}
+	}
+
+	return ""
 }
 
 // ToJSON converts the dependency graph to JSON format
