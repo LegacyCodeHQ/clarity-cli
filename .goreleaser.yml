@@ -1,0 +1,106 @@
+# GoReleaser configuration for Sanity CLI
+# Documentation: https://goreleaser.com
+version: 2
+
+# Build configuration
+# NOTE: This project uses CGO (tree-sitter C bindings), which makes cross-compilation
+# difficult. For production releases, use GitHub Actions which builds natively on each
+# platform. For local development, use 'make build-local' to build for your platform.
+builds:
+  - id: sanity
+    main: ./main.go
+    binary: sanity
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Exclude invalid combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+    # Inject version information
+    ldflags:
+      - -s -w
+      - -X sanity/cmd.version={{.Version}}
+      - -X sanity/cmd.buildDate={{.Date}}
+      - -X sanity/cmd.commit={{.ShortCommit}}
+
+# Archive configuration
+archives:
+  - id: sanity-archive
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+# Checksums for all archives
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# Generate changelog from git commits
+changelog:
+  use: github
+  sort: asc
+  abbrev: 7
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Documentation
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Other Changes
+      order: 999
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore:'
+      - typo
+
+# GitHub release configuration
+release:
+  github:
+    owner: LegacyCodeHQ
+    name: sanity
+  draft: false
+  prerelease: auto
+  mode: append
+  name_template: "v{{.Version}}"
+  header: |
+    ## Sanity v{{.Version}}
+
+    Release of Sanity CLI for analyzing and visualizing dependency graphs.
+  footer: |
+    **Full Changelog**: https://github.com/LegacyCodeHQ/sanity/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Homebrew tap (optional - uncomment if you want to create a Homebrew formula)
+# brews:
+#   - repository:
+#       owner: LegacyCodeHQ
+#       name: homebrew-tap
+#     folder: Formula
+#     homepage: https://github.com/LegacyCodeHQ/sanity
+#     description: CLI tool for analyzing and visualizing dependency graphs
+#     license: MIT
+#     install: |
+#       bin.install "sanity"
+
+# Snapcraft (optional - uncomment for Linux snap packages)
+# snapcrafts:
+#   - name: sanity
+#     summary: Analyze and visualize dependency graphs
+#     description: |
+#       Sanity is a CLI tool for analyzing and visualizing dependency graphs
+#       in your codebase, with support for Dart and Go files.
+#     grade: stable
+#     confinement: classic
+#     publish: true

@@ -9,3 +9,6 @@ coverage.html
 coverage.tmp
 *.coverprofile
 *.cover
+
+# goreleaser
+dist/

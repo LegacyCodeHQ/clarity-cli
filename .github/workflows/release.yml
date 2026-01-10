@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # Build binaries natively on each platform (required for CGO)
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Linux builds
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          # macOS builds
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          # Windows builds
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: |
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binary
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+        run: |
+          VERSION=${{ steps.version.outputs.tag }}
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMIT=$(git rev-parse --short HEAD)
+
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            OUTPUT="sanity-${{ matrix.goos }}-${{ matrix.goarch }}.exe"
+          else
+            OUTPUT="sanity-${{ matrix.goos }}-${{ matrix.goarch }}"
+          fi
+
+          go build -ldflags "-s -w -X sanity/cmd.version=${VERSION} -X sanity/cmd.buildDate=${BUILD_DATE} -X sanity/cmd.commit=${COMMIT}" -o "${OUTPUT}" ./main.go
+
+      - name: Create archive
+        shell: bash
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            ARCHIVE="sanity_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.zip"
+            7z a "${ARCHIVE}" "sanity-${{ matrix.goos }}-${{ matrix.goarch }}.exe" LICENSE README.md
+          else
+            ARCHIVE="sanity_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+            tar czf "${ARCHIVE}" "sanity-${{ matrix.goos }}-${{ matrix.goarch }}" LICENSE README.md
+          fi
+          echo "archive=${ARCHIVE}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanity-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.archive }}
+          retention-days: 1
+
+  # Create GitHub release and upload all artifacts
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          find . -name "*.tar.gz" -o -name "*.zip" | while read file; do
+            sha256sum "$file" >> ../checksums.txt
+          done
+          mv ../checksums.txt .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.zip
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
