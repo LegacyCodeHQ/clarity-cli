@@ -1,4 +1,4 @@
-package parsers
+package dart
 
 import (
 	"context"

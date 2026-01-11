@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sanity/parsers/dart"
+	"sanity/parsers/go"
 	"strings"
 )
 
@@ -56,14 +58,14 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 		var projectImports []string
 
 		if ext == ".dart" {
-			imports, err := Imports(filePath)
+			imports, err := dart.Imports(filePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 			}
 
 			// Filter for project imports only that are in the supplied file list
 			for _, imp := range imports {
-				if projImp, ok := imp.(ProjectImport); ok {
+				if projImp, ok := imp.(dart.ProjectImport); ok {
 					// Resolve relative path to absolute
 					resolvedPath := resolveImportPath(absPath, projImp.URI(), ext)
 
@@ -74,7 +76,7 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 				}
 			}
 		} else if ext == ".go" {
-			imports, err := GoImports(filePath)
+			imports, err := _go.GoImports(filePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 			}
@@ -84,7 +86,7 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 
 			// Filter for internal imports only that are in the supplied file list
 			for _, imp := range imports {
-				if intImp, ok := imp.(InternalImport); ok {
+				if intImp, ok := imp.(_go.InternalImport); ok {
 					// Resolve import path to package directory
 					packageDir := resolveGoImportPath(absPath, intImp.Path())
 
@@ -119,7 +121,7 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 	}
 
 	if len(goFiles) > 0 {
-		intraDeps, err := BuildIntraPackageDependencies(goFiles)
+		intraDeps, err := _go.BuildIntraPackageDependencies(goFiles)
 		if err != nil {
 			// Don't fail if intra-package analysis fails, just skip it
 			return graph, nil

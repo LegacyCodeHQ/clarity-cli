@@ -1,4 +1,4 @@
-package parsers
+package _go
 
 import (
 	"os"
