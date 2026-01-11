@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"sanity/git"
 	"strings"
 )
 
@@ -23,6 +24,23 @@ func ExtractGoSymbols(filePath string) (*GoSymbolInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return extractSymbolsFromAST(filePath, node)
+}
+
+// ExtractGoSymbolsFromContent analyzes Go source code and extracts defined and referenced symbols
+func ExtractGoSymbolsFromContent(filePath string, content []byte) (*GoSymbolInfo, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filePath, content, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractSymbolsFromAST(filePath, node)
+}
+
+// extractSymbolsFromAST extracts symbols from a parsed AST
+func extractSymbolsFromAST(filePath string, node *ast.File) (*GoSymbolInfo, error) {
 
 	info := &GoSymbolInfo{
 		FilePath:   filePath,
@@ -110,7 +128,8 @@ func ExtractGoSymbols(filePath string) (*GoSymbolInfo, error) {
 }
 
 // BuildIntraPackageDependencies builds dependencies between files in the same Go package
-func BuildIntraPackageDependencies(filePaths []string) (map[string][]string, error) {
+// If repoPath and commitID are provided, files are read from the git commit instead of the filesystem
+func BuildIntraPackageDependencies(filePaths []string, repoPath, commitID string) (map[string][]string, error) {
 	// Group files by package
 	packageFiles := make(map[string][]string)
 	for _, filePath := range filePaths {
@@ -137,7 +156,30 @@ func BuildIntraPackageDependencies(filePaths []string) (map[string][]string, err
 
 		// Extract symbols from all files in the package
 		for _, file := range files {
-			info, err := ExtractGoSymbols(file)
+			var info *GoSymbolInfo
+			var err error
+
+			if repoPath != "" && commitID != "" {
+				// Read file from git commit
+				// Convert absolute path to relative path for git
+				absRepoPath, _ := filepath.Abs(repoPath)
+				relPath, err := filepath.Rel(absRepoPath, file)
+				if err != nil {
+					// Skip files we can't resolve
+					continue
+				}
+
+				content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
+				if err != nil {
+					// Skip files that can't be read from commit
+					continue
+				}
+				info, err = ExtractGoSymbolsFromContent(file, content)
+			} else {
+				// Read file from filesystem
+				info, err = ExtractGoSymbols(file)
+			}
+
 			if err != nil {
 				// Skip files that can't be parsed
 				continue

@@ -71,7 +71,7 @@ func TestBuildDependencyGraph(t *testing.T) {
 
 	// Build dependency graph
 	files := []string{mainPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -98,14 +98,14 @@ func TestBuildDependencyGraph(t *testing.T) {
 }
 
 func TestBuildDependencyGraph_EmptyFileList(t *testing.T) {
-	graph, err := BuildDependencyGraph([]string{})
+	graph, err := BuildDependencyGraph([]string{}, "", "")
 
 	require.NoError(t, err)
 	assert.Empty(t, graph)
 }
 
 func TestBuildDependencyGraph_NonexistentFile(t *testing.T) {
-	_, err := BuildDependencyGraph([]string{"/nonexistent/file.dart"})
+	_, err := BuildDependencyGraph([]string{"/nonexistent/file.dart"}, "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse imports")
@@ -145,7 +145,7 @@ func TestBuildDependencyGraph_FiltersNonSuppliedFiles(t *testing.T) {
 	// Build dependency graph with only main.dart and helper.dart
 	// (utils.dart is NOT supplied, so it should be filtered out)
 	files := []string{mainPath, helperPath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 2)
@@ -214,7 +214,7 @@ func TestBuildDependencyGraph_IncludesNonDartFiles(t *testing.T) {
 
 	// Build dependency graph with all files
 	files := []string{dartPath, goPath, readmePath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 3, "graph should include all files")
@@ -312,7 +312,7 @@ type Validator struct {}
 	// Note: Go imports refer to packages (directories), but the graph maps
 	// file to file dependencies (all files in the imported package)
 	files := []string{mainPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -398,7 +398,7 @@ func Helper() {}
 
 	// Build dependency graph with both Dart and Go files
 	files := []string{dartPath, helperPath, goPath, utilsPath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -472,7 +472,7 @@ func main() {
 
 	// Build dependency graph
 	files := []string{typesPath, helpersPath, mainPath}
-	graph, err := BuildDependencyGraph(files)
+	graph, err := BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 3)

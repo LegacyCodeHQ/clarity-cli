@@ -222,3 +222,27 @@ func getCommitFiles(repoPath, commitID string) ([]string, error) {
 
 	return files, nil
 }
+
+// GetFileContentFromCommit reads the content of a file at a specific commit
+// using 'git show commit:path'. The filePath should be relative to the repository root.
+func GetFileContentFromCommit(repoPath, commitID, filePath string) ([]byte, error) {
+	// Format: commit:path
+	ref := fmt.Sprintf("%s:%s", commitID, filePath)
+
+	cmd := exec.Command("git", "show", ref)
+	cmd.Dir = repoPath
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		if stderr.Len() > 0 {
+			return nil, fmt.Errorf("git show failed: %s", stderr.String())
+		}
+		return nil, err
+	}
+
+	return stdout.Bytes(), nil
+}

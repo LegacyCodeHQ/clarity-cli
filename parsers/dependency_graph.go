@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sanity/git"
 	"sanity/parsers/dart"
 	"sanity/parsers/go"
 	"strings"
@@ -18,7 +19,8 @@ type DependencyGraph map[string][]string
 // containing only project imports (excluding package:/dart: imports for Dart,
 // and standard library/external imports for Go).
 // Only dependencies that are in the supplied file list are included in the graph.
-func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
+// If repoPath and commitID are provided, files are read from the git commit instead of the filesystem.
+func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (DependencyGraph, error) {
 	graph := make(DependencyGraph)
 
 	// First pass: build a set of all supplied file paths (as absolute paths)
@@ -58,7 +60,22 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 		var projectImports []string
 
 		if ext == ".dart" {
-			imports, err := dart.Imports(filePath)
+			var imports []dart.Import
+			var err error
+
+			if repoPath != "" && commitID != "" {
+				// Read file from git commit
+				relPath := getRelativePath(absPath, repoPath)
+				content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read %s from commit %s: %w", relPath, commitID, err)
+				}
+				imports, err = dart.ParseImports(content)
+			} else {
+				// Read file from filesystem
+				imports, err = dart.Imports(filePath)
+			}
+
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 			}
@@ -76,7 +93,22 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 				}
 			}
 		} else if ext == ".go" {
-			imports, err := _go.GoImports(filePath)
+			var imports []_go.GoImport
+			var err error
+
+			if repoPath != "" && commitID != "" {
+				// Read file from git commit
+				relPath := getRelativePath(absPath, repoPath)
+				content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read %s from commit %s: %w", relPath, commitID, err)
+				}
+				imports, err = _go.ParseGoImports(content)
+			} else {
+				// Read file from filesystem
+				imports, err = _go.GoImports(filePath)
+			}
+
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 			}
@@ -121,7 +153,7 @@ func BuildDependencyGraph(filePaths []string) (DependencyGraph, error) {
 	}
 
 	if len(goFiles) > 0 {
-		intraDeps, err := _go.BuildIntraPackageDependencies(goFiles)
+		intraDeps, err := _go.BuildIntraPackageDependencies(goFiles, repoPath, commitID)
 		if err != nil {
 			// Don't fail if intra-package analysis fails, just skip it
 			return graph, nil
@@ -285,4 +317,28 @@ func (g DependencyGraph) ToDOT() string {
 
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+// getRelativePath converts an absolute file path to a path relative to the repository root
+func getRelativePath(absPath, repoPath string) string {
+	// Get absolute repository path
+	absRepoPath, err := filepath.Abs(repoPath)
+	if err != nil {
+		// If we can't get absolute path, try relative path as-is
+		relPath, err := filepath.Rel(repoPath, absPath)
+		if err != nil {
+			// Fallback to using the absolute path
+			return absPath
+		}
+		return relPath
+	}
+
+	// Get path relative to repository root
+	relPath, err := filepath.Rel(absRepoPath, absPath)
+	if err != nil {
+		// Fallback to using the absolute path
+		return absPath
+	}
+
+	return relPath
 }

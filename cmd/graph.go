@@ -85,7 +85,8 @@ Example usage:
 		}
 
 		// Build the dependency graph
-		graph, err := parsers.BuildDependencyGraph(filePaths)
+		// Pass repoPath and commitID if we're analyzing a commit (otherwise pass empty strings)
+		graph, err := parsers.BuildDependencyGraph(filePaths, repoPath, commitID)
 		if err != nil {
 			return fmt.Errorf("failed to build dependency graph: %w", err)
 		}
