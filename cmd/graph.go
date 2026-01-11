@@ -33,11 +33,11 @@ Output formats:
   - json: JSON format
 
 Example usage:
-  sanity graph file1.dart file2.dart file3.dart
   sanity graph
   sanity graph --commit 8d4f78
   sanity graph --commit 8d4f78 --format=json
-  sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot`,
+  sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
+  sanity graph file1.dart file2.dart file3.dart`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var filePaths []string
 		var err error
