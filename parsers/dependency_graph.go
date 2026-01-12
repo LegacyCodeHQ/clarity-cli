@@ -10,7 +10,7 @@ import (
 
 	"github.com/LegacyCodeHQ/sanity/git"
 	"github.com/LegacyCodeHQ/sanity/parsers/dart"
-	"github.com/LegacyCodeHQ/sanity/parsers/go"
+	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
 )
 
 // DependencyGraph represents a mapping from file paths to their project dependencies
@@ -355,6 +355,38 @@ func (g DependencyGraph) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(g, "", "  ")
 }
 
+// GetExtensionColors takes a list of file names and returns a map containing
+// file extensions and corresponding colors. Each unique extension is assigned
+// a color from a predefined palette.
+func GetExtensionColors(fileNames []string) map[string]string {
+	// Available colors for dynamic assignment to extensions
+	availableColors := []string{
+		"lightblue", "lightyellow", "mistyrose", "lightcyan", "lightsalmon",
+		"lightpink", "lavender", "peachpuff", "plum", "powderblue", "khaki",
+		"palegreen", "palegoldenrod", "paleturquoise", "thistle",
+	}
+
+	// Extract unique extensions from file names
+	uniqueExtensions := make(map[string]bool)
+	for _, fileName := range fileNames {
+		ext := filepath.Ext(fileName)
+		if ext != "" {
+			uniqueExtensions[ext] = true
+		}
+	}
+
+	// Assign colors to extensions
+	extensionColors := make(map[string]string)
+	colorIndex := 0
+	for ext := range uniqueExtensions {
+		color := availableColors[colorIndex%len(availableColors)]
+		extensionColors[ext] = color
+		colorIndex++
+	}
+
+	return extensionColors
+}
+
 // ToDOT converts the dependency graph to Graphviz DOT format
 func (g DependencyGraph) ToDOT() string {
 	var sb strings.Builder
@@ -362,19 +394,38 @@ func (g DependencyGraph) ToDOT() string {
 	sb.WriteString("  rankdir=LR;\n")
 	sb.WriteString("  node [shape=box];\n\n")
 
-	// Find all files with the most dependencies (nodes)
-	maxDeps := 0
-	for _, deps := range g {
-		if len(deps) > maxDeps {
-			maxDeps = len(deps)
+	// Collect all file paths from the graph to determine extension colors
+	filePaths := make([]string, 0, len(g))
+	for source := range g {
+		filePaths = append(filePaths, source)
+	}
+
+	// Get extension colors using the shared function
+	extensionColors := GetExtensionColors(filePaths)
+
+	// Count files by extension to find the majority extension
+	extensionCounts := make(map[string]int)
+	for source := range g {
+		ext := filepath.Ext(filepath.Base(source))
+		extensionCounts[ext]++
+	}
+
+	// Find the extension with the majority count
+	maxCount := 0
+	majorityExtension := ""
+	for ext, count := range extensionCounts {
+		if count > maxCount {
+			maxCount = count
+			majorityExtension = ext
 		}
 	}
 
-	// Track all files that have the maximum dependency count
-	filesWithMostDeps := make(map[string]bool)
-	for source, deps := range g {
-		if len(deps) == maxDeps {
-			filesWithMostDeps[source] = true
+	// Track all files that have the majority extension
+	filesWithMajorityExtension := make(map[string]bool)
+	for source := range g {
+		ext := filepath.Ext(filepath.Base(source))
+		if ext == majorityExtension {
+			filesWithMajorityExtension[source] = true
 		}
 	}
 
@@ -386,27 +437,13 @@ func (g DependencyGraph) ToDOT() string {
 	}
 	hasMultipleExtensions := len(uniqueExtensions) > 1
 
-	// Available colors for dynamic assignment to extensions
-	availableColors := []string{
-		"lightblue", "lightyellow", "mistyrose", "lightcyan", "lightsalmon",
-		"lightpink", "lavender", "peachpuff", "plum", "powderblue", "khaki",
-		"palegreen", "palegoldenrod", "paleturquoise", "thistle",
-	}
-
-	// Dynamically assign colors to extensions as they are encountered
-	extensionColors := make(map[string]string)
-	colorIndex := 0
-
 	// Helper function to get color for an extension
 	getColorForExtension := func(ext string) string {
 		if color, ok := extensionColors[ext]; ok {
 			return color
 		}
-		// Assign a new color to this extension
-		color := availableColors[colorIndex%len(availableColors)]
-		extensionColors[ext] = color
-		colorIndex++
-		return color
+		// If extension not found (e.g., empty extension), return white as default
+		return "white"
 	}
 
 	// Helper function to check if a file is a test file
@@ -439,8 +476,8 @@ func (g DependencyGraph) ToDOT() string {
 			// Priority 1: Test files are always light green
 			if isTestFile(source) {
 				color = "lightgreen"
-			} else if maxDeps > 0 && filesWithMostDeps[source] {
-				// Priority 2: Files with most dependencies are always white (only when there are actual dependencies)
+			} else if filesWithMajorityExtension[source] {
+				// Priority 2: Files with majority extension count are always white
 				color = "white"
 			} else if hasMultipleExtensions {
 				// Priority 3: Color based on extension (only if multiple extensions exist)
