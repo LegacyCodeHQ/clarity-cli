@@ -97,6 +97,26 @@ Example usage:
 			return fmt.Errorf("failed to build dependency graph: %w", err)
 		}
 
+		// Get file statistics for DOT format
+		var fileStats map[string]git.FileStats
+		if outputFormat == "dot" && repoPath != "" {
+			if commitID != "" {
+				// Get stats for committed changes
+				fileStats, err = git.GetCommitFileStats(repoPath, commitID)
+				if err != nil {
+					// Don't fail if we can't get stats, just log and continue without them
+					fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to get file statistics: %v\n", err)
+				}
+			} else {
+				// Get stats for uncommitted changes
+				fileStats, err = git.GetUncommittedFileStats(repoPath)
+				if err != nil {
+					// Don't fail if we can't get stats, just log and continue without them
+					fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to get file statistics: %v\n", err)
+				}
+			}
+		}
+
 		// Build label with commit hash and dirty status for DOT format
 		var label string
 		if outputFormat == "dot" {
@@ -138,7 +158,7 @@ Example usage:
 			fmt.Println(output)
 
 		case "dot":
-			output = graph.ToDOT(label)
+			output = graph.ToDOT(label, fileStats)
 
 			// Generate GraphvizOnline URL if requested
 			if generateURL {

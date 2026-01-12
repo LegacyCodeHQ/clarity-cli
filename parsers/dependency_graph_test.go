@@ -182,7 +182,7 @@ func TestDependencyGraph_ToDOT(t *testing.T) {
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	assert.Contains(t, dot, "digraph dependencies")
 	assert.Contains(t, dot, "main.dart")
@@ -199,17 +199,19 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen(t *testing.T) {
 		"/project/utils_test.go": {"/project/utils.go"},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// Test files should be light green
 	assert.Contains(t, dot, "main_test.go")
 	assert.Contains(t, dot, "utils_test.go")
-	assert.Contains(t, dot, `"main_test.go" [style=filled, fillcolor=lightgreen]`)
-	assert.Contains(t, dot, `"utils_test.go" [style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"main_test.go" [label="main_test.go", style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"utils_test.go" [label="utils_test.go", style=filled, fillcolor=lightgreen]`)
 
 	// Non-test files should not be light green
-	assert.NotContains(t, dot, `"main.go" [style=filled, fillcolor=lightgreen]`)
-	assert.NotContains(t, dot, `"utils.go" [style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"utils.go" [label="utils.go", style=filled, fillcolor=white]`)
+	assert.NotContains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=lightgreen]`)
+	assert.NotContains(t, dot, `"utils.go" [label="utils.go", style=filled, fillcolor=lightgreen]`)
 }
 
 func TestDependencyGraph_ToDOT_TestFilesAreLightGreen_Dart(t *testing.T) {
@@ -221,17 +223,17 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen_Dart(t *testing.T) {
 		"/project/test/utils_test.dart": {"/project/lib/utils.dart"},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// Test files should be light green
 	assert.Contains(t, dot, "main_test.dart")
 	assert.Contains(t, dot, "utils_test.dart")
-	assert.Contains(t, dot, `"main_test.dart" [style=filled, fillcolor=lightgreen]`)
-	assert.Contains(t, dot, `"utils_test.dart" [style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"main_test.dart" [label="main_test.dart", style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"utils_test.dart" [label="utils_test.dart", style=filled, fillcolor=lightgreen]`)
 
 	// Non-test files should not be light green
-	assert.NotContains(t, dot, `"main.dart" [style=filled, fillcolor=lightgreen]`)
-	assert.NotContains(t, dot, `"utils.dart" [style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"main.dart" [label="main.dart", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"utils.dart" [label="utils.dart", style=filled, fillcolor=white]`)
 }
 
 func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
@@ -246,22 +248,22 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// All .go files (majority extension) should be white
-	assert.Contains(t, dot, `"main.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"utils.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"types.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"helpers.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"config.go" [style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"utils.go" [label="utils.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"types.go" [label="types.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"helpers.go" [label="helpers.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"config.go" [label="config.go", style=filled, fillcolor=white]`)
 
 	// .dart files (minority extension) should have a different color (not white)
 	// They should have a color from the extension color palette
 	assert.Contains(t, dot, "main.dart")
 	assert.Contains(t, dot, "utils.dart")
 	// Verify they are not white
-	assert.NotContains(t, dot, `"main.dart" [style=filled, fillcolor=white]`)
-	assert.NotContains(t, dot, `"utils.dart" [style=filled, fillcolor=white]`)
+	assert.NotContains(t, dot, `"main.dart" [label="main.dart", style=filled, fillcolor=white]`)
+	assert.NotContains(t, dot, `"utils.dart" [label="utils.dart", style=filled, fillcolor=white]`)
 }
 
 func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing.T) {
@@ -275,20 +277,20 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing
 		"/project/main.dart":     {},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// Test files should be light green (priority over majority extension)
-	assert.Contains(t, dot, `"main_test.go" [style=filled, fillcolor=lightgreen]`)
-	assert.Contains(t, dot, `"utils_test.go" [style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"main_test.go" [label="main_test.go", style=filled, fillcolor=lightgreen]`)
+	assert.Contains(t, dot, `"utils_test.go" [label="utils_test.go", style=filled, fillcolor=lightgreen]`)
 
 	// Non-test .go files (majority extension) should be white
-	assert.Contains(t, dot, `"main.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"utils.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"types.go" [style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"utils.go" [label="utils.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"types.go" [label="types.go", style=filled, fillcolor=white]`)
 
 	// .dart file (minority extension) should not be white
 	assert.Contains(t, dot, "main.dart")
-	assert.NotContains(t, dot, `"main.dart" [style=filled, fillcolor=white]`)
+	assert.NotContains(t, dot, `"main.dart" [label="main.dart", style=filled, fillcolor=white]`)
 }
 
 func TestDependencyGraph_ToDOT_MajorityExtensionTie(t *testing.T) {
@@ -300,14 +302,14 @@ func TestDependencyGraph_ToDOT_MajorityExtensionTie(t *testing.T) {
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// One extension should be white (the one chosen as majority)
 	// The other should have a different color
-	goIsWhite := strings.Contains(dot, `"main.go" [style=filled, fillcolor=white]`) &&
-		strings.Contains(dot, `"utils.go" [style=filled, fillcolor=white]`)
-	dartIsWhite := strings.Contains(dot, `"main.dart" [style=filled, fillcolor=white]`) &&
-		strings.Contains(dot, `"utils.dart" [style=filled, fillcolor=white]`)
+	goIsWhite := strings.Contains(dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`) &&
+		strings.Contains(dot, `"utils.go" [label="utils.go", style=filled, fillcolor=white]`)
+	dartIsWhite := strings.Contains(dot, `"main.dart" [label="main.dart", style=filled, fillcolor=white]`) &&
+		strings.Contains(dot, `"utils.dart" [label="utils.dart", style=filled, fillcolor=white]`)
 
 	// Exactly one extension should be white (not both)
 	assert.True(t, goIsWhite != dartIsWhite, "Exactly one extension should be white, not both")
@@ -321,12 +323,12 @@ func TestDependencyGraph_ToDOT_SingleExtensionAllWhite(t *testing.T) {
 		"/project/types.go": {},
 	}
 
-	dot := graph.ToDOT("")
+	dot := graph.ToDOT("", nil)
 
 	// All files should be white (single extension)
-	assert.Contains(t, dot, `"main.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"utils.go" [style=filled, fillcolor=white]`)
-	assert.Contains(t, dot, `"types.go" [style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"utils.go" [label="utils.go", style=filled, fillcolor=white]`)
+	assert.Contains(t, dot, `"types.go" [label="types.go", style=filled, fillcolor=white]`)
 }
 
 func TestBuildDependencyGraph_IncludesNonDartFiles(t *testing.T) {

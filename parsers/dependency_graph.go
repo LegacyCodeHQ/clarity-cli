@@ -389,7 +389,8 @@ func GetExtensionColors(fileNames []string) map[string]string {
 
 // ToDOT converts the dependency graph to Graphviz DOT format
 // If label is not empty, it will be displayed at the top of the graph
-func (g DependencyGraph) ToDOT(label string) string {
+// If fileStats is provided, additions/deletions will be shown in node labels
+func (g DependencyGraph) ToDOT(label string, fileStats map[string]git.FileStats) string {
 	var sb strings.Builder
 	sb.WriteString("digraph dependencies {\n")
 	sb.WriteString("  rankdir=LR;\n")
@@ -499,7 +500,26 @@ func (g DependencyGraph) ToDOT(label string) string {
 				color = "white"
 			}
 
-			sb.WriteString(fmt.Sprintf("  %q [style=filled, fillcolor=%s];\n", sourceBase, color))
+			// Build node label with file stats if available
+			nodeLabel := sourceBase
+			if fileStats != nil {
+				if stats, ok := fileStats[source]; ok {
+					if stats.Additions > 0 || stats.Deletions > 0 {
+						var statsParts []string
+						if stats.Additions > 0 {
+							statsParts = append(statsParts, fmt.Sprintf("+%d", stats.Additions))
+						}
+						if stats.Deletions > 0 {
+							statsParts = append(statsParts, fmt.Sprintf("-%d", stats.Deletions))
+						}
+						if len(statsParts) > 0 {
+							nodeLabel = fmt.Sprintf("%s\n%s", sourceBase, strings.Join(statsParts, " "))
+						}
+					}
+				}
+			}
+
+			sb.WriteString(fmt.Sprintf("  %q [label=%q, style=filled, fillcolor=%s];\n", sourceBase, nodeLabel, color))
 			styledNodes[sourceBase] = true
 		}
 	}
