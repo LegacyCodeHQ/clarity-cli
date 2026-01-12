@@ -117,23 +117,39 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 			// Determine if this is a test file
 			isTestFile := strings.HasSuffix(absPath, "_test.go")
 
-			// Filter for internal imports only that are in the supplied file list
+			// Filter for internal imports (including those that look external but are part of the module)
 			for _, imp := range imports {
-				if intImp, ok := imp.(_go.InternalImport); ok {
-					// Resolve import path to package directory
-					packageDir := resolveGoImportPath(absPath, intImp.Path())
+				var importPath string
 
-					// Find all files in the supplied list that are in this package
-					if files, ok := dirToFiles[packageDir]; ok {
-						for _, depFile := range files {
-							// Don't add self-dependencies
-							if depFile != absPath {
-								// Non-test files should not depend on test files from imported packages
-								if !isTestFile && strings.HasSuffix(depFile, "_test.go") {
-									continue
-								}
-								projectImports = append(projectImports, depFile)
+				// Check both InternalImport and ExternalImport types
+				// resolveGoImportPath will determine if they're actually part of this module
+				switch typedImp := imp.(type) {
+				case _go.InternalImport:
+					importPath = typedImp.Path()
+				case _go.ExternalImport:
+					importPath = typedImp.Path()
+				default:
+					continue
+				}
+
+				// Resolve import path to package directory
+				packageDir := resolveGoImportPath(absPath, importPath, repoPath, commitID)
+
+				// Skip if packageDir is empty (means it's truly external or couldn't be resolved)
+				if packageDir == "" {
+					continue
+				}
+
+				// Find all files in the supplied list that are in this package
+				if files, ok := dirToFiles[packageDir]; ok {
+					for _, depFile := range files {
+						// Don't add self-dependencies
+						if depFile != absPath {
+							// Non-test files should not depend on test files from imported packages
+							if !isTestFile && strings.HasSuffix(depFile, "_test.go") {
+								continue
 							}
+							projectImports = append(projectImports, depFile)
 						}
 					}
 				}
@@ -202,7 +218,8 @@ func resolveImportPath(sourceFile, importURI, fileExt string) string {
 }
 
 // resolveGoImportPath resolves a Go import path to an absolute file path
-func resolveGoImportPath(sourceFile, importPath string) string {
+// If repoPath and commitID are provided, it reads go.mod from the commit; otherwise from filesystem
+func resolveGoImportPath(sourceFile, importPath, repoPath, commitID string) string {
 	// For Go files, we need to find the module root and resolve the import
 	// This is a simplified version that assumes the project follows standard Go module structure
 
@@ -213,11 +230,18 @@ func resolveGoImportPath(sourceFile, importPath string) string {
 		return ""
 	}
 
-	// Get the module name from go.mod
-	moduleName := getModuleName(moduleRoot)
+	// Get the module name from go.mod (from commit if analyzing a commit, otherwise from filesystem)
+	var moduleName string
+	if repoPath != "" && commitID != "" {
+		moduleName = getModuleNameFromCommit(repoPath, commitID, moduleRoot)
+	} else {
+		moduleName = getModuleName(moduleRoot)
+	}
+
 	if moduleName == "" {
 		return ""
 	}
+
 
 	// Check if the import path starts with the module name
 	if !strings.HasPrefix(importPath, moduleName) {
@@ -230,6 +254,7 @@ func resolveGoImportPath(sourceFile, importPath string) string {
 
 	// Construct absolute path
 	absPath := filepath.Join(moduleRoot, relativePath)
+
 
 	// For Go, we don't add .go extension here because imports refer to packages (directories)
 	// We'll need to look for any .go file in that directory
@@ -265,6 +290,47 @@ func getModuleName(moduleRoot string) string {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module"))
+		}
+	}
+
+	return ""
+}
+
+// getModuleNameFromCommit reads the module name from go.mod at a specific commit
+func getModuleNameFromCommit(repoPath, commitID, moduleRoot string) string {
+	// Get absolute repo path
+	absRepoPath, err := filepath.Abs(repoPath)
+	if err != nil {
+		return ""
+	}
+
+	// Get relative path from repo root to module root
+	relPath, err := filepath.Rel(absRepoPath, moduleRoot)
+	if err != nil {
+		// If moduleRoot is not under repoPath, try reading from the commit root
+		relPath = ""
+	}
+
+	// Construct path to go.mod in the commit
+	var goModPath string
+	if relPath != "" && relPath != "." {
+		goModPath = filepath.Join(relPath, "go.mod")
+	} else {
+		goModPath = "go.mod"
+	}
+
+	// Read go.mod from the commit
+	content, err := git.GetFileContentFromCommit(repoPath, commitID, goModPath)
+	if err != nil {
+		return ""
+	}
+
+	// Parse the module name from the content
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "module ") {
