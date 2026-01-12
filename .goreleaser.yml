@@ -87,12 +87,15 @@ brews:
   - repository:
       owner: LegacyCodeHQ
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     folder: Formula
     homepage: https://github.com/LegacyCodeHQ/sanity
     description: CLI tool for analyzing and visualizing dependency graphs
     license: MIT
     install: |
       bin.install "sanity"
+    test: |
+      system "#{bin}/sanity", "--version"
 
 # Snapcraft (optional - uncomment for Linux snap packages)
 # snapcrafts:
