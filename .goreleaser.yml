@@ -102,7 +102,6 @@ release:
   mode: append
   name_template: "v{{.Version}}"
   header: |
-    ## Changelog
   footer: |
     **Full Changelog**: https://github.com/LegacyCodeHQ/sanity/compare/{{ .PreviousTag }}...{{ .Tag }}
 
