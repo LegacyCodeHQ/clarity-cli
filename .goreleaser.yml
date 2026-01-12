@@ -82,17 +82,17 @@ release:
   footer: |
     **Full Changelog**: https://github.com/LegacyCodeHQ/sanity/compare/{{ .PreviousTag }}...{{ .Tag }}
 
-# Homebrew tap (optional - uncomment if you want to create a Homebrew formula)
-# brews:
-#   - repository:
-#       owner: LegacyCodeHQ
-#       name: homebrew-tap
-#     folder: Formula
-#     homepage: https://github.com/LegacyCodeHQ/sanity
-#     description: CLI tool for analyzing and visualizing dependency graphs
-#     license: MIT
-#     install: |
-#       bin.install "sanity"
+# Homebrew tap
+brews:
+  - repository:
+      owner: LegacyCodeHQ
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/LegacyCodeHQ/sanity
+    description: CLI tool for analyzing and visualizing dependency graphs
+    license: MIT
+    install: |
+      bin.install "sanity"
 
 # Snapcraft (optional - uncomment for Linux snap packages)
 # snapcrafts:
