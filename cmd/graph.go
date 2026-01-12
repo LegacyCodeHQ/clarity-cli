@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/LegacyCodeHQ/sanity/git"
 	"github.com/LegacyCodeHQ/sanity/parsers"
@@ -13,6 +14,7 @@ import (
 var outputFormat string
 var repoPath string
 var commitID string
+var generateURL bool
 
 // graphCmd represents the graph command
 var graphCmd = &cobra.Command{
@@ -35,10 +37,12 @@ Output formats:
 
 Example usage:
   sanity graph
+  sanity graph --url
   sanity graph --commit 8d4f78
   sanity graph --commit 8d4f78 --format=json
   sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
-  sanity graph file1.dart file2.dart file3.dart`,
+  sanity graph file1.dart file2.dart file3.dart
+  sanity graph --url --commit 8d4f78`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var filePaths []string
 		var err error
@@ -105,7 +109,14 @@ Example usage:
 
 		case "dot":
 			output = graph.ToDOT()
-			fmt.Print(output)
+
+			// Generate GraphvizOnline URL if requested
+			if generateURL {
+				vizURL := generateGraphvizOnlineURL(output)
+				fmt.Println(vizURL)
+			} else {
+				fmt.Print(output)
+			}
 
 		default:
 			return fmt.Errorf("unknown output format: %s (valid options: dot, json)", outputFormat)
@@ -123,6 +134,15 @@ Example usage:
 	},
 }
 
+// generateGraphvizOnlineURL creates a URL for GraphvizOnline with the DOT graph embedded
+func generateGraphvizOnlineURL(dotGraph string) string {
+	// URL encode the DOT graph for use in fragment (spaces as %20, not +)
+	encoded := url.PathEscape(dotGraph)
+
+	// Create the GraphvizOnline URL with the encoded graph
+	return fmt.Sprintf("https://dreampuf.github.io/GraphvizOnline/?engine=dot#%s", encoded)
+}
+
 func init() {
 	// Add format flag
 	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json)")
@@ -130,4 +150,6 @@ func init() {
 	graphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag
 	graphCmd.Flags().StringVarP(&commitID, "commit", "c", "", "Git commit to analyze")
+	// Add URL flag
+	graphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate GraphvizOnline URL for visualization")
 }
