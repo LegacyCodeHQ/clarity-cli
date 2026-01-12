@@ -242,7 +242,6 @@ func resolveGoImportPath(sourceFile, importPath, repoPath, commitID string) stri
 		return ""
 	}
 
-
 	// Check if the import path starts with the module name
 	if !strings.HasPrefix(importPath, moduleName) {
 		// Not an internal import relative to this module
@@ -254,7 +253,6 @@ func resolveGoImportPath(sourceFile, importPath, repoPath, commitID string) stri
 
 	// Construct absolute path
 	absPath := filepath.Join(moduleRoot, relativePath)
-
 
 	// For Go, we don't add .go extension here because imports refer to packages (directories)
 	// We'll need to look for any .go file in that directory
@@ -379,9 +377,8 @@ func (g DependencyGraph) ToDOT() string {
 
 	// Available colors for dynamic assignment to extensions
 	availableColors := []string{
-		"lightblue", "lightyellow", "lightcoral", "lightcyan",
-		"lightsalmon", "lightpink", "lavender", "mistyrose",
-		"peachpuff", "plum", "powderblue", "khaki",
+		"lightblue", "lightyellow", "mistyrose", "lightcyan", "lightsalmon",
+		"lightpink", "lavender", "peachpuff", "plum", "powderblue", "khaki",
 		"palegreen", "palegoldenrod", "paleturquoise", "thistle",
 	}
 
@@ -431,8 +428,8 @@ func (g DependencyGraph) ToDOT() string {
 			// Priority 1: Test files are always light green
 			if isTestFile(source) {
 				color = "lightgreen"
-			} else if filesWithMostDeps[source] {
-				// Priority 2: Files with most dependencies are always white
+			} else if maxDeps > 0 && filesWithMostDeps[source] {
+				// Priority 2: Files with most dependencies are always white (only when there are actual dependencies)
 				color = "white"
 			} else if hasMultipleExtensions {
 				// Priority 3: Color based on extension (only if multiple extensions exist)
