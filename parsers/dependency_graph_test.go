@@ -98,6 +98,46 @@ func TestBuildDependencyGraph(t *testing.T) {
 	assert.Empty(t, validatorDeps)
 }
 
+func TestBuildDependencyGraph_KotlinSamePackageReferences(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	clientContent := `
+package com.example
+
+interface LicensingClient {
+  fun activate(request: ActivateLicenseRequest): ActivateLicenseResponse
+}
+`
+	clientPath := filepath.Join(tmpDir, "LicensingClient.kt")
+	require.NoError(t, os.WriteFile(clientPath, []byte(clientContent), 0644))
+
+	requestContent := `
+package com.example
+
+data class ActivateLicenseRequest(val token: String)
+`
+	requestPath := filepath.Join(tmpDir, "ActivateLicenseRequest.kt")
+	require.NoError(t, os.WriteFile(requestPath, []byte(requestContent), 0644))
+
+	responseContent := `
+package com.example
+
+data class ActivateLicenseResponse(val license: String)
+`
+	responsePath := filepath.Join(tmpDir, "ActivateLicenseResponse.kt")
+	require.NoError(t, os.WriteFile(responsePath, []byte(responseContent), 0644))
+
+	files := []string{clientPath, requestPath, responsePath}
+	graph, err := BuildDependencyGraph(files, "", "")
+	require.NoError(t, err)
+
+	deps := graph[clientPath]
+	assert.Contains(t, deps, requestPath)
+	assert.Contains(t, deps, responsePath)
+	assert.Empty(t, graph[requestPath])
+	assert.Empty(t, graph[responsePath])
+}
+
 func TestBuildDependencyGraph_EmptyFileList(t *testing.T) {
 	graph, err := BuildDependencyGraph([]string{}, "", "")
 

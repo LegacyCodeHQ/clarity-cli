@@ -335,3 +335,41 @@ func TestClassifyWithProjectPackages(t *testing.T) {
 	assert.IsType(t, StandardLibraryImport{}, reclassified[2])
 	assert.Equal(t, "kotlin.collections.List", reclassified[2].Path())
 }
+
+func TestExtractTopLevelTypeNames(t *testing.T) {
+	source := []byte(`
+package com.example
+
+data class ActivateLicenseRequest(val token: String)
+
+interface LicensingClient
+
+class NestedContainer {
+  class InnerClass
+}
+
+typealias Token = String
+`)
+
+	decls := ExtractTopLevelTypeNames(source)
+	assert.Contains(t, decls, "ActivateLicenseRequest")
+	assert.Contains(t, decls, "LicensingClient")
+	assert.Contains(t, decls, "Token")
+	assert.NotContains(t, decls, "InnerClass")
+}
+
+func TestExtractTypeIdentifiers(t *testing.T) {
+	source := []byte(`
+package com.example
+
+fun demo(request: ActivateLicenseRequest): ActivateLicenseResponse {
+  val machine: Machine = Machine()
+  return ActivateLicenseResponse()
+}
+`)
+
+	identifiers := ExtractTypeIdentifiers(source)
+	assert.Contains(t, identifiers, "ActivateLicenseRequest")
+	assert.Contains(t, identifiers, "ActivateLicenseResponse")
+	assert.Contains(t, identifiers, "Machine")
+}

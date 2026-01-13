@@ -51,8 +51,15 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 
 	// Build Kotlin package index if we have Kotlin files
 	var kotlinPackageIndex map[string][]string
+	var kotlinPackageTypes map[string]map[string][]string
+	kotlinFilePackages := make(map[string]string)
 	if len(kotlinFiles) > 0 {
-		kotlinPackageIndex = buildKotlinPackageIndex(kotlinFiles, repoPath, commitID)
+		kotlinPackageIndex, kotlinPackageTypes = buildKotlinPackageIndex(kotlinFiles, repoPath, commitID)
+		for pkg, files := range kotlinPackageIndex {
+			for _, file := range files {
+				kotlinFilePackages[file] = pkg
+			}
+		}
 	}
 
 	// Second pass: build the dependency graph
@@ -218,6 +225,23 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 					projectImports = append(projectImports, resolvedFiles...)
 				}
 			}
+
+			if len(kotlinPackageTypes) > 0 {
+				samePackageDeps := resolveKotlinSamePackageDependencies(
+					absPath,
+					repoPath,
+					commitID,
+					kotlinFilePackages,
+					kotlinPackageTypes,
+					imports,
+					suppliedFiles,
+				)
+				projectImports = append(projectImports, samePackageDeps...)
+			}
+		}
+
+		if len(projectImports) > 0 {
+			projectImports = deduplicatePaths(projectImports)
 		}
 
 		graph[absPath] = projectImports
@@ -622,9 +646,10 @@ func getRelativePath(absPath, repoPath string) string {
 	return relPath
 }
 
-// buildKotlinPackageIndex builds a map from package names to file paths
-func buildKotlinPackageIndex(filePaths []string, repoPath, commitID string) map[string][]string {
+// buildKotlinPackageIndex builds maps describing available Kotlin packages and their type declarations
+func buildKotlinPackageIndex(filePaths []string, repoPath, commitID string) (map[string][]string, map[string]map[string][]string) {
 	packageToFiles := make(map[string][]string)
+	packageToTypes := make(map[string]map[string][]string)
 
 	for _, filePath := range filePaths {
 		absPath, err := filepath.Abs(filePath)
@@ -632,28 +657,38 @@ func buildKotlinPackageIndex(filePaths []string, repoPath, commitID string) map[
 			continue
 		}
 
-		// Extract package declaration from file
-		var pkg string
-
-		if repoPath != "" && commitID != "" {
-			relPath := getRelativePath(absPath, repoPath)
-			content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
-			if err == nil {
-				pkg = kotlin.ExtractPackageDeclaration(content)
-			}
-		} else {
-			content, err := os.ReadFile(absPath)
-			if err == nil {
-				pkg = kotlin.ExtractPackageDeclaration(content)
-			}
+		content, err := readFileContent(absPath, repoPath, commitID)
+		if err != nil {
+			continue
 		}
 
-		if pkg != "" {
-			packageToFiles[pkg] = append(packageToFiles[pkg], absPath)
+		pkg := kotlin.ExtractPackageDeclaration(content)
+		if pkg == "" {
+			continue
+		}
+
+		packageToFiles[pkg] = append(packageToFiles[pkg], absPath)
+
+		declaredTypes := kotlin.ExtractTopLevelTypeNames(content)
+		if len(declaredTypes) == 0 {
+			continue
+		}
+
+		typeMap, ok := packageToTypes[pkg]
+		if !ok {
+			typeMap = make(map[string][]string)
+			packageToTypes[pkg] = typeMap
+		}
+
+		for _, typeName := range declaredTypes {
+			if typeName == "" {
+				continue
+			}
+			typeMap[typeName] = append(typeMap[typeName], absPath)
 		}
 	}
 
-	return packageToFiles
+	return packageToFiles, packageToTypes
 }
 
 // resolveKotlinImportPath resolves a Kotlin import to absolute file paths
@@ -700,4 +735,104 @@ func resolveKotlinImportPath(
 	}
 
 	return resolvedFiles
+}
+
+// resolveKotlinSamePackageDependencies finds Kotlin dependencies that are referenced without imports (same-package references)
+func resolveKotlinSamePackageDependencies(
+	sourceFile string,
+	repoPath string,
+	commitID string,
+	filePackages map[string]string,
+	packageTypeIndex map[string]map[string][]string,
+	imports []kotlin.KotlinImport,
+	suppliedFiles map[string]bool,
+) []string {
+	pkg, ok := filePackages[sourceFile]
+	if !ok {
+		return nil
+	}
+
+	typeIndex, ok := packageTypeIndex[pkg]
+	if !ok {
+		return nil
+	}
+
+	sourceCode, err := readFileContent(sourceFile, repoPath, commitID)
+	if err != nil {
+		return nil
+	}
+
+	typeReferences := kotlin.ExtractTypeIdentifiers(sourceCode)
+	if len(typeReferences) == 0 {
+		return nil
+	}
+
+	importedNames := make(map[string]bool)
+	for _, imp := range imports {
+		if imp.IsWildcard() {
+			continue
+		}
+		name := extractSimpleName(imp.Path())
+		if name != "" {
+			importedNames[name] = true
+		}
+	}
+
+	seen := make(map[string]bool)
+	var deps []string
+	for _, ref := range typeReferences {
+		if importedNames[ref] {
+			continue
+		}
+		files, ok := typeIndex[ref]
+		if !ok {
+			continue
+		}
+		for _, depFile := range files {
+			if depFile == sourceFile {
+				continue
+			}
+			if !suppliedFiles[depFile] {
+				continue
+			}
+			if !seen[depFile] {
+				seen[depFile] = true
+				deps = append(deps, depFile)
+			}
+		}
+	}
+
+	return deps
+}
+
+// readFileContent reads a file either from the working tree or a specific git commit
+func readFileContent(absPath, repoPath, commitID string) ([]byte, error) {
+	if repoPath != "" && commitID != "" {
+		relPath := getRelativePath(absPath, repoPath)
+		return git.GetFileContentFromCommit(repoPath, commitID, relPath)
+	}
+
+	return os.ReadFile(absPath)
+}
+
+// extractSimpleName returns the trailing identifier from a dot-delimited path
+func extractSimpleName(path string) string {
+	if path == "" {
+		return ""
+	}
+	parts := strings.Split(path, ".")
+	return parts[len(parts)-1]
+}
+
+// deduplicatePaths removes duplicate entries while preserving insertion order
+func deduplicatePaths(paths []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+	return result
 }

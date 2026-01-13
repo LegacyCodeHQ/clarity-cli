@@ -378,3 +378,105 @@ func ClassifyWithProjectPackages(imports []KotlinImport, projectPackages map[str
 
 	return reclassified
 }
+
+// ExtractTopLevelTypeNames returns the class/object/interface/typealias names declared at the top level of the file
+func ExtractTopLevelTypeNames(sourceCode []byte) []string {
+	lang := kotlin.GetLanguage()
+	parser := sitter.NewParser()
+	parser.SetLanguage(lang)
+
+	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
+	if err != nil {
+		return nil
+	}
+	defer tree.Close()
+
+	var names []string
+	var walk func(*sitter.Node)
+	walk = func(node *sitter.Node) {
+		if node == nil {
+			return
+		}
+
+		switch node.Type() {
+		case "class_declaration", "object_declaration", "interface_declaration", "type_alias":
+			if isTopLevelDeclaration(node) {
+				if name := extractDeclarationIdentifier(node, sourceCode); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+
+		for i := 0; i < int(node.NamedChildCount()); i++ {
+			walk(node.NamedChild(i))
+		}
+	}
+
+	walk(tree.RootNode())
+	return names
+}
+
+// ExtractTypeIdentifiers returns all type identifiers referenced within the file
+func ExtractTypeIdentifiers(sourceCode []byte) []string {
+	lang := kotlin.GetLanguage()
+	parser := sitter.NewParser()
+	parser.SetLanguage(lang)
+
+	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
+	if err != nil {
+		return nil
+	}
+	defer tree.Close()
+
+	query, err := sitter.NewQuery([]byte("(type_identifier) @type.name"), lang)
+	if err != nil {
+		return nil
+	}
+	defer query.Close()
+
+	cursor := sitter.NewQueryCursor()
+	defer cursor.Close()
+	cursor.Exec(query, tree.RootNode())
+
+	var identifiers []string
+	for {
+		match, ok := cursor.NextMatch()
+		if !ok {
+			break
+		}
+		for _, capture := range match.Captures {
+			name := strings.TrimSpace(capture.Node.Content(sourceCode))
+			if name != "" {
+				identifiers = append(identifiers, name)
+			}
+		}
+	}
+
+	return identifiers
+}
+
+// isTopLevelDeclaration checks if a node is declared directly in the source file
+func isTopLevelDeclaration(node *sitter.Node) bool {
+	parent := node.Parent()
+	if parent == nil {
+		return false
+	}
+	switch parent.Type() {
+	case "source_file", "script":
+		return true
+	default:
+		return false
+	}
+}
+
+// extractDeclarationIdentifier returns the identifier for a declaration node
+func extractDeclarationIdentifier(node *sitter.Node, sourceCode []byte) string {
+	for i := 0; i < int(node.NamedChildCount()); i++ {
+		child := node.NamedChild(i)
+		switch child.Type() {
+		case "type_identifier", "simple_identifier":
+			return strings.TrimSpace(child.Content(sourceCode))
+		}
+	}
+	return ""
+}
