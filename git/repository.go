@@ -274,6 +274,26 @@ func GetCurrentCommitHash(repoPath string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
+// GetShortCommitHash returns the short version of a given commit hash
+func GetShortCommitHash(repoPath, commitID string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--short", commitID)
+	cmd.Dir = repoPath
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		if stderr.Len() > 0 {
+			return "", fmt.Errorf("git command failed: %s", stderr.String())
+		}
+		return "", err
+	}
+
+	return strings.TrimSpace(stdout.String()), nil
+}
+
 // HasUncommittedChanges checks if there are any uncommitted changes in the repository
 func HasUncommittedChanges(repoPath string) (bool, error) {
 	cmd := exec.Command("git", "status", "--porcelain")

@@ -134,14 +134,23 @@ Example usage:
 			}
 
 			// Get current commit hash
-			commitHash, err := git.GetCurrentCommitHash(labelRepoPath)
+			var commitHash string
+			if commitID != "" {
+				// When analyzing a specific commit, show that commit's hash
+				commitHash, err = git.GetShortCommitHash(labelRepoPath, commitID)
+			} else {
+				// When analyzing uncommitted changes, show current HEAD
+				commitHash, err = git.GetCurrentCommitHash(labelRepoPath)
+			}
 			if err == nil {
 				label += commitHash
 
-				// Check if there are uncommitted changes
-				isDirty, err := git.HasUncommittedChanges(labelRepoPath)
-				if err == nil && isDirty {
-					label += "-dirty"
+				// Only check for uncommitted changes when analyzing current state (not a specific commit)
+				if commitID == "" {
+					isDirty, err := git.HasUncommittedChanges(labelRepoPath)
+					if err == nil && isDirty {
+						label += "-dirty"
+					}
 				}
 			}
 		}
