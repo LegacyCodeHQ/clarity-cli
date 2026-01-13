@@ -11,6 +11,7 @@ Sanity is a file-level dependency graph generator that helps you assess risk and
 
 - Dart
 - Go
+- Kotlin
 
 ## Quick Start
 
