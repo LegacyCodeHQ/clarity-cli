@@ -459,3 +459,93 @@ func TestGetCommitDartFiles_InvalidPath(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 }
+
+// Tests for parseRenamedFilePath
+
+func TestParseRenamedFilePath_AbbreviatedFormat(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty old path",
+			input:    "parsers/{ => dart}/dart_parser.go",
+			expected: "parsers/dart/dart_parser.go",
+		},
+		{
+			name:     "both old and new paths",
+			input:    "parsers/{old => new}/parser.go",
+			expected: "parsers/new/parser.go",
+		},
+		{
+			name:     "file rename in same directory",
+			input:    "src/{old_name.go => new_name.go}",
+			expected: "src/new_name.go",
+		},
+		{
+			name:     "complex path with multiple parts",
+			input:    "lib/parsers/{ => go}/go_parser_test.go",
+			expected: "lib/parsers/go/go_parser_test.go",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRenamedFilePath(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseRenamedFilePath_FullFormat(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple rename",
+			input:    "old/path/file.go => new/path/file.go",
+			expected: "new/path/file.go",
+		},
+		{
+			name:     "rename with spaces in path",
+			input:    "old path/file.go => new path/file.go",
+			expected: "new path/file.go",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRenamedFilePath(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseRenamedFilePath_NoRename(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "regular file path",
+			input:    "parsers/dependency_graph.go",
+			expected: "parsers/dependency_graph.go",
+		},
+		{
+			name:     "file with braces but no arrow",
+			input:    "lib/{utils}/helper.go",
+			expected: "lib/{utils}/helper.go",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRenamedFilePath(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

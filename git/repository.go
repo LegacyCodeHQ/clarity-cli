@@ -315,6 +315,48 @@ func HasUncommittedChanges(repoPath string) (bool, error) {
 	return strings.TrimSpace(stdout.String()) != "", nil
 }
 
+// parseRenamedFilePath parses a renamed file path from git numstat output
+// and returns the new (destination) file path.
+// Handles two formats:
+// 1. Full format: "old_path => new_path" (returns new_path)
+// 2. Abbreviated format: "prefix/{old => new}/suffix" (returns prefix/new/suffix)
+func parseRenamedFilePath(filePath string) string {
+	// Check for abbreviated rename format: "prefix/{ => new}/suffix" or "prefix/{old => new}/suffix"
+	if strings.Contains(filePath, "{") && strings.Contains(filePath, "}") {
+		// Find the positions of { and }
+		openBrace := strings.Index(filePath, "{")
+		closeBrace := strings.Index(filePath, "}")
+
+		if openBrace < closeBrace {
+			// Extract parts
+			prefix := filePath[:openBrace]
+			middle := filePath[openBrace+1 : closeBrace]
+			suffix := filePath[closeBrace+1:]
+
+			// Split the middle part on " => "
+			if strings.Contains(middle, " => ") {
+				parts := strings.Split(middle, " => ")
+				if len(parts) == 2 {
+					// Use the new (right) part
+					newMiddle := strings.TrimSpace(parts[1])
+					return prefix + newMiddle + suffix
+				}
+			}
+		}
+	}
+
+	// Check for full rename format: "old => new"
+	if strings.Contains(filePath, " => ") {
+		renameParts := strings.Split(filePath, " => ")
+		if len(renameParts) == 2 {
+			return strings.TrimSpace(renameParts[1])
+		}
+	}
+
+	// Not a rename, return as-is
+	return filePath
+}
+
 // GetUncommittedFileStats returns statistics (additions/deletions) for uncommitted files
 // Returns a map from relative file paths to their FileStats
 func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
@@ -379,12 +421,9 @@ func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
 			deletions, _ = strconv.Atoi(parts[1])
 		}
 
-		// Handle renamed files (format: "old => new")
+		// Handle renamed files
 		filePath := strings.Join(parts[2:], " ")
-		if strings.Contains(filePath, " => ") {
-			renameParts := strings.Split(filePath, " => ")
-			filePath = strings.TrimSpace(renameParts[1])
-		}
+		filePath = parseRenamedFilePath(filePath)
 
 		// Convert to absolute path
 		absPath := filepath.Join(repoRoot, filePath)
@@ -467,12 +506,9 @@ func GetCommitFileStats(repoPath, commitID string) (map[string]FileStats, error)
 			deletions, _ = strconv.Atoi(parts[1])
 		}
 
-		// Handle renamed files (format: "old => new")
+		// Handle renamed files
 		filePath := strings.Join(parts[2:], " ")
-		if strings.Contains(filePath, " => ") {
-			renameParts := strings.Split(filePath, " => ")
-			filePath = strings.TrimSpace(renameParts[1])
-		}
+		filePath = parseRenamedFilePath(filePath)
 
 		// Convert to absolute path
 		absPath := filepath.Join(repoRoot, filePath)
