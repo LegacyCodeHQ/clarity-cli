@@ -930,3 +930,160 @@ func TestGetExtensionColors_MatchesToDOTBehavior(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildDependencyGraph_KotlinFiles(t *testing.T) {
+	// Create temporary directory with test Kotlin files
+	tmpDir := t.TempDir()
+
+	// Create MainActivity.kt
+	mainContent := `package com.example.app
+
+import kotlin.collections.List
+import com.google.gson.Gson
+import com.example.app.models.User
+import com.example.app.services.ApiService
+
+class MainActivity {
+    fun main() {}
+}`
+	mainPath := filepath.Join(tmpDir, "MainActivity.kt")
+	err := os.WriteFile(mainPath, []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Create models directory and User.kt
+	modelsDir := filepath.Join(tmpDir, "models")
+	err = os.Mkdir(modelsDir, 0755)
+	require.NoError(t, err)
+
+	userContent := `package com.example.app.models
+
+import com.example.app.utils.Validator
+
+data class User(val name: String)`
+	userPath := filepath.Join(modelsDir, "User.kt")
+	err = os.WriteFile(userPath, []byte(userContent), 0644)
+	require.NoError(t, err)
+
+	// Create services directory and ApiService.kt
+	servicesDir := filepath.Join(tmpDir, "services")
+	err = os.Mkdir(servicesDir, 0755)
+	require.NoError(t, err)
+
+	apiContent := `package com.example.app.services
+
+import retrofit2.http.GET
+import com.example.app.models.User
+
+interface ApiService {
+    fun getUsers(): List<User>
+}`
+	apiPath := filepath.Join(servicesDir, "ApiService.kt")
+	err = os.WriteFile(apiPath, []byte(apiContent), 0644)
+	require.NoError(t, err)
+
+	// Create utils directory and Validator.kt
+	utilsDir := filepath.Join(tmpDir, "utils")
+	err = os.Mkdir(utilsDir, 0755)
+	require.NoError(t, err)
+
+	validatorContent := `package com.example.app.utils
+
+object Validator {
+    fun validate(input: String): Boolean = true
+}`
+	validatorPath := filepath.Join(utilsDir, "Validator.kt")
+	err = os.WriteFile(validatorPath, []byte(validatorContent), 0644)
+	require.NoError(t, err)
+
+	// Build dependency graph
+	files := []string{mainPath, userPath, apiPath, validatorPath}
+	graph, err := BuildDependencyGraph(files, "", "")
+
+	require.NoError(t, err)
+	assert.Len(t, graph, 4)
+
+	// Check MainActivity.kt dependencies (should have 2 project imports - User and ApiService)
+	// External imports like Gson should be filtered out
+	// Standard library imports like kotlin.collections should be filtered out
+	mainDeps := graph[mainPath]
+	assert.Len(t, mainDeps, 2)
+	assert.Contains(t, mainDeps, userPath)
+	assert.Contains(t, mainDeps, apiPath)
+
+	// Check User.kt dependencies (should have 1 project import - Validator)
+	userDeps := graph[userPath]
+	assert.Len(t, userDeps, 1)
+	assert.Contains(t, userDeps, validatorPath)
+
+	// Check ApiService.kt dependencies (should have 1 project import - User)
+	// External import retrofit2 should be filtered out
+	apiDeps := graph[apiPath]
+	assert.Len(t, apiDeps, 1)
+	assert.Contains(t, apiDeps, userPath)
+
+	// Check Validator.kt dependencies (should have none)
+	validatorDeps := graph[validatorPath]
+	assert.Empty(t, validatorDeps)
+}
+
+func TestBuildDependencyGraph_KotlinWildcardImports(t *testing.T) {
+	// Create temporary directory with test Kotlin files
+	tmpDir := t.TempDir()
+
+	// Create MainActivity.kt with wildcard import
+	mainContent := `package com.example.app
+
+import com.example.app.models.*
+
+class MainActivity {
+    fun main() {}
+}`
+	mainPath := filepath.Join(tmpDir, "MainActivity.kt")
+	err := os.WriteFile(mainPath, []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Create models directory with multiple files
+	modelsDir := filepath.Join(tmpDir, "models")
+	err = os.Mkdir(modelsDir, 0755)
+	require.NoError(t, err)
+
+	userContent := `package com.example.app.models
+
+data class User(val name: String)`
+	userPath := filepath.Join(modelsDir, "User.kt")
+	err = os.WriteFile(userPath, []byte(userContent), 0644)
+	require.NoError(t, err)
+
+	productContent := `package com.example.app.models
+
+data class Product(val id: Int, val name: String)`
+	productPath := filepath.Join(modelsDir, "Product.kt")
+	err = os.WriteFile(productPath, []byte(productContent), 0644)
+	require.NoError(t, err)
+
+	orderContent := `package com.example.app.models
+
+data class Order(val id: Int, val userId: Int)`
+	orderPath := filepath.Join(modelsDir, "Order.kt")
+	err = os.WriteFile(orderPath, []byte(orderContent), 0644)
+	require.NoError(t, err)
+
+	// Build dependency graph
+	files := []string{mainPath, userPath, productPath, orderPath}
+	graph, err := BuildDependencyGraph(files, "", "")
+
+	require.NoError(t, err)
+	assert.Len(t, graph, 4)
+
+	// Check MainActivity.kt dependencies (should have all 3 model files due to wildcard import)
+	mainDeps := graph[mainPath]
+	assert.Len(t, mainDeps, 3, "Wildcard import should include all files in the package")
+	assert.Contains(t, mainDeps, userPath)
+	assert.Contains(t, mainDeps, productPath)
+	assert.Contains(t, mainDeps, orderPath)
+
+	// Check model files have no dependencies
+	assert.Empty(t, graph[userPath])
+	assert.Empty(t, graph[productPath])
+	assert.Empty(t, graph[orderPath])
+}

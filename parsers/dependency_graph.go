@@ -11,6 +11,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/git"
 	"github.com/LegacyCodeHQ/sanity/parsers/dart"
 	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
+	"github.com/LegacyCodeHQ/sanity/parsers/kotlin"
 )
 
 // DependencyGraph represents a mapping from file paths to their project dependencies
@@ -26,8 +27,11 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 
 	// First pass: build a set of all supplied file paths (as absolute paths)
 	// Also build a map from directories to files for Go package resolution
+	// And collect Kotlin files for package indexing
 	suppliedFiles := make(map[string]bool)
 	dirToFiles := make(map[string][]string)
+	kotlinFiles := []string{}
+
 	for _, filePath := range filePaths {
 		absPath, err := filepath.Abs(filePath)
 		if err != nil {
@@ -38,6 +42,17 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 		// Map directory to file for Go package imports
 		dir := filepath.Dir(absPath)
 		dirToFiles[dir] = append(dirToFiles[dir], absPath)
+
+		// Collect Kotlin files for package indexing
+		if filepath.Ext(absPath) == ".kt" {
+			kotlinFiles = append(kotlinFiles, absPath)
+		}
+	}
+
+	// Build Kotlin package index if we have Kotlin files
+	var kotlinPackageIndex map[string][]string
+	if len(kotlinFiles) > 0 {
+		kotlinPackageIndex = buildKotlinPackageIndex(kotlinFiles, repoPath, commitID)
 	}
 
 	// Second pass: build the dependency graph
@@ -51,7 +66,7 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 		ext := filepath.Ext(absPath)
 
 		// Check if this is a supported file type
-		if ext != ".dart" && ext != ".go" {
+		if ext != ".dart" && ext != ".go" && ext != ".kt" {
 			// Unsupported files are included in the graph with no dependencies
 			graph[absPath] = []string{}
 			continue
@@ -165,9 +180,47 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 					}
 				}
 			}
+		} else if ext == ".kt" {
+		var imports []kotlin.KotlinImport
+		var err error
+
+		if repoPath != "" && commitID != "" {
+			// Read file from git commit
+			relPath := getRelativePath(absPath, repoPath)
+			content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read %s from commit %s: %w", relPath, commitID, err)
+			}
+			imports, err = kotlin.ParseKotlinImports(content)
+		} else {
+			// Read file from filesystem
+			imports, err = kotlin.KotlinImports(filePath)
 		}
 
-		graph[absPath] = projectImports
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+		}
+
+		// Extract project packages for classification
+		projectPackages := make(map[string]bool)
+		for pkg := range kotlinPackageIndex {
+			projectPackages[pkg] = true
+		}
+
+		// Reclassify imports with knowledge of project packages
+		imports = kotlin.ClassifyWithProjectPackages(imports, projectPackages)
+
+		// Filter for internal imports and resolve to files
+		for _, imp := range imports {
+			if internalImp, ok := imp.(kotlin.InternalImport); ok {
+				// Resolve to file paths
+				resolvedFiles := resolveKotlinImportPath(absPath, internalImp, kotlinPackageIndex, suppliedFiles)
+				projectImports = append(projectImports, resolvedFiles...)
+			}
+		}
+	}
+
+	graph[absPath] = projectImports
 	}
 
 	// Third pass: Add intra-package dependencies for Go files
@@ -567,4 +620,84 @@ func getRelativePath(absPath, repoPath string) string {
 	}
 
 	return relPath
+}
+
+// buildKotlinPackageIndex builds a map from package names to file paths
+func buildKotlinPackageIndex(filePaths []string, repoPath, commitID string) map[string][]string {
+	packageToFiles := make(map[string][]string)
+
+	for _, filePath := range filePaths {
+		absPath, err := filepath.Abs(filePath)
+		if err != nil {
+			continue
+		}
+
+		// Extract package declaration from file
+		var pkg string
+
+		if repoPath != "" && commitID != "" {
+			relPath := getRelativePath(absPath, repoPath)
+			content, err := git.GetFileContentFromCommit(repoPath, commitID, relPath)
+			if err == nil {
+				pkg = kotlin.ExtractPackageDeclaration(content)
+			}
+		} else {
+			content, err := os.ReadFile(absPath)
+			if err == nil {
+				pkg = kotlin.ExtractPackageDeclaration(content)
+			}
+		}
+
+		if pkg != "" {
+			packageToFiles[pkg] = append(packageToFiles[pkg], absPath)
+		}
+	}
+
+	return packageToFiles
+}
+
+// resolveKotlinImportPath resolves a Kotlin import to absolute file paths
+func resolveKotlinImportPath(
+	sourceFile string,
+	imp kotlin.KotlinImport,
+	packageIndex map[string][]string,
+	suppliedFiles map[string]bool,
+) []string {
+	var resolvedFiles []string
+
+	if imp.IsWildcard() {
+		// Wildcard: find all files in the package
+		pkg := imp.Package()
+		if files, ok := packageIndex[pkg]; ok {
+			for _, file := range files {
+				if file != sourceFile && suppliedFiles[file] {
+					resolvedFiles = append(resolvedFiles, file)
+				}
+			}
+		}
+	} else {
+		// Specific import: find files in the package
+		pkg := imp.Package()
+		if files, ok := packageIndex[pkg]; ok {
+			for _, file := range files {
+				if file != sourceFile && suppliedFiles[file] {
+					resolvedFiles = append(resolvedFiles, file)
+				}
+			}
+		}
+
+		// Also check if the full import path is a package
+		fullPath := imp.Path()
+		if fullPath != pkg {
+			if files, ok := packageIndex[fullPath]; ok {
+				for _, file := range files {
+					if file != sourceFile && suppliedFiles[file] {
+						resolvedFiles = append(resolvedFiles, file)
+					}
+				}
+			}
+		}
+	}
+
+	return resolvedFiles
 }
