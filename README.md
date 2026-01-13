@@ -5,7 +5,17 @@
 
 Sanity is a file-level dependency graph generator that helps you assess risk and confidently review code you didn't write—from AI agents or teammates.
 
-![Commit-level file dependency](docs/images/sample-visual.png)
+## Visuals
+
+<p align="center">
+  <img src="docs/images/go-example.png" alt="Go">
+  <small>Fig. 1: Relationships between impacted files are shown and tests are highlighted in green.</small>
+</p>
+
+<p align="center">
+  <img src="docs/images/kotlin-example.png" alt="Kotlin">
+  <small>Fig. 2: New files are marked with a 🪴 emoji.</small>
+</p>
 
 ## Supported Languages
 
