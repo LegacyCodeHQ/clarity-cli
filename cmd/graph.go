@@ -130,7 +130,7 @@ Example usage:
 			repoRoot, err := git.GetRepositoryRoot(labelRepoPath)
 			if err == nil {
 				projectName := filepath.Base(repoRoot)
-				label = fmt.Sprintf("(%s) ", projectName)
+				label = fmt.Sprintf("%s • ", projectName)
 			}
 
 			// Get current commit hash
@@ -151,6 +151,14 @@ Example usage:
 					if err == nil && isDirty {
 						label += "-dirty"
 					}
+				}
+
+				// Add number of files changed
+				fileCount := len(filePaths)
+				if fileCount == 1 {
+					label += fmt.Sprintf(" • %d file", fileCount)
+				} else {
+					label += fmt.Sprintf(" • %d files", fileCount)
 				}
 			}
 		}
