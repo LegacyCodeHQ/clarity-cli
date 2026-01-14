@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/LegacyCodeHQ/sanity)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/LegacyCodeHQ/sanity)](https://github.com/LegacyCodeHQ/sanity/releases)
 
-Sanity is a file-level dependency graph generator that helps you assess risk and confidently review code you didn't write—from AI agents or teammates.
+Sanity helps you assess risk and confidently review AI-generated code before you commit it.
 
 ## Visuals
 

@@ -21,10 +21,12 @@ var copyToClipboard bool
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "sanity",
-	Short: "Analyze and visualize dependency graphs in your codebase",
-	Long: `Sanity is a CLI tool for analyzing and visualizing dependency graphs
-in your codebase. It supports Dart and Go files, showing relationships
-between project files while excluding external dependencies.
+	Short: "Assess risk and confidently review AI-generated code before you commit it.",
+	Long: `Sanity helps you assess risk and confidently review AI-generated code before
+you commit it.
+
+It generates a file-level dependency graph showing relationships between
+project files.
 
 Use 'sanity --help' to see all available commands, or 'sanity <command> --help'
 for detailed information about a specific command.`,
