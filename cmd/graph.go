@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -35,12 +37,15 @@ Supports three modes:
 Output formats:
   - dot: Graphviz DOT format for visualization (default)
   - json: JSON format
+  - mermaid: Mermaid.js flowchart format
 
 Example usage:
   sanity graph
   sanity graph --url
   sanity graph --commit 8d4f78
   sanity graph --commit 8d4f78 --format=json
+  sanity graph --commit 8d4f78 --format=mermaid
+  sanity graph --format=mermaid --url
   sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
   sanity graph file1.dart file2.dart file3.dart
   sanity graph --url --commit 8d4f78`,
@@ -97,9 +102,9 @@ Example usage:
 			return fmt.Errorf("failed to build dependency graph: %w", err)
 		}
 
-		// Get file statistics for DOT format
+		// Get file statistics for DOT/Mermaid formats
 		var fileStats map[string]git.FileStats
-		if outputFormat == "dot" && repoPath != "" {
+		if (outputFormat == "dot" || outputFormat == "mermaid") && repoPath != "" {
 			if commitID != "" {
 				// Get stats for committed changes
 				fileStats, err = git.GetCommitFileStats(repoPath, commitID)
@@ -117,9 +122,9 @@ Example usage:
 			}
 		}
 
-		// Build label with commit hash and dirty status for DOT format
+		// Build label with commit hash and dirty status for DOT/Mermaid formats
 		var label string
-		if outputFormat == "dot" {
+		if outputFormat == "dot" || outputFormat == "mermaid" {
 			// Determine the repo path to use (use current directory if not specified)
 			labelRepoPath := repoPath
 			if labelRepoPath == "" {
@@ -185,8 +190,19 @@ Example usage:
 				fmt.Print(output)
 			}
 
+		case "mermaid":
+			output = graph.ToMermaid(label, fileStats)
+
+			// Generate Mermaid.live URL if requested
+			if generateURL {
+				vizURL := generateMermaidLiveURL(output)
+				fmt.Println(vizURL)
+			} else {
+				fmt.Print(output)
+			}
+
 		default:
-			return fmt.Errorf("unknown output format: %s (valid options: dot, json)", outputFormat)
+			return fmt.Errorf("unknown output format: %s (valid options: dot, json, mermaid)", outputFormat)
 		}
 
 		// Copy to clipboard if flag is enabled
@@ -210,9 +226,33 @@ func generateGraphvizOnlineURL(dotGraph string) string {
 	return fmt.Sprintf("https://dreampuf.github.io/GraphvizOnline/?engine=dot#%s", encoded)
 }
 
+// generateMermaidLiveURL creates a URL for mermaid.live with the diagram embedded
+func generateMermaidLiveURL(mermaidCode string) string {
+	// Mermaid.live uses a JSON payload encoded in base64
+	payload := map[string]interface{}{
+		"code": mermaidCode,
+		"mermaid": map[string]interface{}{
+			"theme": "default",
+		},
+		"autoSync":   true,
+		"updateDiagram": true,
+	}
+
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		// Fallback: just return the code URL-encoded
+		return fmt.Sprintf("https://mermaid.live/edit#%s", url.PathEscape(mermaidCode))
+	}
+
+	// Base64 encode the JSON payload
+	encoded := base64.URLEncoding.EncodeToString(jsonBytes)
+
+	return fmt.Sprintf("https://mermaid.live/edit#base64:%s", encoded)
+}
+
 func init() {
 	// Add format flag
-	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json)")
+	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json, mermaid)")
 	// Add repo flag
 	graphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag
