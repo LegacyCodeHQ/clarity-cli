@@ -1400,9 +1400,9 @@ export function helper() {}
 func TestDependencyGraph_ToDOT_TypeScriptTestFiles(t *testing.T) {
 	// Test TypeScript test files are styled as light green
 	graph := DependencyGraph{
-		"/project/src/App.tsx":                     {"/project/src/utils.tsx"},
-		"/project/src/utils.tsx":                   {},
-		"/project/src/App.test.tsx":                {"/project/src/App.tsx"},
+		"/project/src/App.tsx":                    {"/project/src/utils.tsx"},
+		"/project/src/utils.tsx":                  {},
+		"/project/src/App.test.tsx":               {"/project/src/App.tsx"},
 		"/project/src/__tests__/utils.test.tsx":   {"/project/src/utils.tsx"},
 		"/project/src/components/Button.spec.tsx": {},
 	}
