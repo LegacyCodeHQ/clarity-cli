@@ -231,8 +231,11 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 							continue
 						}
 
-						// Symbol-level filtering for cross-package imports (different directory)
-						if !sameDir && hasExportIndex && usedSymbols != nil && len(usedSymbols) > 0 {
+						// Symbol-level filtering for cross-package imports:
+						// - Different directory imports always use symbol filtering
+						// - Same directory imports use symbol filtering when source is a test file
+						//   (test files in package X_test import package X via explicit imports)
+						if (!sameDir || isTestFile) && hasExportIndex && usedSymbols != nil && len(usedSymbols) > 0 {
 							// Only include this file if it defines a symbol we actually use
 							fileDefinesUsedSymbol := false
 							for symbol := range usedSymbols {
