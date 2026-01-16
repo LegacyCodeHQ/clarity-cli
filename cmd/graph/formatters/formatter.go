@@ -2,6 +2,8 @@ package formatters
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/LegacyCodeHQ/sanity/git"
 	"github.com/LegacyCodeHQ/sanity/parsers"
@@ -21,17 +23,30 @@ type Formatter interface {
 	Format(g parsers.DependencyGraph, opts FormatOptions) (string, error)
 }
 
+// registry holds all registered formatters
+var registry = make(map[string]func() Formatter)
+
+// Register adds a formatter constructor to the registry.
+// Each formatter should call this in its init() function.
+func Register(name string, constructor func() Formatter) {
+	registry[name] = constructor
+}
+
 // NewFormatter creates a Formatter for the specified format type.
-// Supported formats: "json", "dot", "mermaid"
 func NewFormatter(format string) (Formatter, error) {
-	switch format {
-	case "json":
-		return &JSONFormatter{}, nil
-	case "dot":
-		return &DOTFormatter{}, nil
-	case "mermaid":
-		return &MermaidFormatter{}, nil
-	default:
-		return nil, fmt.Errorf("unknown format: %s (valid options: dot, json, mermaid)", format)
+	constructor, ok := registry[format]
+	if !ok {
+		return nil, fmt.Errorf("unknown format: %s (valid options: %s)", format, availableFormats())
 	}
+	return constructor(), nil
+}
+
+// availableFormats returns a comma-separated list of registered format names.
+func availableFormats() string {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
 }

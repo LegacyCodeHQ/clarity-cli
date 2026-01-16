@@ -6,6 +6,10 @@ import (
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
+func init() {
+	Register("json", func() Formatter { return &JSONFormatter{} })
+}
+
 // JSONFormatter formats dependency graphs as JSON.
 type JSONFormatter struct{}
 

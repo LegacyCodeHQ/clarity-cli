@@ -9,6 +9,10 @@ import (
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
+func init() {
+	Register("dot", func() Formatter { return &DOTFormatter{} })
+}
+
 // DOTFormatter formats dependency graphs as Graphviz DOT.
 type DOTFormatter struct{}
 

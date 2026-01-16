@@ -9,6 +9,10 @@ import (
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
+func init() {
+	Register("mermaid", func() Formatter { return &MermaidFormatter{} })
+}
+
 // MermaidFormatter formats dependency graphs as Mermaid.js flowcharts.
 type MermaidFormatter struct{}
 
