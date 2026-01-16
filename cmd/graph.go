@@ -82,7 +82,14 @@ Example usage:
 				}
 
 				if len(filePaths) == 0 {
-					return fmt.Errorf("no uncommitted files found in repository")
+					fmt.Println("Working directory is clean (no uncommitted changes).")
+					fmt.Println()
+					fmt.Println("To visualize the most recent commit:")
+					fmt.Println("  sanity graph -c HEAD")
+					fmt.Println()
+					fmt.Println("To visualize a specific commit:")
+					fmt.Println("  sanity graph -c <commit-hash>")
+					return nil
 				}
 			}
 		} else {
@@ -234,7 +241,7 @@ func generateMermaidLiveURL(mermaidCode string) string {
 		"mermaid": map[string]interface{}{
 			"theme": "default",
 		},
-		"autoSync":   true,
+		"autoSync":      true,
 		"updateDiagram": true,
 	}
 
