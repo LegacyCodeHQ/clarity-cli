@@ -1,4 +1,4 @@
-package cmd
+package graph
 
 import (
 	"encoding/base64"
@@ -19,8 +19,8 @@ var repoPath string
 var commitID string
 var generateURL bool
 
-// graphCmd represents the graph command
-var graphCmd = &cobra.Command{
+// GraphCmd represents the graph command
+var GraphCmd = &cobra.Command{
 	Use:   "graph [files...]",
 	Short: "Generate dependency graph for project imports",
 	Long: `Analyzes files and generates a dependency graph showing relationships
@@ -213,6 +213,7 @@ Example usage:
 		}
 
 		// Copy to clipboard if flag is enabled
+		copyToClipboard, _ := cmd.Root().PersistentFlags().GetBool("clipboard")
 		if copyToClipboard {
 			if err := clipboard.WriteAll(output); err != nil {
 				return fmt.Errorf("failed to copy to clipboard: %w", err)
@@ -259,11 +260,11 @@ func generateMermaidLiveURL(mermaidCode string) string {
 
 func init() {
 	// Add format flag
-	graphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json, mermaid)")
+	GraphCmd.Flags().StringVarP(&outputFormat, "format", "f", "dot", "Output format (dot, json, mermaid)")
 	// Add repo flag
-	graphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
+	GraphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag
-	graphCmd.Flags().StringVarP(&commitID, "commit", "c", "", "Git commit to analyze")
+	GraphCmd.Flags().StringVarP(&commitID, "commit", "c", "", "Git commit to analyze")
 	// Add URL flag
-	graphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate GraphvizOnline URL for visualization")
+	GraphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate GraphvizOnline URL for visualization")
 }

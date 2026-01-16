@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/LegacyCodeHQ/sanity/cmd/graph"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +45,7 @@ func Execute() {
 
 func init() {
 	// Register subcommands
-	rootCmd.AddCommand(graphCmd)
+	rootCmd.AddCommand(graph.GraphCmd)
 
 	// Initialize annotations for version template
 	if rootCmd.Annotations == nil {
