@@ -22,6 +22,7 @@ Sanity helps you assess risk and confidently review AI-generated code before you
 - Dart
 - Go
 - Kotlin
+- TypeScript
 
 ## Quick Start
 
