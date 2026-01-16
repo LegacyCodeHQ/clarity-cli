@@ -21,7 +21,7 @@ var repoPath string
 var commitID string
 var generateURL bool
 var includes []string
-var pathFiles []string
+var betweenFiles []string
 
 // GraphCmd represents the graph command
 var GraphCmd = &cobra.Command{
@@ -53,7 +53,7 @@ Example usage:
   sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
   sanity graph --include file1.dart,file2.dart,file3.dart
   sanity graph --url --commit 8d4f78
-  sanity graph -u --paths main.go,./git/repository.go`,
+  sanity graph -u --between main.go,./git/repository.go`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var filePaths []string
 		var err error
@@ -62,9 +62,9 @@ Example usage:
 		var fromCommit, toCommit string
 		var isCommitRange bool
 
-		// Validate --paths cannot be used with --include
-		if len(pathFiles) > 0 && len(includes) > 0 {
-			return fmt.Errorf("--paths cannot be used with --include flag")
+		// Validate --between cannot be used with --include
+		if len(betweenFiles) > 0 && len(includes) > 0 {
+			return fmt.Errorf("--between cannot be used with --include flag")
 		}
 
 		// If no explicit files provided and no repo path specified, default to current directory
@@ -109,8 +109,8 @@ Example usage:
 						return fmt.Errorf("no files changed in commit %s", toCommit)
 					}
 				}
-			} else if len(pathFiles) > 0 {
-				// When --paths is provided without --commit, expand all files in working directory
+			} else if len(betweenFiles) > 0 {
+				// When --between is provided without --commit, expand all files in working directory
 				filePaths, err = expandPaths([]string{repoPath})
 				if err != nil {
 					return fmt.Errorf("failed to expand working directory: %w", err)
@@ -162,15 +162,15 @@ Example usage:
 			return fmt.Errorf("failed to build dependency graph: %w", err)
 		}
 
-		// Apply path filtering if --paths flag is provided
-		if len(pathFiles) > 0 {
+		// Apply path filtering if --between flag is provided
+		if len(betweenFiles) > 0 {
 			// Resolve paths to absolute paths and validate they exist in the graph
-			resolvedPaths, missingPaths := resolveAndValidatePaths(pathFiles, graph)
+			resolvedPaths, missingPaths := resolveAndValidatePaths(betweenFiles, graph)
 			if len(missingPaths) > 0 {
 				return fmt.Errorf("files not found in graph: %v", missingPaths)
 			}
 			if len(resolvedPaths) < 2 {
-				return fmt.Errorf("at least 2 files required for --paths, found %d in graph", len(resolvedPaths))
+				return fmt.Errorf("at least 2 files required for --between, found %d in graph", len(resolvedPaths))
 			}
 			graph = parsers.FindPathNodes(graph, resolvedPaths)
 
@@ -348,8 +348,8 @@ func init() {
 	GraphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate GraphvizOnline URL for visualization")
 	// Add include flag for explicit files
 	GraphCmd.Flags().StringSliceVarP(&includes, "include", "i", nil, "Files or directories to include in the graph (comma-separated, directories are expanded recursively)")
-	// Add paths flag for finding paths between files
-	GraphCmd.Flags().StringSliceVarP(&pathFiles, "paths", "p", nil, "Find all files on shortest paths between specified files (comma-separated)")
+	// Add between flag for finding paths between files
+	GraphCmd.Flags().StringSliceVarP(&betweenFiles, "between", "w", nil, "Find all files on shortest paths between specified files (comma-separated)")
 }
 
 // supportedExtensions contains file extensions that the graph command can analyze
