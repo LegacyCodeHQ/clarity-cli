@@ -1,4 +1,4 @@
-package parsers
+package formatters
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/LegacyCodeHQ/sanity/git"
+	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
 // ToMermaid converts the dependency graph to Mermaid.js flowchart format
 // If label is not empty, it will be displayed as a title
 // If fileStats is provided, additions/deletions will be shown in node labels
-func (g DependencyGraph) ToMermaid(label string, fileStats map[string]git.FileStats) string {
+func ToMermaid(g parsers.DependencyGraph, label string, fileStats map[string]git.FileStats) string {
 	var sb strings.Builder
 
 	// Add title if label provided
@@ -159,4 +160,3 @@ func (g DependencyGraph) ToMermaid(label string, fileStats map[string]git.FileSt
 
 	return sb.String()
 }
-

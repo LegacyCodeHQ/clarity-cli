@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/git"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 
@@ -179,7 +180,7 @@ Example usage:
 		var output string
 		switch outputFormat {
 		case "json":
-			jsonData, err := graph.ToJSON()
+			jsonData, err := formatters.ToJSON(graph)
 			if err != nil {
 				return fmt.Errorf("failed to generate JSON: %w", err)
 			}
@@ -187,7 +188,7 @@ Example usage:
 			fmt.Println(output)
 
 		case "dot":
-			output = graph.ToDOT(label, fileStats)
+			output = formatters.ToDOT(graph, label, fileStats)
 
 			// Generate GraphvizOnline URL if requested
 			if generateURL {
@@ -198,7 +199,7 @@ Example usage:
 			}
 
 		case "mermaid":
-			output = graph.ToMermaid(label, fileStats)
+			output = formatters.ToMermaid(graph, label, fileStats)
 
 			// Generate Mermaid.live URL if requested
 			if generateURL {

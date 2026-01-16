@@ -1,4 +1,4 @@
-package parsers
+package formatters
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/LegacyCodeHQ/sanity/git"
+	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
 // ToDOT converts the dependency graph to Graphviz DOT format
 // If label is not empty, it will be displayed at the top of the graph
 // If fileStats is provided, additions/deletions will be shown in node labels
-func (g DependencyGraph) ToDOT(label string, fileStats map[string]git.FileStats) string {
+func ToDOT(g parsers.DependencyGraph, label string, fileStats map[string]git.FileStats) string {
 	var sb strings.Builder
 	sb.WriteString("digraph dependencies {\n")
 	sb.WriteString("  rankdir=LR;\n")

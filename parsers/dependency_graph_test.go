@@ -1,4 +1,4 @@
-package parsers
+package parsers_test
 
 import (
 	"os"
@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/git"
+	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +75,7 @@ func TestBuildDependencyGraph(t *testing.T) {
 
 	// Build dependency graph
 	files := []string{mainPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -129,7 +131,7 @@ data class ActivateLicenseResponse(val license: String)
 	require.NoError(t, os.WriteFile(responsePath, []byte(responseContent), 0644))
 
 	files := []string{clientPath, requestPath, responsePath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 	require.NoError(t, err)
 
 	deps := graph[clientPath]
@@ -140,14 +142,14 @@ data class ActivateLicenseResponse(val license: String)
 }
 
 func TestBuildDependencyGraph_EmptyFileList(t *testing.T) {
-	graph, err := BuildDependencyGraph([]string{}, "", "")
+	graph, err := parsers.BuildDependencyGraph([]string{}, "", "")
 
 	require.NoError(t, err)
 	assert.Empty(t, graph)
 }
 
 func TestBuildDependencyGraph_NonexistentFile(t *testing.T) {
-	_, err := BuildDependencyGraph([]string{"/nonexistent/file.dart"}, "", "")
+	_, err := parsers.BuildDependencyGraph([]string{"/nonexistent/file.dart"}, "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse imports")
@@ -187,7 +189,7 @@ func TestBuildDependencyGraph_FiltersNonSuppliedFiles(t *testing.T) {
 	// Build dependency graph with only main.dart and helper.dart
 	// (utils.dart is NOT supplied, so it should be filtered out)
 	files := []string{mainPath, helperPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 2)
@@ -204,12 +206,12 @@ func TestBuildDependencyGraph_FiltersNonSuppliedFiles(t *testing.T) {
 }
 
 func TestDependencyGraph_ToJSON(t *testing.T) {
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.dart":  {"/project/utils.dart", "/project/models/user.dart"},
 		"/project/utils.dart": {},
 	}
 
-	jsonData, err := graph.ToJSON()
+	jsonData, err := formatters.ToJSON(graph)
 
 	require.NoError(t, err)
 	assert.Contains(t, string(jsonData), "/project/main.dart")
@@ -218,12 +220,12 @@ func TestDependencyGraph_ToJSON(t *testing.T) {
 }
 
 func TestDependencyGraph_ToDOT(t *testing.T) {
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.dart":  {"/project/utils.dart"},
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	assert.Contains(t, dot, "digraph dependencies")
 	assert.Contains(t, dot, "main.dart")
@@ -232,7 +234,7 @@ func TestDependencyGraph_ToDOT(t *testing.T) {
 }
 
 func TestDependencyGraph_ToDOT_NewFilesUseSeedlingLabel(t *testing.T) {
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/new_file.dart":       {},
 		"/project/new_with_stats.dart": {},
 		"/project/existing.dart":       {},
@@ -252,7 +254,7 @@ func TestDependencyGraph_ToDOT_NewFilesUseSeedlingLabel(t *testing.T) {
 		},
 	}
 
-	dot := graph.ToDOT("", stats)
+	dot := formatters.ToDOT(graph, "", stats)
 
 	assert.Contains(t, dot, "\"new_file.dart\" [label=\"🪴 new_file.dart\",")
 	assert.Contains(t, dot, "\"new_with_stats.dart\" [label=\"🪴 new_with_stats.dart\\n+12 -1\",")
@@ -261,14 +263,14 @@ func TestDependencyGraph_ToDOT_NewFilesUseSeedlingLabel(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_TestFilesAreLightGreen(t *testing.T) {
 	// Test Go test files
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.go":       {"/project/utils.go"},
 		"/project/utils.go":      {},
 		"/project/main_test.go":  {"/project/main.go"},
 		"/project/utils_test.go": {"/project/utils.go"},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// Test files should be light green
 	assert.Contains(t, dot, "main_test.go")
@@ -285,14 +287,14 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_TestFilesAreLightGreen_Dart(t *testing.T) {
 	// Test Dart test files (in test/ directory)
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/lib/main.dart":        {"/project/lib/utils.dart"},
 		"/project/lib/utils.dart":       {},
 		"/project/test/main_test.dart":  {"/project/lib/main.dart"},
 		"/project/test/utils_test.dart": {"/project/lib/utils.dart"},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// Test files should be light green
 	assert.Contains(t, dot, "main_test.dart")
@@ -307,7 +309,7 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen_Dart(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
 	// Create graph with majority .go files (5 files) and minority .dart files (2 files)
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.go":    {"/project/utils.go"},
 		"/project/utils.go":   {},
 		"/project/types.go":   {},
@@ -317,7 +319,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// All .go files (majority extension) should be white
 	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
@@ -337,7 +339,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing.T) {
 	// Test that test files are light green even if they're part of majority extension
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.go":       {"/project/utils.go"},
 		"/project/utils.go":      {},
 		"/project/types.go":      {},
@@ -346,7 +348,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing
 		"/project/main.dart":     {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// Test files should be light green (priority over majority extension)
 	assert.Contains(t, dot, `"main_test.go" [label="main_test.go", style=filled, fillcolor=lightgreen]`)
@@ -364,14 +366,14 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing
 
 func TestDependencyGraph_ToDOT_MajorityExtensionTie(t *testing.T) {
 	// Test when there's a tie for majority (should pick one deterministically)
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.go":    {},
 		"/project/utils.go":   {},
 		"/project/main.dart":  {},
 		"/project/utils.dart": {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// One extension should be white (the one chosen as majority)
 	// The other should have a different color
@@ -386,13 +388,13 @@ func TestDependencyGraph_ToDOT_MajorityExtensionTie(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_SingleExtensionAllWhite(t *testing.T) {
 	// When all files have the same extension, they should all be white
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/main.go":  {"/project/utils.go"},
 		"/project/utils.go": {},
 		"/project/types.go": {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// All files should be white (single extension)
 	assert.Contains(t, dot, `"main.go" [label="main.go", style=filled, fillcolor=white]`)
@@ -425,7 +427,7 @@ func TestBuildDependencyGraph_IncludesNonDartFiles(t *testing.T) {
 
 	// Build dependency graph with all files
 	files := []string{dartPath, goPath, readmePath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 3, "graph should include all files")
@@ -523,7 +525,7 @@ type Validator struct {}
 	// Note: Go imports refer to packages (directories), but the graph maps
 	// file to file dependencies (all files in the imported package)
 	files := []string{mainPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -609,7 +611,7 @@ func Helper() {}
 
 	// Build dependency graph with both Dart and Go files
 	files := []string{dartPath, helperPath, goPath, utilsPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -683,7 +685,7 @@ func main() {
 
 	// Build dependency graph
 	files := []string{typesPath, helpersPath, mainPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 3)
@@ -715,7 +717,7 @@ func TestGetExtensionColors_BasicFunctionality(t *testing.T) {
 		"config.json",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should have 3 unique extensions: .go, .dart, .json
 	assert.Len(t, colors, 3)
@@ -735,7 +737,7 @@ func TestGetExtensionColors_BasicFunctionality(t *testing.T) {
 }
 
 func TestGetExtensionColors_EmptyList(t *testing.T) {
-	colors := GetExtensionColors([]string{})
+	colors := formatters.GetExtensionColors([]string{})
 
 	assert.Empty(t, colors)
 }
@@ -748,7 +750,7 @@ func TestGetExtensionColors_FilesWithoutExtensions(t *testing.T) {
 		"main.go", // One file with extension
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should only have .go extension
 	assert.Len(t, colors, 1)
@@ -764,7 +766,7 @@ func TestGetExtensionColors_SameExtensionMultipleFiles(t *testing.T) {
 		"helpers.go",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should only have one extension (.go) with one color
 	assert.Len(t, colors, 1)
@@ -780,7 +782,7 @@ func TestGetExtensionColors_WithPaths(t *testing.T) {
 		"relative/path/config.json",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should extract extensions correctly from full paths
 	assert.Len(t, colors, 3)
@@ -814,7 +816,7 @@ func TestGetExtensionColors_ManyExtensions(t *testing.T) {
 		"file20.hs",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should have 20 unique extensions
 	assert.Len(t, colors, 20)
@@ -844,7 +846,7 @@ func TestGetExtensionColors_WithinCallConsistency(t *testing.T) {
 		"settings.json",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should have 3 unique extensions
 	assert.Len(t, colors, 3)
@@ -877,7 +879,7 @@ func TestGetExtensionColors_MixedWithAndWithoutExtensions(t *testing.T) {
 		"Makefile",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should only have extensions for files that have them
 	assert.Len(t, colors, 3)
@@ -896,7 +898,7 @@ func TestGetExtensionColors_ValidColorNames(t *testing.T) {
 		"file5.xml",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Valid color names from the palette
 	validColors := []string{
@@ -920,7 +922,7 @@ func TestGetExtensionColors_FilesWithMultipleDots(t *testing.T) {
 		"main.go",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should extract the last extension correctly
 	assert.Len(t, colors, 3)
@@ -941,7 +943,7 @@ func TestGetExtensionColors_HiddenFiles(t *testing.T) {
 		"main.go",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Hidden files without extensions should be skipped
 	// .env might be considered as having no extension or empty extension
@@ -960,7 +962,7 @@ func TestGetExtensionColors_PathsWithDotsInDirectoryNames(t *testing.T) {
 		"relative/path.dir/config.json",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should extract extensions correctly regardless of dots in directory names
 	assert.Len(t, colors, 3)
@@ -982,7 +984,7 @@ func TestGetExtensionColors_MatchesToDOTBehavior(t *testing.T) {
 		"config.json",
 	}
 
-	colors := GetExtensionColors(fileNames)
+	colors := formatters.GetExtensionColors(fileNames)
 
 	// Should extract extensions correctly (same as ToDOT would)
 	assert.Len(t, colors, 3)
@@ -1066,7 +1068,7 @@ object Validator {
 
 	// Build dependency graph
 	files := []string{mainPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -1139,7 +1141,7 @@ data class Order(val id: Int, val userId: Int)`
 
 	// Build dependency graph
 	files := []string{mainPath, userPath, productPath, orderPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -1225,7 +1227,7 @@ export function validateName(name: string): boolean {
 
 	// Build dependency graph
 	files := []string{indexPath, userPath, apiPath, validatorPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -1314,7 +1316,7 @@ export const useUser = () => {
 
 	// Build dependency graph
 	files := []string{appPath, buttonPath, useUserPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 3)
@@ -1384,7 +1386,7 @@ export function helper() {}
 
 	// Build dependency graph
 	files := []string{indexPath, userPath, apiPath, utilsPath}
-	graph, err := BuildDependencyGraph(files, "", "")
+	graph, err := parsers.BuildDependencyGraph(files, "", "")
 
 	require.NoError(t, err)
 	assert.Len(t, graph, 4)
@@ -1399,7 +1401,7 @@ export function helper() {}
 
 func TestDependencyGraph_ToDOT_TypeScriptTestFiles(t *testing.T) {
 	// Test TypeScript test files are styled as light green
-	graph := DependencyGraph{
+	graph := parsers.DependencyGraph{
 		"/project/src/App.tsx":                    {"/project/src/utils.tsx"},
 		"/project/src/utils.tsx":                  {},
 		"/project/src/App.test.tsx":               {"/project/src/App.tsx"},
@@ -1407,7 +1409,7 @@ func TestDependencyGraph_ToDOT_TypeScriptTestFiles(t *testing.T) {
 		"/project/src/components/Button.spec.tsx": {},
 	}
 
-	dot := graph.ToDOT("", nil)
+	dot := formatters.ToDOT(graph, "", nil)
 
 	// Test files with .test.tsx suffix should be light green
 	assert.Contains(t, dot, `"App.test.tsx" [label="App.test.tsx", style=filled, fillcolor=lightgreen]`)
