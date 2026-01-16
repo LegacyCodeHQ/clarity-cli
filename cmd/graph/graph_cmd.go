@@ -21,6 +21,7 @@ var repoPath string
 var commitID string
 var generateURL bool
 var includes []string
+var pathFiles []string
 
 // GraphCmd represents the graph command
 var GraphCmd = &cobra.Command{
@@ -51,7 +52,8 @@ Example usage:
   sanity graph --format=mermaid --url
   sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
   sanity graph --include file1.dart,file2.dart,file3.dart
-  sanity graph --url --commit 8d4f78`,
+  sanity graph --url --commit 8d4f78
+  sanity graph -u --paths main.go,./git/repository.go`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var filePaths []string
 		var err error
@@ -59,6 +61,11 @@ Example usage:
 		// Track commit range info for use throughout the function
 		var fromCommit, toCommit string
 		var isCommitRange bool
+
+		// Validate --paths cannot be used with --include
+		if len(pathFiles) > 0 && len(includes) > 0 {
+			return fmt.Errorf("--paths cannot be used with --include flag")
+		}
 
 		// If no explicit files provided and no repo path specified, default to current directory
 		if len(includes) == 0 && repoPath == "" {
@@ -102,6 +109,16 @@ Example usage:
 						return fmt.Errorf("no files changed in commit %s", toCommit)
 					}
 				}
+			} else if len(pathFiles) > 0 {
+				// When --paths is provided without --commit, expand all files in working directory
+				filePaths, err = expandPaths([]string{repoPath})
+				if err != nil {
+					return fmt.Errorf("failed to expand working directory: %w", err)
+				}
+
+				if len(filePaths) == 0 {
+					return fmt.Errorf("no supported files found in working directory")
+				}
 			} else {
 				// Uncommitted files mode
 				filePaths, err = git.GetUncommittedDartFiles(repoPath)
@@ -143,6 +160,25 @@ Example usage:
 		graph, err := parsers.BuildDependencyGraph(filePaths, repoPath, toCommit)
 		if err != nil {
 			return fmt.Errorf("failed to build dependency graph: %w", err)
+		}
+
+		// Apply path filtering if --paths flag is provided
+		if len(pathFiles) > 0 {
+			// Resolve paths to absolute paths and validate they exist in the graph
+			resolvedPaths, missingPaths := resolveAndValidatePaths(pathFiles, graph)
+			if len(missingPaths) > 0 {
+				return fmt.Errorf("files not found in graph: %v", missingPaths)
+			}
+			if len(resolvedPaths) < 2 {
+				return fmt.Errorf("at least 2 files required for --paths, found %d in graph", len(resolvedPaths))
+			}
+			graph = parsers.FindPathNodes(graph, resolvedPaths)
+
+			// Update filePaths to match filtered graph for accurate file count
+			filePaths = make([]string, 0, len(graph))
+			for f := range graph {
+				filePaths = append(filePaths, f)
+			}
 		}
 
 		// Get file statistics for DOT/Mermaid formats
@@ -312,6 +348,8 @@ func init() {
 	GraphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate GraphvizOnline URL for visualization")
 	// Add include flag for explicit files
 	GraphCmd.Flags().StringSliceVarP(&includes, "include", "i", nil, "Files or directories to include in the graph (comma-separated, directories are expanded recursively)")
+	// Add paths flag for finding paths between files
+	GraphCmd.Flags().StringSliceVarP(&pathFiles, "paths", "p", nil, "Find all files on shortest paths between specified files (comma-separated)")
 }
 
 // supportedExtensions contains file extensions that the graph command can analyze
@@ -364,4 +402,23 @@ func expandPaths(paths []string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// resolveAndValidatePaths resolves file paths to absolute paths and validates they exist in the graph.
+// Returns the list of resolved paths that exist in the graph and the list of paths that were not found.
+func resolveAndValidatePaths(paths []string, graph parsers.DependencyGraph) (resolved []string, missing []string) {
+	for _, p := range paths {
+		absPath, err := filepath.Abs(p)
+		if err != nil {
+			missing = append(missing, p)
+			continue
+		}
+
+		if _, ok := graph[absPath]; ok {
+			resolved = append(resolved, absPath)
+		} else {
+			missing = append(missing, p)
+		}
+	}
+	return
 }
