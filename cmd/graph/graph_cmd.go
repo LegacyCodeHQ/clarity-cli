@@ -41,17 +41,13 @@ Output formats:
   - json: JSON format
   - mermaid: Mermaid.js flowchart format
 
-Example usage:
-  sanity graph
-  sanity graph --url
-  sanity graph --commit 8d4f78
-  sanity graph --commit 8d4f78 --format=json
-  sanity graph --commit 8d4f78 --format=mermaid
-  sanity graph --format=mermaid --url
-  sanity graph --repo /path/to/repo --commit 8d4f78 --format=dot
-  sanity graph --input file1.dart,file2.dart,file3.dart
-  sanity graph --url --commit 8d4f78
-  sanity graph -u --between main.go,./git/repository.go`,
+Examples:
+  sanity graph                                # uncommitted changes
+  sanity graph -c HEAD~3                      # single commit
+  sanity graph -c abc123...def456             # commit range
+  sanity graph -i ./main.go,./lib             # specific files/directories
+  sanity graph -w ./main.go,./utils.go        # paths between files
+  sanity graph -u                             # generate visualization URL`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var filePaths []string
 		var err error
