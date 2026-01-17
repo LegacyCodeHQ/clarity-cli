@@ -9,17 +9,17 @@ import (
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
-// Format represents an output format type
-type Format string
+// OutputFormat represents an output format type
+type OutputFormat string
 
 const (
-	FormatDOT     Format = "dot"
-	FormatJSON    Format = "json"
-	FormatMermaid Format = "mermaid"
+	OutputFormatDOT     OutputFormat = "dot"
+	OutputFormatJSON    OutputFormat = "json"
+	OutputFormatMermaid OutputFormat = "mermaid"
 )
 
 // String returns the string representation of the format
-func (f Format) String() string {
+func (f OutputFormat) String() string {
 	return string(f)
 }
 
@@ -38,17 +38,17 @@ type Formatter interface {
 }
 
 // registry holds all registered formatters
-var registry = make(map[Format]func() Formatter)
+var registry = make(map[OutputFormat]func() Formatter)
 
 // Register adds a formatter constructor to the registry.
 // Each formatter should call this in its init() function.
-func Register(name Format, constructor func() Formatter) {
+func Register(name OutputFormat, constructor func() Formatter) {
 	registry[name] = constructor
 }
 
 // NewFormatter creates a Formatter for the specified format type.
 func NewFormatter(format string) (Formatter, error) {
-	constructor, ok := registry[Format(format)]
+	constructor, ok := registry[OutputFormat(format)]
 	if !ok {
 		return nil, fmt.Errorf("unknown format: %s (valid options: %s)", format, availableFormats())
 	}

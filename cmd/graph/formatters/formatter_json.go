@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	Register(FormatJSON, func() Formatter { return &JSONFormatter{} })
+	Register(OutputFormatJSON, func() Formatter { return &JSONFormatter{} })
 }
 
 // JSONFormatter formats dependency graphs as JSON.

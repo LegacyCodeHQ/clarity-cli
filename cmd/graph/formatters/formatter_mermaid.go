@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	Register(FormatMermaid, func() Formatter { return &MermaidFormatter{} })
+	Register(OutputFormatMermaid, func() Formatter { return &MermaidFormatter{} })
 }
 
 // MermaidFormatter formats dependency graphs as Mermaid.js flowcharts.

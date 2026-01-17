@@ -183,8 +183,8 @@ Example usage:
 
 		// Get file statistics for DOT/Mermaid formats
 		var fileStats map[string]git.FileStats
-		format := formatters.Format(outputFormat)
-		if (format == formatters.FormatDOT || format == formatters.FormatMermaid) && repoPath != "" {
+		format := formatters.OutputFormat(outputFormat)
+		if (format == formatters.OutputFormatDOT || format == formatters.OutputFormatMermaid) && repoPath != "" {
 			if commitID != "" {
 				if isCommitRange {
 					// Get stats for commit range
@@ -209,7 +209,7 @@ Example usage:
 
 		// Build label with commit hash and dirty status for DOT/Mermaid formats
 		var label string
-		if format == formatters.FormatDOT || format == formatters.FormatMermaid {
+		if format == formatters.OutputFormatDOT || format == formatters.OutputFormatMermaid {
 			// Determine the repo path to use (use current directory if not specified)
 			labelRepoPath := repoPath
 			if labelRepoPath == "" {
@@ -276,13 +276,13 @@ Example usage:
 
 		// Handle URL generation and output
 		switch format {
-		case formatters.FormatDOT:
+		case formatters.OutputFormatDOT:
 			if generateURL {
 				fmt.Println(generateGraphvizOnlineURL(output))
 			} else {
 				fmt.Print(output)
 			}
-		case formatters.FormatMermaid:
+		case formatters.OutputFormatMermaid:
 			if generateURL {
 				fmt.Println(generateMermaidLiveURL(output))
 			} else {
@@ -340,8 +340,8 @@ func generateMermaidLiveURL(mermaidCode string) string {
 
 func init() {
 	// Add format flag
-	GraphCmd.Flags().StringVarP(&outputFormat, "format", "f", formatters.FormatDOT.String(),
-		fmt.Sprintf("Output format (%s, %s, %s)", formatters.FormatDOT, formatters.FormatJSON, formatters.FormatMermaid))
+	GraphCmd.Flags().StringVarP(&outputFormat, "format", "f", formatters.OutputFormatDOT.String(),
+		fmt.Sprintf("Output format (%s, %s, %s)", formatters.OutputFormatDOT, formatters.OutputFormatJSON, formatters.OutputFormatMermaid))
 	// Add repo flag
 	GraphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag
