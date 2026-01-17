@@ -218,10 +218,8 @@ func BuildDependencyGraph(filePaths []string, repoPath, commitID string) (Depend
 							continue
 						}
 
-						// Skip test files as dependencies when:
-						// 1. Source is not a test file (test files belong to a different package)
-						// 2. Importing from same directory (test files are in package X_test, not package X)
-						if strings.HasSuffix(depFile, "_test.go") && (!isTestFile || sameDir) {
+						// Skip test files from other packages (they can't export symbols)
+						if strings.HasSuffix(depFile, "_test.go") && !sameDir {
 							continue
 						}
 
