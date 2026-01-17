@@ -160,7 +160,7 @@ func (f *DOTFormatter) Format(g parsers.DependencyGraph, opts FormatOptions) (st
 		}
 	}
 
-	sb.WriteString("}\n")
+	sb.WriteString("}")
 	return sb.String(), nil
 }
 

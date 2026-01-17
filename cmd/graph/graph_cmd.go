@@ -278,10 +278,10 @@ Example usage:
 				fmt.Println(urlStr)
 			} else {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: URL generation is not supported for %s format\n\n", format)
-				fmt.Print(output)
+				fmt.Println(output)
 			}
 		} else {
-			fmt.Print(output)
+			fmt.Println(output)
 		}
 
 		// Copy to clipboard if flag is enabled

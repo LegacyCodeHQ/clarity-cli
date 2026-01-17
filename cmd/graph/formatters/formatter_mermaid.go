@@ -164,7 +164,7 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts FormatOptions)
 	if len(newFileNodes) > 0 {
 		sb.WriteString(fmt.Sprintf("    class %s newFile\n", strings.Join(newFileNodes, ",")))
 	}
-	return sb.String(), nil
+	return strings.TrimSuffix(sb.String(), "\n"), nil
 }
 
 // GenerateURL creates a mermaid.live URL with the diagram embedded.
