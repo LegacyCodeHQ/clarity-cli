@@ -26,9 +26,9 @@ builds:
     # Inject version information
     ldflags:
       - -s -w
-      - -X sanity/cmd.version={{.Version}}
-      - -X sanity/cmd.buildDate={{.Date}}
-      - -X sanity/cmd.commit={{.ShortCommit}}
+      - -X github.com/LegacyCodeHQ/sanity/cmd.version={{.Version}}
+      - -X github.com/LegacyCodeHQ/sanity/cmd.buildDate={{.Date}}
+      - -X github.com/LegacyCodeHQ/sanity/cmd.commit={{.ShortCommit}}
     # Configure cross-compilation
     overrides:
       # Linux ARM64

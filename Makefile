@@ -68,7 +68,7 @@ build:
 # Build the binary with version information from git
 build-version:
 	@echo "Building with version: $(VERSION), commit: $(COMMIT), date: $(BUILD_DATE)"
-	go build -ldflags "-X sanity/cmd.version=$(VERSION) -X sanity/cmd.buildDate=$(BUILD_DATE) -X sanity/cmd.commit=$(COMMIT)" -o sanity ./main.go
+	go build -ldflags "-X github.com/LegacyCodeHQ/sanity/cmd.version=$(VERSION) -X github.com/LegacyCodeHQ/sanity/cmd.buildDate=$(BUILD_DATE) -X github.com/LegacyCodeHQ/sanity/cmd.commit=$(COMMIT)" -o sanity ./main.go
 
 # Clean coverage files and binary
 clean:
@@ -93,6 +93,6 @@ release-check:
 # No cross-compilation, no GoReleaser, no Zig required
 build-local:
 	@echo "Building for current platform with version: $(VERSION), commit: $(COMMIT)"
-	CGO_ENABLED=1 go build -ldflags "-s -w -X sanity/cmd.version=$(VERSION) -X sanity/cmd.buildDate=$(BUILD_DATE) -X sanity/cmd.commit=$(COMMIT)" -o sanity ./main.go
+	CGO_ENABLED=1 go build -ldflags "-s -w -X github.com/LegacyCodeHQ/sanity/cmd.version=$(VERSION) -X github.com/LegacyCodeHQ/sanity/cmd.buildDate=$(BUILD_DATE) -X github.com/LegacyCodeHQ/sanity/cmd.commit=$(COMMIT)" -o sanity ./main.go
 	@echo ""
 	@echo "Build successful! Run './sanity --version' to test"
