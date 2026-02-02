@@ -96,6 +96,29 @@ Examples:
 			if len(filePaths) == 0 {
 				return fmt.Errorf("no supported files found in specified paths")
 			}
+		} else if len(betweenFiles) > 0 {
+			// When --between is provided, get all files to build the full graph
+			if commitID != "" {
+				// With --commit, get all files from that commit's tree
+				filePaths, err = vcs.GetCommitTreeFiles(repoPath, toCommit)
+				if err != nil {
+					return fmt.Errorf("failed to get files from commit tree: %w", err)
+				}
+
+				if len(filePaths) == 0 {
+					return fmt.Errorf("no files found in commit %s", toCommit)
+				}
+			} else {
+				// Without --commit, expand all files in working directory
+				filePaths, err = expandPaths([]string{repoPath})
+				if err != nil {
+					return fmt.Errorf("failed to expand working directory: %w", err)
+				}
+
+				if len(filePaths) == 0 {
+					return fmt.Errorf("no supported files found in working directory")
+				}
+			}
 		} else if commitID != "" {
 			// Commit mode without explicit files - get files changed in commit
 			if isCommitRange {
@@ -116,16 +139,6 @@ Examples:
 				if len(filePaths) == 0 {
 					return fmt.Errorf("no files changed in commit %s", toCommit)
 				}
-			}
-		} else if len(betweenFiles) > 0 {
-			// When --between is provided without --commit or --input, expand all files in working directory
-			filePaths, err = expandPaths([]string{repoPath})
-			if err != nil {
-				return fmt.Errorf("failed to expand working directory: %w", err)
-			}
-
-			if len(filePaths) == 0 {
-				return fmt.Errorf("no supported files found in working directory")
 			}
 		} else if targetFile != "" {
 			// When --file is provided, expand all files in working directory to build full graph
@@ -158,8 +171,9 @@ Examples:
 
 		// Build the dependency graph
 		// Create the appropriate content reader based on whether we're analyzing a commit
+		// When --file is used without --commit, use filesystem reader for current state
 		var contentReader vcs.ContentReader
-		if toCommit != "" {
+		if toCommit != "" && targetFile == "" {
 			contentReader = vcs.GitCommitContentReader(repoPath, toCommit)
 		} else {
 			contentReader = vcs.FilesystemContentReader()
