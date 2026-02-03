@@ -19,7 +19,7 @@ func TestGetUncommittedDartFiles_UntrackedFiles(t *testing.T) {
 	createDartFile(t, tmpDir, "test2.dart")
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -40,7 +40,7 @@ func TestGetUncommittedDartFiles_UntrackedFilesInSubdirectory(t *testing.T) {
 	createDartFile(t, subDir, "test2.dart")
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -56,7 +56,7 @@ func TestGetUncommittedDartFiles_StagedFiles(t *testing.T) {
 	gitAdd(t, tmpDir, "test.dart")
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -76,7 +76,7 @@ func TestGetUncommittedDartFiles_ModifiedFiles(t *testing.T) {
 	modifyFile(t, dartFile)
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -103,7 +103,7 @@ func TestGetUncommittedDartFiles_MixedStates(t *testing.T) {
 	modifyFile(t, committedFile)
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -121,7 +121,7 @@ func TestGetUncommittedDartFiles_IncludesAllFiles(t *testing.T) {
 	createFile(t, tmpDir, "test.txt", "text file")
 
 	// Get uncommitted files
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -138,7 +138,7 @@ func TestGetUncommittedDartFiles_NoUncommittedFiles(t *testing.T) {
 	gitCommit(t, tmpDir, "Initial commit")
 
 	// Get uncommitted files (should be empty)
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -150,7 +150,7 @@ func TestGetUncommittedDartFiles_EmptyRepo(t *testing.T) {
 	setupGitRepo(t, tmpDir)
 
 	// Get uncommitted files from empty repo
-	files, err := GetUncommittedDartFiles(tmpDir)
+	files, err := GetUncommittedFiles(tmpDir)
 
 	require.NoError(t, err)
 	g := gitGoldie(t)
@@ -162,14 +162,14 @@ func TestGetUncommittedDartFiles_NotGitRepo(t *testing.T) {
 	// Don't initialize git
 
 	// Try to get uncommitted files
-	_, err := GetUncommittedDartFiles(tmpDir)
+	_, err := GetUncommittedFiles(tmpDir)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not a git repository")
 }
 
 func TestGetUncommittedDartFiles_InvalidPath(t *testing.T) {
-	_, err := GetUncommittedDartFiles("/nonexistent/path")
+	_, err := GetUncommittedFiles("/nonexistent/path")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")

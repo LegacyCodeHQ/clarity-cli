@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// GetUncommittedDartFiles finds all uncommitted files in a git repository.
+// GetUncommittedFiles finds all uncommitted files in a git repository.
 // Returns absolute paths to all uncommitted files (staged, unstaged, and untracked).
-func GetUncommittedDartFiles(repoPath string) ([]string, error) {
+func GetUncommittedFiles(repoPath string) ([]string, error) {
 	// Validate the repository path exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("repository path does not exist: %s", repoPath)

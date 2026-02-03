@@ -152,7 +152,7 @@ Examples:
 			}
 		} else {
 			// Default: uncommitted files mode
-			filePaths, err = vcs.GetUncommittedDartFiles(repoPath)
+			filePaths, err = vcs.GetUncommittedFiles(repoPath)
 			if err != nil {
 				return fmt.Errorf("failed to get uncommitted files: %w", err)
 			}
