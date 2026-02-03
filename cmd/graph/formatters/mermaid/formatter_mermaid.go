@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
@@ -29,11 +30,18 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 
 	sb.WriteString("flowchart LR\n")
 
+	// Collect and sort file paths for deterministic output
+	filePaths := make([]string, 0, len(g))
+	for source := range g {
+		filePaths = append(filePaths, source)
+	}
+	sort.Strings(filePaths)
+
 	// Create a mapping from base filename to a valid Mermaid node ID
 	// Mermaid node IDs can't have dots or special characters
 	nodeIDs := make(map[string]string)
 	nodeCounter := 0
-	for source := range g {
+	for _, source := range filePaths {
 		sourceBase := filepath.Base(source)
 		if _, exists := nodeIDs[sourceBase]; !exists {
 			nodeIDs[sourceBase] = fmt.Sprintf("n%d", nodeCounter)
@@ -43,15 +51,23 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 
 	// Count files by extension to find the majority extension
 	extensionCounts := make(map[string]int)
-	for source := range g {
+	for _, source := range filePaths {
 		ext := filepath.Ext(filepath.Base(source))
 		extensionCounts[ext]++
 	}
 
+	// Sort extensions for deterministic majority selection when counts are tied
+	sortedExtensions := make([]string, 0, len(extensionCounts))
+	for ext := range extensionCounts {
+		sortedExtensions = append(sortedExtensions, ext)
+	}
+	sort.Strings(sortedExtensions)
+
 	// Find the extension with the majority count
 	maxCount := 0
 	majorityExtension := ""
-	for ext, count := range extensionCounts {
+	for _, ext := range sortedExtensions {
+		count := extensionCounts[ext]
 		if count > maxCount {
 			maxCount = count
 			majorityExtension = ext
@@ -60,7 +76,7 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 
 	// Track all files that have the majority extension
 	filesWithMajorityExtension := make(map[string]bool)
-	for source := range g {
+	for _, source := range filePaths {
 		ext := filepath.Ext(filepath.Base(source))
 		if ext == majorityExtension {
 			filesWithMajorityExtension[source] = true
@@ -71,7 +87,7 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 	definedNodes := make(map[string]bool)
 
 	// Define nodes with labels and styles
-	for source := range g {
+	for _, source := range filePaths {
 		sourceBase := filepath.Base(source)
 		nodeID := nodeIDs[sourceBase]
 
@@ -115,10 +131,15 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 	sb.WriteString("\n")
 
 	// Define edges
-	for source, deps := range g {
+	for _, source := range filePaths {
+		deps := g[source]
+		sortedDeps := make([]string, len(deps))
+		copy(sortedDeps, deps)
+		sort.Strings(sortedDeps)
+
 		sourceBase := filepath.Base(source)
 		sourceID := nodeIDs[sourceBase]
-		for _, dep := range deps {
+		for _, dep := range sortedDeps {
 			depBase := filepath.Base(dep)
 			depID := nodeIDs[depBase]
 			sb.WriteString(fmt.Sprintf("    %s --> %s\n", sourceID, depID))
@@ -132,7 +153,7 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts formatters.For
 	testNodes := []string{}
 	newFileNodes := []string{}
 
-	for source := range g {
+	for _, source := range filePaths {
 		sourceBase := filepath.Base(source)
 		nodeID := nodeIDs[sourceBase]
 

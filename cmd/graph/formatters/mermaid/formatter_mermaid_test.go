@@ -7,7 +7,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/mermaid"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
-	"github.com/stretchr/testify/assert"
+	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,13 +18,11 @@ func TestMermaidFormatter_BasicFlowchart(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	assert.Contains(t, mermaid, "flowchart LR")
-	assert.Contains(t, mermaid, "main.dart")
-	assert.Contains(t, mermaid, "utils.dart")
-	assert.Contains(t, mermaid, "-->")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_WithLabel(t *testing.T) {
@@ -33,12 +31,11 @@ func TestMermaidFormatter_WithLabel(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{Label: "My Graph"})
+	output, err := formatter.Format(graph, formatters.FormatOptions{Label: "My Graph"})
 	require.NoError(t, err)
 
-	assert.Contains(t, mermaid, "---")
-	assert.Contains(t, mermaid, "title: My Graph")
-	assert.Contains(t, mermaid, "flowchart LR")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_WithoutLabel(t *testing.T) {
@@ -47,11 +44,11 @@ func TestMermaidFormatter_WithoutLabel(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	assert.NotContains(t, mermaid, "title:")
-	assert.Contains(t, mermaid, "flowchart LR")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_NewFilesUseSeedlingLabel(t *testing.T) {
@@ -76,17 +73,11 @@ func TestMermaidFormatter_NewFilesUseSeedlingLabel(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
+	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	// New file without stats should have seedling
-	assert.Contains(t, mermaid, "🪴 new_file.dart")
-	// New file with stats should have seedling and stats
-	assert.Contains(t, mermaid, "🪴 new_with_stats.dart")
-	assert.Contains(t, mermaid, "+12")
-	assert.Contains(t, mermaid, "-1")
-	// Existing file with stats should show stats without seedling
-	assert.Contains(t, mermaid, "+3")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_TestFilesAreStyled(t *testing.T) {
@@ -98,18 +89,11 @@ func TestMermaidFormatter_TestFilesAreStyled(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Test files should be present
-	assert.Contains(t, mermaid, "main_test.go")
-	assert.Contains(t, mermaid, "utils_test.go")
-
-	// Test file style should be defined
-	assert.Contains(t, mermaid, "classDef testFile fill:#90EE90,stroke:#228B22,color:#000000")
-	// Test files should have testFile class applied
-	assert.Contains(t, mermaid, "class")
-	assert.Contains(t, mermaid, "testFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_DartTestFiles(t *testing.T) {
@@ -121,14 +105,11 @@ func TestMermaidFormatter_DartTestFiles(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Test files should be present
-	assert.Contains(t, mermaid, "main_test.dart")
-	assert.Contains(t, mermaid, "utils_test.dart")
-	// Test file style should be applied
-	assert.Contains(t, mermaid, "classDef testFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_NewFilesAreStyled(t *testing.T) {
@@ -151,13 +132,11 @@ func TestMermaidFormatter_NewFilesAreStyled(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
+	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	// New file style should be defined
-	assert.Contains(t, mermaid, "classDef newFile fill:#87CEEB,stroke:#4682B4")
-	// New files should have newFile class applied
-	assert.Contains(t, mermaid, "newFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_TypeScriptTestFiles(t *testing.T) {
@@ -170,15 +149,11 @@ func TestMermaidFormatter_TypeScriptTestFiles(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Test files should be present
-	assert.Contains(t, mermaid, "App.test.tsx")
-	assert.Contains(t, mermaid, "utils.test.tsx")
-	assert.Contains(t, mermaid, "Button.spec.tsx")
-	// Test file style should be defined
-	assert.Contains(t, mermaid, "classDef testFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_EdgesBetweenNodes(t *testing.T) {
@@ -189,39 +164,35 @@ func TestMermaidFormatter_EdgesBetweenNodes(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Should have edges (the format is nodeID --> nodeID)
-	assert.Contains(t, mermaid, "-->")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_QuoteEscaping(t *testing.T) {
-	// Test that quotes in labels are properly escaped
 	graph := parsers.DependencyGraph{
 		"/project/file.go": {},
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Node should be defined with quoted label
-	assert.Contains(t, mermaid, "file.go")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_EmptyGraph(t *testing.T) {
 	graph := parsers.DependencyGraph{}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{})
+	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	// Should still have flowchart declaration
-	assert.Contains(t, mermaid, "flowchart LR")
-	// Should define the style classes even if empty
-	assert.Contains(t, mermaid, "classDef testFile")
-	assert.Contains(t, mermaid, "classDef newFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_FileStatsWithOnlyAdditions(t *testing.T) {
@@ -237,11 +208,11 @@ func TestMermaidFormatter_FileStatsWithOnlyAdditions(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
+	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	assert.Contains(t, mermaid, "+10")
-	assert.NotContains(t, mermaid, "-0")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_FileStatsWithOnlyDeletions(t *testing.T) {
@@ -257,15 +228,14 @@ func TestMermaidFormatter_FileStatsWithOnlyDeletions(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
+	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	assert.Contains(t, mermaid, "-5")
-	assert.NotContains(t, mermaid, "+0")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestMermaidFormatter_TestFileTakesPriorityOverNewFile(t *testing.T) {
-	// Test files should be styled as test files, not new files
 	graph := parsers.DependencyGraph{
 		"/project/main_test.go": {},
 	}
@@ -277,11 +247,9 @@ func TestMermaidFormatter_TestFileTakesPriorityOverNewFile(t *testing.T) {
 	}
 
 	formatter := &mermaid.MermaidFormatter{}
-	mermaid, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
+	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	// The test file class should be applied, but not the newFile class to this node
-	assert.Contains(t, mermaid, "classDef testFile")
-	// Since it's a test file, it should be in testFile class, not newFile
-	assert.Contains(t, mermaid, "testFile")
+	g := goldie.New(t)
+	g.Assert(t, t.Name(), []byte(output))
 }
