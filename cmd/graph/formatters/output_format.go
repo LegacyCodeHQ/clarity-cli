@@ -27,7 +27,7 @@ func (f OutputFormat) String() string {
 
 // ParseOutputFormat converts a string to OutputFormat
 func ParseOutputFormat(s string) (OutputFormat, bool) {
-	switch s {
+	switch strings.ToLower(s) {
 	case "dot":
 		return OutputFormatDOT, true
 	case "mermaid":

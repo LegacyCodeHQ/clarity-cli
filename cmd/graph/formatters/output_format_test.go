@@ -32,7 +32,8 @@ func TestParseOutputFormat(t *testing.T) {
 		{"mermaid", OutputFormatMermaid, true},
 		{"invalid", OutputFormatDOT, false},
 		{"", OutputFormatDOT, false},
-		{"DOT", OutputFormatDOT, false}, // case sensitive
+		{"DOT", OutputFormatDOT, true},         // case-insensitive
+		{"MERmaid", OutputFormatMermaid, true}, // case-insensitive
 	}
 
 	for _, tt := range tests {
