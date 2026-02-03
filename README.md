@@ -73,11 +73,11 @@ Generate dependency graphs for Dart and Go files.
 
 **Flags**:
 
-| Flag             | Description               | Notes          |
-|------------------|---------------------------|----------------|
-| `--repo`, `-r`   | Git repository path       | Default: "."   |
-| `--commit`, `-c` | Git commit to analyze     |                |
-| `--format`, `-f` | Output format (dot, json) | Default: "dot" |
+| Flag             | Description                  | Notes          |
+|------------------|------------------------------|----------------|
+| `--repo`, `-r`   | Git repository path          | Default: "."   |
+| `--commit`, `-c` | Git commit to analyze        |                |
+| `--format`, `-f` | Output format (dot, mermaid) | Default: "dot" |
 
 **Examples**:
 

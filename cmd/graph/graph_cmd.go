@@ -346,7 +346,7 @@ Examples:
 func init() {
 	// Add format flag
 	GraphCmd.Flags().StringVarP(&outputFormat, "format", "f", formatters.OutputFormatDOT.String(),
-		fmt.Sprintf("Output format (%s, %s, %s)", formatters.OutputFormatDOT, formatters.OutputFormatJSON, formatters.OutputFormatMermaid))
+		fmt.Sprintf("Output format (%s)", formatters.SupportedFormats()))
 	// Add repo flag
 	GraphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag

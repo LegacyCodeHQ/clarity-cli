@@ -13,7 +13,7 @@ import (
 func NewFormatter(format string) (formatters.Formatter, error) {
 	f, ok := formatters.ParseOutputFormat(format)
 	if !ok {
-		return nil, fmt.Errorf("unknown format: %s (valid options: dot, json, mermaid)", format)
+		return nil, fmt.Errorf("unknown format: %s (valid options: %s)", format, formatters.SupportedFormats())
 	}
 
 	switch f {
@@ -24,6 +24,6 @@ func NewFormatter(format string) (formatters.Formatter, error) {
 	case formatters.OutputFormatMermaid:
 		return &mermaid.MermaidFormatter{}, nil
 	default:
-		return nil, fmt.Errorf("unknown format: %s (valid options: dot, json, mermaid)", format)
+		return nil, fmt.Errorf("unknown format: %s (valid options: %s)", format, formatters.SupportedFormats())
 	}
 }

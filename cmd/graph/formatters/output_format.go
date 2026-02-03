@@ -1,5 +1,7 @@
 package formatters
 
+import "strings"
+
 // OutputFormat represents an output format type
 type OutputFormat int
 
@@ -7,6 +9,7 @@ const (
 	OutputFormatDOT OutputFormat = iota
 	OutputFormatJSON
 	OutputFormatMermaid
+	endOfSupportedFormatsMarker // endOfSupportedFormatsMarker for iteration
 )
 
 // String returns the string representation of the format
@@ -18,6 +21,8 @@ func (f OutputFormat) String() string {
 		return "json"
 	case OutputFormatMermaid:
 		return "mermaid"
+	case endOfSupportedFormatsMarker:
+		return "unknown"
 	default:
 		return "unknown"
 	}
@@ -35,4 +40,13 @@ func ParseOutputFormat(s string) (OutputFormat, bool) {
 	default:
 		return OutputFormatDOT, false
 	}
+}
+
+// SupportedFormats returns a list of all supported output format names.
+func SupportedFormats() string {
+	formats := make([]string, 0, endOfSupportedFormatsMarker)
+	for i := OutputFormat(0); i < endOfSupportedFormatsMarker; i++ {
+		formats = append(formats, i.String())
+	}
+	return strings.Join(formats, ", ")
 }
