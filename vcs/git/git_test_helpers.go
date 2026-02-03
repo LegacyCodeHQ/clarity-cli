@@ -1,4 +1,4 @@
-package vcs
+package git
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LegacyCodeHQ/sanity/vcs"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -103,7 +104,7 @@ func normalizeFilePaths(tmpDir string, paths []string) string {
 }
 
 // normalizeFileStats normalizes file stats for golden file comparison
-func normalizeFileStats(tmpDir string, stats map[string]FileStats) string {
+func normalizeFileStats(tmpDir string, stats map[string]vcs.FileStats) string {
 	if len(stats) == 0 {
 		return "(empty)"
 	}

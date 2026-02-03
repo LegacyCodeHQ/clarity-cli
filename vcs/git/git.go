@@ -1,4 +1,4 @@
-package vcs
+package git
 
 import (
 	"bytes"
@@ -213,4 +213,3 @@ func GetCommitRangeLabel(repoPath, fromCommit, toCommit string) (string, error) 
 	}
 	return fmt.Sprintf("%s...%s", fromShort, toShort), nil
 }
-

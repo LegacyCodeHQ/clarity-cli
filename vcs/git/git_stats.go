@@ -1,4 +1,4 @@
-package vcs
+package git
 
 import (
 	"bytes"
@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
 // GetUncommittedFileStats returns statistics (additions/deletions) for uncommitted files
 // Returns a map from relative file paths to their FileStats
-func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
+func GetUncommittedFileStats(repoPath string) (map[string]vcs.FileStats, error) {
 	// Validate the repository path exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("repository path does not exist: %s", repoPath)
@@ -52,7 +54,7 @@ func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
 	}
 
 	// Parse the numstat output
-	stats := make(map[string]FileStats)
+	stats := make(map[string]vcs.FileStats)
 	lines := strings.Split(stdout.String(), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -87,7 +89,7 @@ func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
 		// Convert to absolute path
 		absPath := filepath.Join(repoRoot, filePath)
 
-		stats[absPath] = FileStats{
+		stats[absPath] = vcs.FileStats{
 			Additions: additions,
 			Deletions: deletions,
 			IsNew:     isNewStatus(statusMap[filePath]),
@@ -111,7 +113,7 @@ func GetUncommittedFileStats(repoPath string) (map[string]FileStats, error) {
 
 // GetCommitFileStats returns statistics (additions/deletions) for files in a specific commit
 // Returns a map from absolute file paths to their FileStats
-func GetCommitFileStats(repoPath, commitID string) (map[string]FileStats, error) {
+func GetCommitFileStats(repoPath, commitID string) (map[string]vcs.FileStats, error) {
 	// Validate the repository path exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("repository path does not exist: %s", repoPath)
@@ -156,7 +158,7 @@ func GetCommitFileStats(repoPath, commitID string) (map[string]FileStats, error)
 	}
 
 	// Parse the numstat output
-	stats := make(map[string]FileStats)
+	stats := make(map[string]vcs.FileStats)
 	lines := strings.Split(stdout.String(), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -191,7 +193,7 @@ func GetCommitFileStats(repoPath, commitID string) (map[string]FileStats, error)
 		// Convert to absolute path
 		absPath := filepath.Join(repoRoot, filePath)
 
-		stats[absPath] = FileStats{
+		stats[absPath] = vcs.FileStats{
 			Additions: additions,
 			Deletions: deletions,
 			IsNew:     isNewStatus(statusMap[filePath]),
@@ -215,7 +217,7 @@ func GetCommitFileStats(repoPath, commitID string) (map[string]FileStats, error)
 
 // GetCommitRangeFileStats returns statistics (additions/deletions) for files changed between two commits.
 // Returns a map from absolute file paths to their FileStats.
-func GetCommitRangeFileStats(repoPath, fromCommit, toCommit string) (map[string]FileStats, error) {
+func GetCommitRangeFileStats(repoPath, fromCommit, toCommit string) (map[string]vcs.FileStats, error) {
 	// Validate the repository path exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("repository path does not exist: %s", repoPath)
@@ -263,7 +265,7 @@ func GetCommitRangeFileStats(repoPath, fromCommit, toCommit string) (map[string]
 	}
 
 	// Parse the numstat output
-	stats := make(map[string]FileStats)
+	stats := make(map[string]vcs.FileStats)
 	lines := strings.Split(stdout.String(), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -298,7 +300,7 @@ func GetCommitRangeFileStats(repoPath, fromCommit, toCommit string) (map[string]
 		// Convert to absolute path
 		absPath := filepath.Join(repoRoot, filePath)
 
-		stats[absPath] = FileStats{
+		stats[absPath] = vcs.FileStats{
 			Additions: additions,
 			Deletions: deletions,
 			IsNew:     statusMap[filePath] == "A",
