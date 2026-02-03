@@ -1,4 +1,4 @@
-package formatters_test
+package common_test
 
 import (
 	"path/filepath"

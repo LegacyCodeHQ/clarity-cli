@@ -1,4 +1,4 @@
-package formatters
+package dot
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/common"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
@@ -13,7 +14,7 @@ import (
 type DOTFormatter struct{}
 
 // Format converts the dependency graph to Graphviz DOT format.
-func (f *DOTFormatter) Format(g parsers.DependencyGraph, opts FormatOptions) (string, error) {
+func (f *DOTFormatter) Format(g parsers.DependencyGraph, opts common.FormatOptions) (string, error) {
 	var sb strings.Builder
 	sb.WriteString("digraph dependencies {\n")
 	sb.WriteString("  rankdir=LR;\n")
@@ -36,7 +37,7 @@ func (f *DOTFormatter) Format(g parsers.DependencyGraph, opts FormatOptions) (st
 	}
 
 	// Get extension colors using the shared function
-	extensionColors := GetExtensionColors(filePaths)
+	extensionColors := common.GetExtensionColors(filePaths)
 
 	// Count files by extension to find the majority extension
 	extensionCounts := make(map[string]int)
@@ -92,7 +93,7 @@ func (f *DOTFormatter) Format(g parsers.DependencyGraph, opts FormatOptions) (st
 			var color string
 
 			// Priority 1: Test files are always light green
-			if IsTestFile(source) {
+			if common.IsTestFile(source) {
 				color = "lightgreen"
 			} else if filesWithMajorityExtension[source] {
 				// Priority 2: Files with majority extension count are always white

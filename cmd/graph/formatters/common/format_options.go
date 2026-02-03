@@ -1,4 +1,4 @@
-package formatters
+package common
 
 import "github.com/LegacyCodeHQ/sanity/vcs"
 

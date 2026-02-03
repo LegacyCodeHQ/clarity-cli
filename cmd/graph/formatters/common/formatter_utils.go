@@ -1,4 +1,4 @@
-package formatters
+package common
 
 import (
 	"path/filepath"

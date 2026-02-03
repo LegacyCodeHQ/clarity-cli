@@ -1,4 +1,4 @@
-package formatters
+package mermaid
 
 import (
 	"encoding/base64"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/common"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 )
 
@@ -15,7 +16,7 @@ import (
 type MermaidFormatter struct{}
 
 // Format converts the dependency graph to Mermaid.js flowchart format.
-func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts FormatOptions) (string, error) {
+func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts common.FormatOptions) (string, error) {
 	var sb strings.Builder
 
 	// Add title if label provided
@@ -134,7 +135,7 @@ func (f *MermaidFormatter) Format(g parsers.DependencyGraph, opts FormatOptions)
 		sourceBase := filepath.Base(source)
 		nodeID := nodeIDs[sourceBase]
 
-		if IsTestFile(source) {
+		if common.IsTestFile(source) {
 			testNodes = append(testNodes, nodeID)
 		} else if opts.FileStats != nil {
 			if stats, ok := opts.FileStats[source]; ok && stats.IsNew {
