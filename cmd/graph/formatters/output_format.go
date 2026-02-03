@@ -7,7 +7,6 @@ type OutputFormat int
 
 const (
 	OutputFormatDOT OutputFormat = iota
-	OutputFormatJSON
 	OutputFormatMermaid
 	endOfSupportedFormatsMarker // endOfSupportedFormatsMarker for iteration
 )
@@ -17,8 +16,6 @@ func (f OutputFormat) String() string {
 	switch f {
 	case OutputFormatDOT:
 		return "dot"
-	case OutputFormatJSON:
-		return "json"
 	case OutputFormatMermaid:
 		return "mermaid"
 	case endOfSupportedFormatsMarker:
@@ -33,8 +30,6 @@ func ParseOutputFormat(s string) (OutputFormat, bool) {
 	switch s {
 	case "dot":
 		return OutputFormatDOT, true
-	case "json":
-		return OutputFormatJSON, true
 	case "mermaid":
 		return OutputFormatMermaid, true
 	default:

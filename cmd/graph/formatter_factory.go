@@ -5,7 +5,6 @@ import (
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/dot"
-	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/json"
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/mermaid"
 )
 
@@ -19,8 +18,6 @@ func NewFormatter(format string) (formatters.Formatter, error) {
 	switch f {
 	case formatters.OutputFormatDOT:
 		return &dot.DOTFormatter{}, nil
-	case formatters.OutputFormatJSON:
-		return &json.JSONFormatter{}, nil
 	case formatters.OutputFormatMermaid:
 		return &mermaid.MermaidFormatter{}, nil
 	default:
