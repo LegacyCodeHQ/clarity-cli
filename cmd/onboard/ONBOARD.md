@@ -9,11 +9,11 @@ Add this minimal snippet to AGENTS.md (or create it):
 This project uses **sanity** for the following:
 
 1. Auditing AI-generated code
-2. Viewing, identifying, and fixing software design
+2. Examining, identifying, and fixing software design
 
-### Agent Workflow: Using the `graph` Subcommand
+Both use cases require the agent to run the `graph` subcommand, either after making changes or if the user requests to visualize the design.
 
-After generating code or making changes, agents **MUST** run `sanity graph` on uncommitted changes to audit the modifications.
+### Agent Instructions: Using the `graph` Subcommand
 
 #### Implementation Based on Agent Environment:
 
@@ -31,10 +31,5 @@ sanity graph -f mermaid
 
 Render the mermaid diagram output directly within the IDE or desktop application interface.
 
-#### When to Run:
-
-- After completing any code generation task
-- Before committing changes
-- When requested to audit or review changes
 ---
 --- END AGENTS.MD CONTENT ---
