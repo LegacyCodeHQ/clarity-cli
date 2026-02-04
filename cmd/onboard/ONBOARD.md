@@ -14,7 +14,8 @@ Agents should use **sanity** in these scenarios:
 
 1. **After code generation/modification** - Audit AI-generated changes
 2. **When analyzing software design/architecture** - Examine and understand software design
-3. **Upon user request** - When explicitly asked to visualize dependencies
+3. **When fixing design issues** - Iteratively refactor to address design concerns
+4. **Upon user request** - When explicitly asked to visualize dependencies
 
 ### When NOT to Run Sanity
 
@@ -116,6 +117,69 @@ Use `sanity graph` to understand and analyze your codebase architecture. This is
 
 **Note:** For all options: `sanity graph --help`
 
+### Fixing Design Issues
+
+Use `sanity` as a reliable design feedback tool to iteratively refactor code and address architectural concerns. This is an iterative process where the agent makes changes and uses `sanity graph` to verify improvements.
+
+**Common Design Issues to Address:**
+
+- Breaking cyclic dependencies
+- Reducing coupling between components
+- Introducing abstraction layers (interfaces, types)
+- Enforcing dependency direction
+- Separating concerns across module boundaries
+
+**Workflow for Design Fixes:**
+
+#### When user requests fixes for specific files/directories (`-i` flag):
+
+```bash
+# 1. Visualize the current design
+sanity graph -i ./src/auth,./src/api
+
+# 2. Identify the design issue (e.g., cyclic dependency, tight coupling)
+
+# 3. Ask user for their opinion on the concerns
+
+# 4. Make the requested changes (introduce types, break dependencies, etc.)
+
+# 5. Verify the fix
+sanity graph -i ./src/auth,./src/api
+
+# 6. Repeat steps 4-5 until design concerns are addressed
+```
+
+#### When user requests to analyze dependency paths (`-w` flag):
+
+```bash
+# 1. Check if problematic dependency exists
+sanity graph -w ./src/ui/handler.go,./src/db/repo.go
+
+# 2. Ask user for their opinion about concerns with the design
+
+# 3. If user wants to make changes, refactor (e.g., introduce interface, move code, add indirection layer)
+
+# 4. Verify if the desired changes were made
+sanity graph -w ./src/ui/handler.go,./src/db/repo.go
+```
+
+**Iterative Refinement Process:**
+
+1. **Visualize** - Use appropriate flags to see current design
+2. **Identify** - Spot the architectural issue (cyclic deps, wrong direction, tight coupling)
+3. **Refactor** - Make targeted changes:
+
+- Introduce interfaces/abstractions
+- Extract shared types
+- Move code to appropriate modules
+- Break direct dependencies
+- Apply dependency inversion
+
+4. **Verify** - Run `sanity graph` again with same flags
+5. **Repeat** - Continue until design concerns are resolved
+
+**Key Principle:** Always use `sanity graph` with the same flags after making changes to verify that the design issue has been properly addressed. Continue iterating until the visualization confirms the desired architecture.
+
 ## Troubleshooting
 
 If `sanity graph` fails:
@@ -124,6 +188,5 @@ If `sanity graph` fails:
 - Verify the tool is installed: `sanity --version`
 - Check that target files/commits exist
 - For commit ranges, ensure commits are in repository history
-- Check exit code: `0` indicates success, non-zero indicates failure
 ---
 --- END AGENTS.MD CONTENT ---
