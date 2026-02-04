@@ -24,8 +24,8 @@ var betweenFiles []string
 var targetFile string
 var depthLevel int
 
-// GraphCmd represents the graph command
-var GraphCmd = &cobra.Command{
+// Cmd represents the graph command
+var Cmd = &cobra.Command{
 	Use:   "graph",
 	Short: "Generate a dependency graph for project files.",
 	Long: `Generate a dependency graph for project files.
@@ -346,24 +346,24 @@ Examples:
 
 func init() {
 	// Add format flag
-	GraphCmd.Flags().StringVarP(&outputFormat, "format", "f", formatters.OutputFormatDOT.String(),
+	Cmd.Flags().StringVarP(&outputFormat, "format", "f", formatters.OutputFormatDOT.String(),
 		fmt.Sprintf("Output format (%s)", formatters.SupportedFormats()))
 	// Add repo flag
-	GraphCmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
+	Cmd.Flags().StringVarP(&repoPath, "repo", "r", "", "Git repository path (default: current directory)")
 	// Add commit flag
-	GraphCmd.Flags().StringVarP(&commitID, "commit", "c", "", "Git commit or range to analyze (e.g., f0459ec, HEAD~3, f0459ec...be3d11a)")
+	Cmd.Flags().StringVarP(&commitID, "commit", "c", "", "Git commit or range to analyze (e.g., f0459ec, HEAD~3, f0459ec...be3d11a)")
 	// Add URL flag
-	GraphCmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate visualization URL (supported formats: dot, mermaid)")
+	Cmd.Flags().BoolVarP(&generateURL, "url", "u", false, "Generate visualization URL (supported formats: dot, mermaid)")
 	// Add input flag for explicit files/directories
-	GraphCmd.Flags().StringSliceVarP(&includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
+	Cmd.Flags().StringSliceVarP(&includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
 	// Add between flag for finding paths between files
-	GraphCmd.Flags().StringSliceVarP(&betweenFiles, "between", "w", nil, "Find all paths between specified files (comma-separated)")
+	Cmd.Flags().StringSliceVarP(&betweenFiles, "between", "w", nil, "Find all paths between specified files (comma-separated)")
 	// Add clipboard flag for copying output to clipboard
-	GraphCmd.Flags().BoolVarP(&copyToClipboard, "clipboard", "b", false, "Automatically copy output to clipboard")
+	Cmd.Flags().BoolVarP(&copyToClipboard, "clipboard", "b", false, "Automatically copy output to clipboard")
 	// Add file flag for showing dependencies of a specific file
-	GraphCmd.Flags().StringVarP(&targetFile, "file", "p", "", "Show dependencies for a specific file")
+	Cmd.Flags().StringVarP(&targetFile, "file", "p", "", "Show dependencies for a specific file")
 	// Add level flag for limiting dependency depth
-	GraphCmd.Flags().IntVarP(&depthLevel, "level", "l", 1, "Depth level for dependencies (used with --file)")
+	Cmd.Flags().IntVarP(&depthLevel, "level", "l", 1, "Depth level for dependencies (used with --file)")
 }
 
 // supportedExtensions contains file extensions that the graph command can analyze

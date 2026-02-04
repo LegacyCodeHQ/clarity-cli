@@ -43,8 +43,8 @@ func Execute() {
 
 func init() {
 	// Register subcommands
-	rootCmd.AddCommand(graph.GraphCmd)
-	rootCmd.AddCommand(onboard.OnboardCmd)
+	rootCmd.AddCommand(graph.Cmd)
+	rootCmd.AddCommand(onboard.Cmd)
 
 	// Initialize annotations for version template
 	if rootCmd.Annotations == nil {

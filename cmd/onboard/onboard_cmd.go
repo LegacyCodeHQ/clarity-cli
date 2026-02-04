@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// OnboardCmd represents the onboard command
-var OnboardCmd = &cobra.Command{
+// Cmd represents the onboard command
+var Cmd = &cobra.Command{
 	Use:   "onboard",
 	Short: "Show how to use sanity with your project",
 	Long: `Show how to use sanity with your project.
