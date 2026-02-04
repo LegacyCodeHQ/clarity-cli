@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph"
+	"github.com/LegacyCodeHQ/sanity/cmd/onboard"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +44,7 @@ func Execute() {
 func init() {
 	// Register subcommands
 	rootCmd.AddCommand(graph.GraphCmd)
+	rootCmd.AddCommand(onboard.OnboardCmd)
 
 	// Initialize annotations for version template
 	if rootCmd.Annotations == nil {
@@ -59,5 +61,4 @@ func init() {
 Build date: {{printf "%s" (index .Annotations "buildDate")}}
 Commit: {{printf "%s" (index .Annotations "commit")}}
 `)
-
 }
