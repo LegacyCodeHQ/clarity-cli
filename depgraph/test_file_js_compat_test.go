@@ -54,8 +54,13 @@ func TestIsTestFile(t *testing.T) {
 			want:     false,
 		},
 		{
-			name:     "unsupported language",
+			name:     "kotlin test file suffix",
 			filePath: "/project/src/Test.kt",
+			want:     true,
+		},
+		{
+			name:     "kotlin non-test file",
+			filePath: "/project/src/Main.kt",
 			want:     false,
 		},
 		{

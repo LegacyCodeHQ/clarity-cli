@@ -27,7 +27,7 @@ func (Module) NewResolver(ctx *langsupport.Context, contentReader vcs.ContentRea
 }
 
 func (Module) IsTestFile(filePath string) bool {
-	return false
+	return IsTestFile(filePath)
 }
 
 type resolver struct {
