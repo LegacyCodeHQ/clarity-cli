@@ -69,3 +69,10 @@ func TestGraphCommit_VerifyDocsAndGeneratedArtifacts(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestGraphCommit_VerifyComplexRelationships(t *testing.T) {
+	output := internal.GraphSubcommand(t, "ee16b4ee8563a37b578f52a2e9569fe6dfd1e2df")
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
