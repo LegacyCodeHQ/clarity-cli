@@ -1,15 +1,14 @@
-package parsers
+package kotlin
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/LegacyCodeHQ/sanity/parsers/kotlin"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func buildKotlinProjectImports(
+func BuildKotlinProjectImports(
 	absPath string,
 	filePath string,
 	kotlinPackageIndex map[string][]string,
@@ -23,7 +22,7 @@ func buildKotlinProjectImports(
 		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
 	}
 
-	imports, err := kotlin.ParseKotlinImports(content)
+	imports, err := ParseKotlinImports(content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 	}
@@ -33,11 +32,11 @@ func buildKotlinProjectImports(
 		projectPackages[pkg] = true
 	}
 
-	imports = kotlin.ClassifyWithProjectPackages(imports, projectPackages)
+	imports = ClassifyWithProjectPackages(imports, projectPackages)
 
 	var projectImports []string
 	for _, imp := range imports {
-		if internalImp, ok := imp.(kotlin.InternalImport); ok {
+		if internalImp, ok := imp.(InternalImport); ok {
 			resolvedFiles := resolveKotlinImportPath(absPath, internalImp, kotlinPackageIndex, suppliedFiles)
 			projectImports = append(projectImports, resolvedFiles...)
 		}
@@ -58,7 +57,7 @@ func buildKotlinProjectImports(
 	return projectImports, nil
 }
 
-func buildKotlinIndices(
+func BuildKotlinIndices(
 	kotlinFiles []string,
 	contentReader vcs.ContentReader,
 ) (map[string][]string, map[string]map[string][]string, map[string]string) {
@@ -92,14 +91,14 @@ func buildKotlinPackageIndex(filePaths []string, contentReader vcs.ContentReader
 			continue
 		}
 
-		pkg := kotlin.ExtractPackageDeclaration(content)
+		pkg := ExtractPackageDeclaration(content)
 		if pkg == "" {
 			continue
 		}
 
 		packageToFiles[pkg] = append(packageToFiles[pkg], absPath)
 
-		declaredTypes := kotlin.ExtractTopLevelTypeNames(content)
+		declaredTypes := ExtractTopLevelTypeNames(content)
 		if len(declaredTypes) == 0 {
 			continue
 		}
@@ -124,7 +123,7 @@ func buildKotlinPackageIndex(filePaths []string, contentReader vcs.ContentReader
 // resolveKotlinImportPath resolves a Kotlin import to absolute file paths
 func resolveKotlinImportPath(
 	sourceFile string,
-	imp kotlin.KotlinImport,
+	imp KotlinImport,
 	packageIndex map[string][]string,
 	suppliedFiles map[string]bool,
 ) []string {
@@ -173,7 +172,7 @@ func resolveKotlinSamePackageDependencies(
 	contentReader vcs.ContentReader,
 	filePackages map[string]string,
 	packageTypeIndex map[string]map[string][]string,
-	imports []kotlin.KotlinImport,
+	imports []KotlinImport,
 	suppliedFiles map[string]bool,
 ) []string {
 	pkg, ok := filePackages[sourceFile]
@@ -191,7 +190,7 @@ func resolveKotlinSamePackageDependencies(
 		return []string{}
 	}
 
-	typeReferences := kotlin.ExtractTypeIdentifiers(sourceCode)
+	typeReferences := ExtractTypeIdentifiers(sourceCode)
 	if len(typeReferences) == 0 {
 		return []string{}
 	}

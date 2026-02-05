@@ -1,4 +1,4 @@
-package parsers
+package _go
 
 import (
 	"bufio"
@@ -7,12 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func buildGoPackageExportIndices(dirToFiles map[string][]string, contentReader vcs.ContentReader) map[string]_go.GoPackageExportIndex {
-	goPackageExportIndices := make(map[string]_go.GoPackageExportIndex) // packageDir -> export index
+func BuildGoPackageExportIndices(dirToFiles map[string][]string, contentReader vcs.ContentReader) map[string]GoPackageExportIndex {
+	goPackageExportIndices := make(map[string]GoPackageExportIndex) // packageDir -> export index
 	for dir, files := range dirToFiles {
 		// Check if this directory has Go files
 		hasGoFiles := false
@@ -24,7 +23,7 @@ func buildGoPackageExportIndices(dirToFiles map[string][]string, contentReader v
 			}
 		}
 		if hasGoFiles {
-			exportIndex, err := _go.BuildPackageExportIndex(goFilesInDir, vcs.ContentReader(contentReader))
+			exportIndex, err := BuildPackageExportIndex(goFilesInDir, vcs.ContentReader(contentReader))
 			if err != nil {
 				continue
 			}
@@ -35,11 +34,11 @@ func buildGoPackageExportIndices(dirToFiles map[string][]string, contentReader v
 	return goPackageExportIndices
 }
 
-func buildGoProjectImports(
+func BuildGoProjectImports(
 	absPath string,
 	filePath string,
 	dirToFiles map[string][]string,
-	goPackageExportIndices map[string]_go.GoPackageExportIndex,
+	goPackageExportIndices map[string]GoPackageExportIndex,
 	suppliedFiles map[string]bool,
 	contentReader vcs.ContentReader,
 ) ([]string, error) {
@@ -48,7 +47,7 @@ func buildGoProjectImports(
 		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
 	}
 
-	imports, err := _go.ParseGoImports(sourceContent)
+	imports, err := ParseGoImports(sourceContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 	}
@@ -56,7 +55,7 @@ func buildGoProjectImports(
 	var projectImports []string
 
 	// Parse //go:embed directives
-	embeds, _ := _go.ParseGoEmbeds(sourceContent)
+	embeds, _ := ParseGoEmbeds(sourceContent)
 	for _, embed := range embeds {
 		embedPath := resolveGoEmbedPath(absPath, embed.Pattern, suppliedFiles)
 		if embedPath != "" {
@@ -65,7 +64,7 @@ func buildGoProjectImports(
 	}
 
 	// Extract export info for symbol-level cross-package resolution
-	exportInfo, _ := _go.ExtractGoExportInfoFromContent(absPath, sourceContent)
+	exportInfo, _ := ExtractGoExportInfoFromContent(absPath, sourceContent)
 
 	// Determine if this is a test file
 	isTestFile := strings.HasSuffix(absPath, "_test.go")
@@ -76,9 +75,9 @@ func buildGoProjectImports(
 		// Check both InternalImport and ExternalImport types
 		// resolveGoImportPath will determine if they're actually part of this module
 		switch typedImp := imp.(type) {
-		case _go.InternalImport:
+		case InternalImport:
 			importPath = typedImp.Path()
-		case _go.ExternalImport:
+		case ExternalImport:
 			importPath = typedImp.Path()
 		default:
 			continue
@@ -95,7 +94,7 @@ func buildGoProjectImports(
 
 		var usedSymbols map[string]bool
 		if exportInfo != nil {
-			usedSymbols = _go.GetUsedSymbolsFromPackage(exportInfo, importPath)
+			usedSymbols = GetUsedSymbolsFromPackage(exportInfo, importPath)
 		}
 
 		if files, ok := dirToFiles[packageDir]; ok {
@@ -141,8 +140,8 @@ func buildGoProjectImports(
 	return projectImports, nil
 }
 
-func addGoIntraPackageDependencies(
-	graph DependencyGraph,
+func AddGoIntraPackageDependencies(
+	graph map[string][]string,
 	goFiles []string,
 	contentReader vcs.ContentReader,
 ) error {
@@ -150,7 +149,7 @@ func addGoIntraPackageDependencies(
 		return nil
 	}
 
-	intraDeps, err := _go.BuildIntraPackageDependencies(goFiles, vcs.ContentReader(contentReader))
+	intraDeps, err := BuildIntraPackageDependencies(goFiles, vcs.ContentReader(contentReader))
 	if err != nil {
 		return err
 	}

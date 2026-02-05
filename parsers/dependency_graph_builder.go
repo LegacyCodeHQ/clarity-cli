@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/LegacyCodeHQ/sanity/parsers/dart"
 	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
+	"github.com/LegacyCodeHQ/sanity/parsers/kotlin"
+	"github.com/LegacyCodeHQ/sanity/parsers/typescript"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
@@ -21,8 +24,8 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 		return nil, err
 	}
 
-	goPackageExportIndices := buildGoPackageExportIndices(ctx.dirToFiles, contentReader)
-	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := buildKotlinIndices(ctx.kotlinFiles, contentReader)
+	goPackageExportIndices := _go.BuildGoPackageExportIndices(ctx.dirToFiles, contentReader)
+	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
 
 	// Second pass: build the dependency graph
 	for _, filePath := range filePaths {
@@ -64,7 +67,7 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 	}
 
 	// Third pass: add intra-package dependencies for languages that need it.
-	if err := addGoIntraPackageDependencies(graph, ctx.goFiles, contentReader); err != nil {
+	if err := _go.AddGoIntraPackageDependencies(graph, ctx.goFiles, contentReader); err != nil {
 		return graph, fmt.Errorf("failed to add intra-package dependencies: %w", err)
 	}
 
@@ -93,9 +96,9 @@ func buildProjectImports(
 ) ([]string, error) {
 	switch ext {
 	case ".dart":
-		return buildDartProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
+		return dart.BuildDartProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
 	case ".go":
-		return buildGoProjectImports(
+		return _go.BuildGoProjectImports(
 			absPath,
 			filePath,
 			ctx.dirToFiles,
@@ -104,7 +107,7 @@ func buildProjectImports(
 			contentReader,
 		)
 	case ".kt":
-		return buildKotlinProjectImports(
+		return kotlin.BuildKotlinProjectImports(
 			absPath,
 			filePath,
 			kotlinPackageIndex,
@@ -114,7 +117,7 @@ func buildProjectImports(
 			contentReader,
 		)
 	case ".ts", ".tsx":
-		return buildTypeScriptProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
+		return typescript.BuildTypeScriptProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
 	default:
 		return []string{}, nil
 	}

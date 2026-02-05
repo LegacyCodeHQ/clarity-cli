@@ -1,15 +1,14 @@
-package parsers
+package dart
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/LegacyCodeHQ/sanity/parsers/dart"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func buildDartProjectImports(
+func BuildDartProjectImports(
 	absPath string,
 	filePath string,
 	ext string,
@@ -21,14 +20,14 @@ func buildDartProjectImports(
 		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
 	}
 
-	imports, err := dart.ParseImports(content)
+	imports, err := ParseImports(content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
 	}
 
 	var projectImports []string
 	for _, imp := range imports {
-		if projImp, ok := imp.(dart.ProjectImport); ok {
+		if projImp, ok := imp.(ProjectImport); ok {
 			resolvedPath := resolveImportPath(absPath, projImp.URI(), ext)
 			if suppliedFiles[resolvedPath] {
 				projectImports = append(projectImports, resolvedPath)
