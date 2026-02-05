@@ -43,3 +43,23 @@ func TestNewFileDependencyGraph(t *testing.T) {
 	_, hasEdge := fileGraph.Meta.Edges[depgraph.FileEdge{From: "/project/main.go", To: "/project/utils.go"}]
 	assert.True(t, hasEdge)
 }
+
+func TestNewFileDependencyGraph_DetectsCycles(t *testing.T) {
+	graph := depgraph.MustDependencyGraph(map[string][]string{
+		"/project/a.go": {"/project/b.go"},
+		"/project/b.go": {"/project/c.go"},
+		"/project/c.go": {"/project/a.go"},
+		"/project/d.go": {},
+	})
+
+	fileGraph, err := depgraph.NewFileDependencyGraph(graph, nil)
+	require.NoError(t, err)
+
+	require.Len(t, fileGraph.Meta.Cycles, 1)
+	assert.Equal(t, []string{"/project/a.go", "/project/b.go", "/project/c.go"}, fileGraph.Meta.Cycles[0].Path)
+
+	assert.True(t, fileGraph.Meta.Edges[depgraph.FileEdge{From: "/project/a.go", To: "/project/b.go"}].InCycle)
+	assert.True(t, fileGraph.Meta.Edges[depgraph.FileEdge{From: "/project/b.go", To: "/project/c.go"}].InCycle)
+	assert.True(t, fileGraph.Meta.Edges[depgraph.FileEdge{From: "/project/c.go", To: "/project/a.go"}].InCycle)
+	assert.False(t, fileGraph.Meta.Edges[depgraph.FileEdge{From: "/project/d.go", To: "/project/d.go"}].InCycle)
+}

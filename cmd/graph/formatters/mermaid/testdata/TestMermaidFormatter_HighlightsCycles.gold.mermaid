@@ -1,0 +1,17 @@
+flowchart LR
+%% C1: a.go -> b.go -> c.go -> a.go
+    n0["a.go"]
+    n1["b.go"]
+    n2["c.go"]
+    n3["d.go"]
+
+    n0 --> n1
+    n1 --> n2
+    n2 --> n0
+
+    style n0 stroke:#d62728,stroke-width:3px
+    style n1 stroke:#d62728,stroke-width:3px
+    style n2 stroke:#d62728,stroke-width:3px
+    linkStyle 0 stroke:#d62728,stroke-width:3px,stroke-dasharray: 5 5
+    linkStyle 1 stroke:#d62728,stroke-width:3px,stroke-dasharray: 5 5
+    linkStyle 2 stroke:#d62728,stroke-width:3px,stroke-dasharray: 5 5

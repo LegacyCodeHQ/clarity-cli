@@ -36,6 +36,24 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 	}
 	sb.WriteString("\n")
 
+	cycleNodes := make(map[string]bool)
+	if len(g.Meta.Cycles) > 0 {
+		sb.WriteString("  // Cyclic paths:\n")
+		for i, cycle := range g.Meta.Cycles {
+			if len(cycle.Path) == 0 {
+				continue
+			}
+			var cycleParts []string
+			for _, node := range cycle.Path {
+				cycleParts = append(cycleParts, filepath.Base(node))
+				cycleNodes[node] = true
+			}
+			cycleParts = append(cycleParts, filepath.Base(cycle.Path[0]))
+			sb.WriteString(fmt.Sprintf("  // C%d: %s\n", i+1, strings.Join(cycleParts, " -> ")))
+		}
+		sb.WriteString("\n")
+	}
+
 	// Collect all file paths from the graph to determine extension colors
 	// Sort for deterministic output
 	filePaths := make([]string, 0, len(adjacency))
@@ -151,7 +169,11 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 				}
 			}
 
-			sb.WriteString(fmt.Sprintf("  %q [label=%q, style=filled, fillcolor=%s];\n", sourceBase, nodeLabel, color))
+			if cycleNodes[source] {
+				sb.WriteString(fmt.Sprintf("  %q [label=%q, style=filled, fillcolor=%s, color=red];\n", sourceBase, nodeLabel, color))
+			} else {
+				sb.WriteString(fmt.Sprintf("  %q [label=%q, style=filled, fillcolor=%s];\n", sourceBase, nodeLabel, color))
+			}
 			styledNodes[sourceBase] = true
 		}
 	}
@@ -177,7 +199,12 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 		sourceBase := filepath.Base(source)
 		for _, dep := range sortedDeps {
 			depBase := filepath.Base(dep)
-			sb.WriteString(fmt.Sprintf("  %q -> %q;\n", sourceBase, depBase))
+			edgeMD := g.Meta.Edges[depgraph.FileEdge{From: source, To: dep}]
+			if edgeMD.InCycle {
+				sb.WriteString(fmt.Sprintf("  %q -> %q [color=red, style=dashed];\n", sourceBase, depBase))
+			} else {
+				sb.WriteString(fmt.Sprintf("  %q -> %q;\n", sourceBase, depBase))
+			}
 		}
 	}
 

@@ -195,3 +195,19 @@ func TestDependencyGraph_ToDOT_NodesAreDeclaredOnlyOnce(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestDependencyGraph_ToDOT_HighlightsCycles(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/a.go": {"/project/b.go"},
+		"/project/b.go": {"/project/c.go"},
+		"/project/c.go": {"/project/a.go"},
+		"/project/d.go": {},
+	}, nil)
+
+	formatter := &dot.Formatter{}
+	output, err := formatter.Format(graph, formatters.RenderOptions{})
+	require.NoError(t, err)
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}

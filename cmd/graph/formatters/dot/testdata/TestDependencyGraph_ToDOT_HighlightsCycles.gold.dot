@@ -1,0 +1,16 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+
+  // Cyclic paths:
+  // C1: a.go -> b.go -> c.go -> a.go
+
+  "a.go" [label="a.go", style=filled, fillcolor=white, color=red];
+  "b.go" [label="b.go", style=filled, fillcolor=white, color=red];
+  "c.go" [label="c.go", style=filled, fillcolor=white, color=red];
+  "d.go" [label="d.go", style=filled, fillcolor=white];
+
+  "a.go" -> "b.go" [color=red, style=dashed];
+  "b.go" -> "c.go" [color=red, style=dashed];
+  "c.go" -> "a.go" [color=red, style=dashed];
+}

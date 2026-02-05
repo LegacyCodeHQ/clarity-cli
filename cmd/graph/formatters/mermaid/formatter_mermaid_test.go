@@ -254,3 +254,19 @@ func TestMermaidFormatter_TestFileTakesPriorityOverNewFile(t *testing.T) {
 	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestMermaidFormatter_HighlightsCycles(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/a.go": {"/project/b.go"},
+		"/project/b.go": {"/project/c.go"},
+		"/project/c.go": {"/project/a.go"},
+		"/project/d.go": {},
+	}, nil)
+
+	formatter := &mermaid.Formatter{}
+	output, err := formatter.Format(graph, formatters.RenderOptions{})
+	require.NoError(t, err)
+
+	g := testhelpers.MermaidGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}

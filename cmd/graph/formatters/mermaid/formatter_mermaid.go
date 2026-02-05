@@ -34,6 +34,23 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 
 	sb.WriteString("flowchart LR\n")
 
+	cycleNodes := make(map[string]bool)
+	if len(g.Meta.Cycles) > 0 {
+		for i, cycle := range g.Meta.Cycles {
+			if len(cycle.Path) == 0 {
+				continue
+			}
+
+			var cycleParts []string
+			for _, node := range cycle.Path {
+				cycleParts = append(cycleParts, filepath.Base(node))
+				cycleNodes[node] = true
+			}
+			cycleParts = append(cycleParts, filepath.Base(cycle.Path[0]))
+			sb.WriteString(fmt.Sprintf("%%%% C%d: %s\n", i+1, strings.Join(cycleParts, " -> ")))
+		}
+	}
+
 	// Collect and sort file paths for deterministic output
 	filePaths := make([]string, 0, len(adjacency))
 	for source := range adjacency {
@@ -134,6 +151,8 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 	// Define edges
 	var edgesSB strings.Builder
 	hasEdges := false
+	edgeIndex := 0
+	var cycleEdgeIndices []int
 	for _, source := range filePaths {
 		deps := adjacency[source]
 		sortedDeps := make([]string, len(deps))
@@ -147,6 +166,11 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 			depID := nodeIDs[depBase]
 			hasEdges = true
 			edgesSB.WriteString(fmt.Sprintf("    %s --> %s\n", sourceID, depID))
+			edgeMD := g.Meta.Edges[depgraph.FileEdge{From: source, To: dep}]
+			if edgeMD.InCycle {
+				cycleEdgeIndices = append(cycleEdgeIndices, edgeIndex)
+			}
+			edgeIndex++
 		}
 	}
 
@@ -175,7 +199,7 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 		}
 	}
 
-	hasStyles := len(testNodes) > 0 || len(majorityExtensionNodes) > 0
+	hasStyles := len(testNodes) > 0 || len(majorityExtensionNodes) > 0 || len(cycleNodes) > 0 || len(cycleEdgeIndices) > 0
 	var stylesSB strings.Builder
 
 	// Define style classes
@@ -192,6 +216,16 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 	}
 	if len(majorityExtensionNodes) > 0 {
 		stylesSB.WriteString(fmt.Sprintf("    class %s majorityExtension\n", strings.Join(majorityExtensionNodes, ",")))
+	}
+	for _, source := range filePaths {
+		if !cycleNodes[source] {
+			continue
+		}
+		sourceBase := filepath.Base(source)
+		stylesSB.WriteString(fmt.Sprintf("    style %s stroke:#d62728,stroke-width:3px\n", nodeIDs[sourceBase]))
+	}
+	for _, idx := range cycleEdgeIndices {
+		stylesSB.WriteString(fmt.Sprintf("    linkStyle %d stroke:#d62728,stroke-width:3px,stroke-dasharray: 5 5\n", idx))
 	}
 
 	if hasEdges {
