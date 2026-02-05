@@ -48,3 +48,10 @@ func TestGraphCommit_VerifySingleFile(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestGraphCommit_VerifyDifferentExtensions(t *testing.T) {
+	output := internal.GraphSubcommand(t, "0deca10204f93f78ad5d25fabdf0046bdea127dd")
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}

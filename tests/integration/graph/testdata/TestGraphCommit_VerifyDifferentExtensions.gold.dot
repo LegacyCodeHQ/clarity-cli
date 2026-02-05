@@ -1,0 +1,14 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+  label="sanity • 0deca10 • 3 files";
+  labelloc=t;
+  labeljust=l;
+  fontsize=10;
+  fontname=Courier;
+
+  ".gitignore" [label=".gitignore\n+6", style=filled, fillcolor=lightblue];
+  "Makefile" [label="🪴 Makefile\n+31", style=filled, fillcolor=white];
+  "README.md" [label="README.md\n+51", style=filled, fillcolor=lightyellow];
+
+}
