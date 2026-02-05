@@ -13,3 +13,10 @@ func TestGraphCommit_VerifyGoEmbedRelationships(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestGraphCommit_VerifyNewFilesAndMixedTypes(t *testing.T) {
+	output := internal.GraphSubcommand(t, "daa4fedbaeefcd21568819b2224f2e9febcf02e8")
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}

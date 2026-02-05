@@ -1,0 +1,16 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+  label="sanity • daa4fed • 4 files";
+  labelloc=t;
+  labeljust=l;
+  fontsize=10;
+  fontname=Courier;
+
+  "root.go" [label="🪴 root.go\n+43", style=filled, fillcolor=white];
+  "go.mod" [label="go.mod\n+6 -1", style=filled, fillcolor=lightyellow];
+  "go.sum" [label="go.sum\n+15", style=filled, fillcolor=mistyrose];
+  "main.go" [label="main.go\n+2 -9", style=filled, fillcolor=white];
+
+  "main.go" -> "root.go";
+}
