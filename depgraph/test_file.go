@@ -5,6 +5,7 @@ import (
 
 	"github.com/LegacyCodeHQ/sanity/depgraph/dart"
 	"github.com/LegacyCodeHQ/sanity/depgraph/golang"
+	"github.com/LegacyCodeHQ/sanity/depgraph/java"
 	"github.com/LegacyCodeHQ/sanity/depgraph/typescript"
 )
 
@@ -16,6 +17,8 @@ func IsTestFile(filePath string) bool {
 		return golang.IsTestFile(filePath)
 	case ".dart":
 		return dart.IsTestFile(filePath)
+	case ".java":
+		return java.IsTestFile(filePath)
 	case ".ts", ".tsx", ".js", ".jsx":
 		return typescript.IsTestFile(filePath)
 	default:

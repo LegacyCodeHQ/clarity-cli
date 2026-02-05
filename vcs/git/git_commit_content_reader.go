@@ -28,6 +28,13 @@ func getRelativePath(absPath, repoPath string) string {
 		return relPath
 	}
 
+	// Normalize symlinks for temp directories like /var -> /private/var.
+	resolvedRepoPath := resolveSymlinks(absRepoPath)
+	resolvedAbsPath := resolveSymlinks(absPath)
+	if relPath, err := filepath.Rel(resolvedRepoPath, resolvedAbsPath); err == nil {
+		return relPath
+	}
+
 	// Get path relative to repository root
 	relPath, err := filepath.Rel(absRepoPath, absPath)
 	if err != nil {
@@ -36,4 +43,12 @@ func getRelativePath(absPath, repoPath string) string {
 	}
 
 	return relPath
+}
+
+func resolveSymlinks(path string) string {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return path
+	}
+	return resolved
 }

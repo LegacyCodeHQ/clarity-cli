@@ -478,6 +478,7 @@ func emitOutput(cmd *cobra.Command, opts *graphOptions, format formatters.Output
 var supportedExtensions = map[string]bool{
 	".dart": true,
 	".go":   true,
+	".java": true,
 	".kt":   true,
 	".ts":   true,
 	".tsx":  true,

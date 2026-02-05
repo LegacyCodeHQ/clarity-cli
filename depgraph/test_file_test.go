@@ -58,6 +58,16 @@ func TestIsTestFile(t *testing.T) {
 			filePath: "/project/src/Test.kt",
 			want:     false,
 		},
+		{
+			name:     "java test file suffix",
+			filePath: "/project/src/test/java/com/example/AppTest.java",
+			want:     true,
+		},
+		{
+			name:     "java non-test file",
+			filePath: "/project/src/main/java/com/example/App.java",
+			want:     false,
+		},
 	}
 
 	for _, tc := range tests {

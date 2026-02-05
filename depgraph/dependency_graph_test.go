@@ -365,6 +365,40 @@ type Validator struct {}
 	assert.Empty(t, validatorDeps)
 }
 
+func TestBuildDependencyGraph_JavaFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcMain := filepath.Join(tmpDir, "src", "main", "java", "com", "example")
+	srcUtil := filepath.Join(srcMain, "util")
+	require.NoError(t, os.MkdirAll(srcUtil, 0o755))
+
+	appPath := filepath.Join(srcMain, "App.java")
+	appContent := `package com.example;
+
+import com.example.util.Helper;
+import java.util.List;
+
+public class App {}
+`
+	require.NoError(t, os.WriteFile(appPath, []byte(appContent), 0o644))
+
+	helperPath := filepath.Join(srcUtil, "Helper.java")
+	helperContent := `package com.example.util;
+
+public class Helper {}
+`
+	require.NoError(t, os.WriteFile(helperPath, []byte(helperContent), 0o644))
+
+	files := []string{appPath, helperPath}
+	graph, err := depgraph.BuildDependencyGraph(files, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+
+	adj := mustAdjacency(t, graph)
+	require.Len(t, adj, 2)
+	assert.Contains(t, adj[appPath], helperPath)
+	assert.Empty(t, adj[helperPath])
+}
+
 func TestBuildDependencyGraph_MixedDartAndGo(t *testing.T) {
 	// Create temporary directory with mixed files
 	tmpDir := t.TempDir()

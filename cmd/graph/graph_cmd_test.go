@@ -9,20 +9,31 @@ import (
 	"testing"
 )
 
-func TestGraphInputDirectory_WithUnsupportedFiles_RendersStandaloneNodes(t *testing.T) {
+func TestGraphInputDirectory_WithJavaFiles_RendersDependencyEdges(t *testing.T) {
 	repoDir := t.TempDir()
-	dir := filepath.Join(repoDir, "src")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	dir := filepath.Join(repoDir, "src", "main", "java", "com", "example")
+	if err := os.MkdirAll(filepath.Join(dir, "util"), 0o755); err != nil {
 		t.Fatalf("os.MkdirAll() error = %v", err)
 	}
 
-	unsupportedFile := filepath.Join(dir, "Main.java")
-	if err := os.WriteFile(unsupportedFile, []byte("class Main {}\n"), 0o644); err != nil {
+	appFile := filepath.Join(dir, "App.java")
+	appContent := `package com.example;
+
+import com.example.util.Helper;
+
+public class App {}
+`
+	if err := os.WriteFile(appFile, []byte(appContent), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	helperFile := filepath.Join(dir, "util", "Helper.java")
+	if err := os.WriteFile(helperFile, []byte("package com.example.util;\n\npublic class Helper {}\n"), 0o644); err != nil {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 
 	cmd := NewCommand()
-	cmd.SetArgs([]string{"-i", dir, "-f", "dot"})
+	cmd.SetArgs([]string{"-i", filepath.Join(repoDir, "src"), "-f", "dot"})
 
 	var stdout bytes.Buffer
 	cmd.SetOut(&stdout)
@@ -32,23 +43,34 @@ func TestGraphInputDirectory_WithUnsupportedFiles_RendersStandaloneNodes(t *test
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, `"Main.java"`) {
-		t.Fatalf("expected graph output to include Main.java node, got:\n%s", output)
+	if !strings.Contains(output, `"App.java"`) || !strings.Contains(output, `"Helper.java"`) {
+		t.Fatalf("expected graph output to include App.java and Helper.java nodes, got:\n%s", output)
 	}
-	if strings.Contains(output, "->") {
-		t.Fatalf("expected no dependency edges for unsupported-only input, got:\n%s", output)
+	if !strings.Contains(output, `"App.java" -> "Helper.java"`) {
+		t.Fatalf("expected Java import edge App.java -> Helper.java, got:\n%s", output)
 	}
 }
 
-func TestGraphCommit_WithUnsupportedFiles_RendersStandaloneNodes(t *testing.T) {
+func TestGraphCommit_WithJavaFiles_RendersDependencyEdges(t *testing.T) {
 	repoDir := t.TempDir()
 	gitInitRepo(t, repoDir)
 
-	unsupportedFile := filepath.Join(repoDir, "model", "Main.java")
-	if err := os.MkdirAll(filepath.Dir(unsupportedFile), 0o755); err != nil {
+	appFile := filepath.Join(repoDir, "src", "main", "java", "com", "example", "App.java")
+	helperFile := filepath.Join(repoDir, "src", "main", "java", "com", "example", "util", "Helper.java")
+	if err := os.MkdirAll(filepath.Dir(helperFile), 0o755); err != nil {
 		t.Fatalf("os.MkdirAll() error = %v", err)
 	}
-	if err := os.WriteFile(unsupportedFile, []byte("class Main {}\n"), 0o644); err != nil {
+
+	appContent := `package com.example;
+
+import com.example.util.Helper;
+
+public class App {}
+`
+	if err := os.WriteFile(appFile, []byte(appContent), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(helperFile, []byte("package com.example.util;\n\npublic class Helper {}\n"), 0o644); err != nil {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 
@@ -66,11 +88,11 @@ func TestGraphCommit_WithUnsupportedFiles_RendersStandaloneNodes(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, `"Main.java"`) {
-		t.Fatalf("expected graph output to include Main.java node, got:\n%s", output)
+	if !strings.Contains(output, `"App.java"`) || !strings.Contains(output, `"Helper.java"`) {
+		t.Fatalf("expected graph output to include App.java and Helper.java nodes, got:\n%s", output)
 	}
-	if strings.Contains(output, "->") {
-		t.Fatalf("expected no dependency edges for unsupported-only commit, got:\n%s", output)
+	if !strings.Contains(output, `"App.java" -> "Helper.java"`) {
+		t.Fatalf("expected Java import edge App.java -> Helper.java, got:\n%s", output)
 	}
 }
 

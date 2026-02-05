@@ -3,6 +3,7 @@ package depgraph
 import (
 	"github.com/LegacyCodeHQ/sanity/depgraph/dart"
 	"github.com/LegacyCodeHQ/sanity/depgraph/golang"
+	"github.com/LegacyCodeHQ/sanity/depgraph/java"
 	"github.com/LegacyCodeHQ/sanity/depgraph/kotlin"
 	"github.com/LegacyCodeHQ/sanity/depgraph/typescript"
 	"github.com/LegacyCodeHQ/sanity/vcs"
@@ -21,6 +22,8 @@ type defaultDependencyResolver struct {
 	ctx                *dependencyGraphContext
 	contentReader      vcs.ContentReader
 	goImportResolver   *golang.ProjectImportResolver
+	javaPackageIndex   map[string][]string
+	javaPackageTypes   map[string]map[string][]string
 	kotlinPackageIndex map[string][]string
 	kotlinPackageTypes map[string]map[string][]string
 	kotlinFilePackages map[string]string
@@ -30,12 +33,15 @@ type defaultDependencyResolver struct {
 // NewDefaultDependencyResolver creates the built-in language-aware dependency resolver.
 func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs.ContentReader) DependencyResolver {
 	goImportResolver := golang.NewProjectImportResolver(ctx.dirToFiles, ctx.suppliedFiles, contentReader)
+	javaPackageIndex, javaPackageTypes := java.BuildJavaIndices(ctx.javaFiles, contentReader)
 	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
 
 	resolver := &defaultDependencyResolver{
 		ctx:                ctx,
 		contentReader:      contentReader,
 		goImportResolver:   goImportResolver,
+		javaPackageIndex:   javaPackageIndex,
+		javaPackageTypes:   javaPackageTypes,
 		kotlinPackageIndex: kotlinPackageIndex,
 		kotlinPackageTypes: kotlinPackageTypes,
 		kotlinFilePackages: kotlinFilePackages,
@@ -44,6 +50,7 @@ func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs
 	resolver.importResolvers = map[string]importResolverFunc{
 		".dart": resolver.resolveDartImports,
 		".go":   resolver.resolveGoImports,
+		".java": resolver.resolveJavaImports,
 		".kt":   resolver.resolveKotlinImports,
 		".ts":   resolver.resolveTypeScriptImports,
 		".tsx":  resolver.resolveTypeScriptImports,
@@ -72,6 +79,16 @@ func (b *defaultDependencyResolver) resolveDartImports(absPath, filePath, ext st
 
 func (b *defaultDependencyResolver) resolveGoImports(absPath, filePath, _ string) ([]string, error) {
 	return b.goImportResolver.ResolveProjectImports(absPath, filePath)
+}
+
+func (b *defaultDependencyResolver) resolveJavaImports(absPath, filePath, _ string) ([]string, error) {
+	return java.ResolveJavaProjectImports(
+		absPath,
+		filePath,
+		b.javaPackageIndex,
+		b.javaPackageTypes,
+		b.ctx.suppliedFiles,
+		b.contentReader)
 }
 
 func (b *defaultDependencyResolver) resolveKotlinImports(absPath, filePath, _ string) ([]string, error) {
