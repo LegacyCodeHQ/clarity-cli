@@ -10,5 +10,4 @@ digraph dependencies {
   ".gitignore" [label=".gitignore\n+6", style=filled, fillcolor=lightblue];
   "Makefile" [label="🪴 Makefile\n+31", style=filled, fillcolor=white];
   "README.md" [label="README.md\n+51", style=filled, fillcolor=lightyellow];
-
 }

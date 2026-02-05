@@ -39,5 +39,4 @@ digraph dependencies {
   "TestGetUncommittedDartFiles_UntrackedFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_UntrackedFiles.gold.txt\n+2", style=filled, fillcolor=white];
   "TestGetUncommittedDartFiles_UntrackedFilesInSubdirectory.gold.txt" [label="🪴 TestGetUncommittedDartFiles_UntrackedFilesInSubdirectory.gold.txt\n+2", style=filled, fillcolor=white];
   "TestGetUncommittedFileStats_MarksNewAndUntrackedFiles.gold.txt" [label="🪴 TestGetUncommittedFileStats_MarksNewAndUntrackedFiles.gold.txt\n+3", style=filled, fillcolor=white];
-
 }

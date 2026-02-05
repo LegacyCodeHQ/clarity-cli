@@ -185,7 +185,7 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 			break
 		}
 	}
-	if len(styledNodes) > 0 && (hasEdges || opts.Label != "") {
+	if len(styledNodes) > 0 && hasEdges {
 		sb.WriteString("\n")
 	}
 
