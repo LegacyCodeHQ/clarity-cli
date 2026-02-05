@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/LegacyCodeHQ/sanity/parsers/dart"
-	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
-	"github.com/LegacyCodeHQ/sanity/parsers/kotlin"
-	"github.com/LegacyCodeHQ/sanity/parsers/typescript"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
@@ -24,8 +20,7 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 		return nil, err
 	}
 
-	goPackageExportIndices := _go.BuildGoPackageExportIndices(ctx.dirToFiles, contentReader)
-	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
+	dependencyBuilder := NewDependencyBuilder(ctx, contentReader)
 
 	// Second pass: build the dependency graph
 	for _, filePath := range filePaths {
@@ -44,17 +39,7 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 			continue
 		}
 
-		projectImports, err := buildProjectImports(
-			absPath,
-			filePath,
-			ext,
-			ctx,
-			goPackageExportIndices,
-			kotlinPackageIndex,
-			kotlinPackageTypes,
-			kotlinFilePackages,
-			contentReader,
-		)
+		projectImports, err := dependencyBuilder.BuildProjectImports(absPath, filePath, ext)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +52,7 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 	}
 
 	// Third pass: add intra-package dependencies for languages that need it.
-	if err := _go.AddGoIntraPackageDependencies(graph, ctx.goFiles, contentReader); err != nil {
+	if err := dependencyBuilder.FinalizeGraph(graph); err != nil {
 		return graph, fmt.Errorf("failed to add intra-package dependencies: %w", err)
 	}
 
@@ -80,46 +65,6 @@ func isSupportedDependencyFileExt(ext string) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-func buildProjectImports(
-	absPath string,
-	filePath string,
-	ext string,
-	ctx *dependencyGraphContext,
-	goPackageExportIndices map[string]_go.GoPackageExportIndex,
-	kotlinPackageIndex map[string][]string,
-	kotlinPackageTypes map[string]map[string][]string,
-	kotlinFilePackages map[string]string,
-	contentReader vcs.ContentReader,
-) ([]string, error) {
-	switch ext {
-	case ".dart":
-		return dart.BuildDartProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
-	case ".go":
-		return _go.BuildGoProjectImports(
-			absPath,
-			filePath,
-			ctx.dirToFiles,
-			goPackageExportIndices,
-			ctx.suppliedFiles,
-			contentReader,
-		)
-	case ".kt":
-		return kotlin.BuildKotlinProjectImports(
-			absPath,
-			filePath,
-			kotlinPackageIndex,
-			kotlinPackageTypes,
-			kotlinFilePackages,
-			ctx.suppliedFiles,
-			contentReader,
-		)
-	case ".ts", ".tsx":
-		return typescript.BuildTypeScriptProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
-	default:
-		return []string{}, nil
 	}
 }
 
