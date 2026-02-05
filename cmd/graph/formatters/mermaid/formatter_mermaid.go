@@ -151,6 +151,15 @@ func (f *Formatter) Format(g depgraph.DependencyGraph, opts formatters.FormatOpt
 	// Mermaid uses classDef for styling and class for applying styles
 	var testNodes []string
 	var newFileNodes []string
+	var majorityExtensionNodes []string
+
+	// Count unique file extensions to determine if majority styling is meaningful.
+	uniqueExtensions := make(map[string]bool)
+	for _, source := range filePaths {
+		ext := filepath.Ext(filepath.Base(source))
+		uniqueExtensions[ext] = true
+	}
+	hasMultipleExtensions := len(uniqueExtensions) > 1
 
 	for _, source := range filePaths {
 		sourceBase := filepath.Base(source)
@@ -161,13 +170,20 @@ func (f *Formatter) Format(g depgraph.DependencyGraph, opts formatters.FormatOpt
 		} else if opts.FileStats != nil {
 			if stats, ok := opts.FileStats[source]; ok && stats.IsNew {
 				newFileNodes = append(newFileNodes, nodeID)
+			} else if hasMultipleExtensions && filesWithMajorityExtension[source] {
+				majorityExtensionNodes = append(majorityExtensionNodes, nodeID)
 			}
+		} else if hasMultipleExtensions && filesWithMajorityExtension[source] {
+			majorityExtensionNodes = append(majorityExtensionNodes, nodeID)
 		}
 	}
 
 	// Define style classes
 	sb.WriteString("    classDef testFile fill:#90EE90,stroke:#228B22,color:#000000\n")
 	sb.WriteString("    classDef newFile fill:#87CEEB,stroke:#4682B4\n")
+	if len(majorityExtensionNodes) > 0 {
+		sb.WriteString("    classDef majorityExtension fill:#FFFFFF,stroke:#999999,color:#000000\n")
+	}
 
 	// Apply styles to nodes
 	if len(testNodes) > 0 {
@@ -175,6 +191,9 @@ func (f *Formatter) Format(g depgraph.DependencyGraph, opts formatters.FormatOpt
 	}
 	if len(newFileNodes) > 0 {
 		sb.WriteString(fmt.Sprintf("    class %s newFile\n", strings.Join(newFileNodes, ",")))
+	}
+	if len(majorityExtensionNodes) > 0 {
+		sb.WriteString(fmt.Sprintf("    class %s majorityExtension\n", strings.Join(majorityExtensionNodes, ",")))
 	}
 	return strings.TrimSuffix(sb.String(), "\n"), nil
 }
