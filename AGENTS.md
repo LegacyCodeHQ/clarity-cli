@@ -34,3 +34,22 @@ bd sync                              # Sync with git
 - NEVER stop with uncommitted changes - that leaves work in an inconsistent state
 - NEVER say "ready to commit when you are" - YOU must commit
 - If commit fails, resolve and retry until it succeeds
+
+## Commit Guidelines
+
+Follow the established history patterns:
+
+- Use `type: subject` in lowercase with a short, imperative subject line.
+- Keep subjects concise (ideally under ~72 characters).
+- One logical change per commit.
+- Prefer these types (use only when accurate):
+  - `feat`: user-visible feature
+  - `fix`: bug fix or correctness issue
+  - `refactor`: behavior-preserving code restructuring
+  - `test`: tests or fixtures only
+  - `docs`: documentation only
+  - `build`: build system or tooling changes
+  - `ci`: CI pipeline changes
+  - `chore`: non-functional maintenance (e.g., syncs)
+  - `style`: formatting or lint-only changes
+  - `human`: human-led or non-mechanical changes (use sparingly)
