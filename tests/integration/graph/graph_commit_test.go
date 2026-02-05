@@ -55,3 +55,10 @@ func TestGraphCommit_VerifyDifferentExtensions(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestGraphCommit_VerifyComplexTestProductionRelationships(t *testing.T) {
+	output := internal.GraphSubcommand(t, "051a1b8c4ef7704259383edfe9c7595335c4f358")
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
