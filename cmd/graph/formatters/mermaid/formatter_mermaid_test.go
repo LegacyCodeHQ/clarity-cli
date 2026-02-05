@@ -8,7 +8,6 @@ import (
 	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
-	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +21,7 @@ func TestMermaidFormatter_BasicFlowchart(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -35,7 +34,7 @@ func TestMermaidFormatter_WithLabel(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{Label: "My Graph"})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -48,7 +47,7 @@ func TestMermaidFormatter_WithoutLabel(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -77,7 +76,7 @@ func TestMermaidFormatter_NewFilesUseSeedlingLabel(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -93,7 +92,7 @@ func TestMermaidFormatter_TestFilesAreStyled(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -109,7 +108,7 @@ func TestMermaidFormatter_DartTestFiles(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -136,7 +135,7 @@ func TestMermaidFormatter_NewFilesAreStyled(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -153,7 +152,7 @@ func TestMermaidFormatter_TypeScriptTestFiles(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -168,7 +167,7 @@ func TestMermaidFormatter_EdgesBetweenNodes(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -181,7 +180,7 @@ func TestMermaidFormatter_QuoteEscaping(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -192,7 +191,7 @@ func TestMermaidFormatter_EmptyGraph(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -212,7 +211,7 @@ func TestMermaidFormatter_FileStatsWithOnlyAdditions(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -232,7 +231,7 @@ func TestMermaidFormatter_FileStatsWithOnlyDeletions(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -251,10 +250,6 @@ func TestMermaidFormatter_TestFileTakesPriorityOverNewFile(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := mermaidGoldie(t)
+	g := testhelpers.MermaidGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
-}
-
-func mermaidGoldie(t *testing.T) *goldie.Goldie {
-	return testhelpers.GoldieWithSuffix(t, ".gold.mermaid")
 }

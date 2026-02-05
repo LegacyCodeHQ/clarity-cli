@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,7 @@ func TestGetCommitTreeFiles_SingleFile(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, commitID)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -43,7 +44,7 @@ func TestGetCommitTreeFiles_MultipleFiles(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, commitID)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -70,7 +71,7 @@ func TestGetCommitTreeFiles_FilesInSubdirectories(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, commitID)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -86,7 +87,7 @@ func TestGetCommitTreeFiles_HEAD(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, "HEAD")
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -108,7 +109,7 @@ func TestGetCommitTreeFiles_OlderCommit(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, firstCommit)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -134,7 +135,7 @@ func TestGetCommitTreeFiles_AfterFileDeleted(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, firstCommit)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 
@@ -155,7 +156,7 @@ func TestGetCommitTreeFiles_ReturnsAllFilesAcrossCommits(t *testing.T) {
 	files, err := GetCommitTreeFiles(tmpDir, commitID)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
 }
 

@@ -3,6 +3,7 @@ package git
 import (
 	"testing"
 
+	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +26,7 @@ func TestGetUncommittedFileStats_MarksNewAndUntrackedFiles(t *testing.T) {
 	stats, err := GetUncommittedFileStats(tmpDir)
 	require.NoError(t, err)
 
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFileStats(tmpDir, stats)))
 }
 
@@ -46,7 +47,7 @@ func TestGetCommitFileStats_MarksNewFiles(t *testing.T) {
 	stats, err := GetCommitFileStats(tmpDir, commitID)
 	require.NoError(t, err)
 
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFileStats(tmpDir, stats)))
 }
 
@@ -159,7 +160,7 @@ func TestGetCommitRangeFileStats_AdditionsAndDeletions(t *testing.T) {
 	stats, err := GetCommitRangeFileStats(tmpDir, firstCommit, secondCommit)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFileStats(tmpDir, stats)))
 }
 
@@ -180,7 +181,7 @@ func TestGetCommitRangeFileStats_NewFile(t *testing.T) {
 	stats, err := GetCommitRangeFileStats(tmpDir, firstCommit, secondCommit)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFileStats(tmpDir, stats)))
 }
 
@@ -203,7 +204,7 @@ func TestGetCommitRangeFileStats_MultipleFiles(t *testing.T) {
 	stats, err := GetCommitRangeFileStats(tmpDir, firstCommit, secondCommit)
 
 	require.NoError(t, err)
-	g := gitGoldie(t)
+	g := testhelpers.GitGoldie(t)
 	g.Assert(t, t.Name(), []byte(normalizeFileStats(tmpDir, stats)))
 }
 

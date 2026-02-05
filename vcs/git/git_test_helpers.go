@@ -10,9 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
-	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,11 +79,6 @@ func gitCommitAndGetSHA(t *testing.T, repoDir, message string) string {
 func modifyFile(t *testing.T, filePath string) {
 	err := os.WriteFile(filePath, []byte("modified content\n"), 0644)
 	require.NoError(t, err, "failed to modify file %s", filePath)
-}
-
-// gitGoldie creates a goldie instance for git tests
-func gitGoldie(t *testing.T) *goldie.Goldie {
-	return testhelpers.GoldieWithSuffix(t, ".gold.txt")
 }
 
 // normalizeFilePaths normalizes file paths for golden file comparison

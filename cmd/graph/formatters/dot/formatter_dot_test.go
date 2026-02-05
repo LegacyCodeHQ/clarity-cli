@@ -8,7 +8,6 @@ import (
 	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
-	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +21,7 @@ func TestDependencyGraph_ToDOT(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -51,7 +50,7 @@ func TestDependencyGraph_ToDOT_NewFilesUseSeedlingLabel(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{FileStats: stats})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -67,7 +66,7 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -83,7 +82,7 @@ func TestDependencyGraph_ToDOT_TestFilesAreLightGreen_Dart(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -102,7 +101,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -120,7 +119,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionIsWhite_WithTestFiles(t *testing
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -136,7 +135,7 @@ func TestDependencyGraph_ToDOT_MajorityExtensionTie(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -151,7 +150,7 @@ func TestDependencyGraph_ToDOT_SingleExtensionAllWhite(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -168,7 +167,7 @@ func TestDependencyGraph_ToDOT_TypeScriptTestFiles(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
@@ -184,10 +183,6 @@ func TestDependencyGraph_ToDOT_NodesAreDeclaredOnlyOnce(t *testing.T) {
 	output, err := formatter.Format(graph, formatters.FormatOptions{})
 	require.NoError(t, err)
 
-	g := dotGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
-}
-
-func dotGoldie(t *testing.T) *goldie.Goldie {
-	return testhelpers.GoldieWithSuffix(t, ".gold.dot")
 }

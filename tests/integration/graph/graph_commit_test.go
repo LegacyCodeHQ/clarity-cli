@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
-	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,19 +20,15 @@ const (
 func TestGraphCommit_AddOnboardCommand(t *testing.T) {
 	output := runGraphCommand(t, commitAddOnboard)
 
-	g := graphGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
 
 func TestGraphCommit_AddInitAndPrimeCommands(t *testing.T) {
 	output := runGraphCommand(t, commitAddInit)
 
-	g := graphGoldie(t)
+	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
-}
-
-func graphGoldie(t *testing.T) *goldie.Goldie {
-	return testhelpers.GoldieWithSuffix(t, ".dot")
 }
 
 func runGraphCommand(t *testing.T, commit string) string {
