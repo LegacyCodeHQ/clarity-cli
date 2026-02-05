@@ -1,4 +1,4 @@
-package _go
+package golang
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
+	tsgolang "github.com/smacker/go-tree-sitter/golang"
 )
 
 // GoImport represents an import in a Go file
@@ -90,7 +90,7 @@ func GoImports(filePath string) ([]GoImport, error) {
 
 // ParseGoImports parses Go source code and extracts imports
 func ParseGoImports(sourceCode []byte) ([]GoImport, error) {
-	lang := golang.GetLanguage()
+	lang := tsgolang.GetLanguage()
 
 	parser := sitter.NewParser()
 	parser.SetLanguage(lang)
@@ -117,7 +117,7 @@ const goImportQueryPattern = `
 
 // queryGoImports executes a tree-sitter query and extracts import paths
 func queryGoImports(rootNode *sitter.Node, sourceCode []byte, pattern string) ([]GoImport, error) {
-	lang := golang.GetLanguage()
+	lang := tsgolang.GetLanguage()
 
 	query, err := sitter.NewQuery([]byte(pattern), lang)
 	if err != nil {
@@ -165,7 +165,7 @@ type GoEmbed struct {
 
 // ParseGoEmbeds parses Go source code and extracts //go:embed directives
 func ParseGoEmbeds(sourceCode []byte) ([]GoEmbed, error) {
-	lang := golang.GetLanguage()
+	lang := tsgolang.GetLanguage()
 
 	parser := sitter.NewParser()
 	parser.SetLanguage(lang)
@@ -181,7 +181,7 @@ func ParseGoEmbeds(sourceCode []byte) ([]GoEmbed, error) {
 
 // queryGoEmbeds extracts //go:embed directives from comments
 func queryGoEmbeds(rootNode *sitter.Node, sourceCode []byte) ([]GoEmbed, error) {
-	lang := golang.GetLanguage()
+	lang := tsgolang.GetLanguage()
 
 	// Query for comment nodes
 	query, err := sitter.NewQuery([]byte(`(comment) @comment`), lang)

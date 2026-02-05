@@ -1,4 +1,4 @@
-package _go
+package golang
 
 import (
 	"os"

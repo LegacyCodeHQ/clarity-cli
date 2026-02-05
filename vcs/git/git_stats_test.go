@@ -76,8 +76,8 @@ func TestParseRenamedFilePath_AbbreviatedFormat(t *testing.T) {
 		},
 		{
 			name:     "complex path with multiple parts",
-			input:    "lib/parsers/{ => go}/go_parser_test.go",
-			expected: "lib/parsers/go/go_parser_test.go",
+			input:    "lib/parsers/{ => golang}/golang_parser_test.go",
+			expected: "lib/parsers/golang/golang_parser_test.go",
 		},
 	}
 

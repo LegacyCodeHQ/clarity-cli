@@ -2,7 +2,7 @@ package parsers
 
 import (
 	"github.com/LegacyCodeHQ/sanity/parsers/dart"
-	_go "github.com/LegacyCodeHQ/sanity/parsers/go"
+	"github.com/LegacyCodeHQ/sanity/parsers/golang"
 	"github.com/LegacyCodeHQ/sanity/parsers/kotlin"
 	"github.com/LegacyCodeHQ/sanity/parsers/typescript"
 	"github.com/LegacyCodeHQ/sanity/vcs"
@@ -20,7 +20,7 @@ type importResolverFunc func(absPath, filePath, ext string) ([]string, error)
 type defaultDependencyResolver struct {
 	ctx                *dependencyGraphContext
 	contentReader      vcs.ContentReader
-	goImportResolver   *_go.ProjectImportResolver
+	goImportResolver   *golang.ProjectImportResolver
 	kotlinPackageIndex map[string][]string
 	kotlinPackageTypes map[string]map[string][]string
 	kotlinFilePackages map[string]string
@@ -29,7 +29,7 @@ type defaultDependencyResolver struct {
 
 // NewDefaultDependencyResolver creates the built-in language-aware dependency resolver.
 func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs.ContentReader) DependencyResolver {
-	goImportResolver := _go.NewProjectImportResolver(ctx.dirToFiles, ctx.suppliedFiles, contentReader)
+	goImportResolver := golang.NewProjectImportResolver(ctx.dirToFiles, ctx.suppliedFiles, contentReader)
 	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
 
 	resolver := &defaultDependencyResolver{
@@ -91,5 +91,5 @@ func (b *defaultDependencyResolver) resolveTypeScriptImports(absPath, filePath, 
 }
 
 func (b *defaultDependencyResolver) FinalizeGraph(graph DependencyGraph) error {
-	return _go.AddGoIntraPackageDependencies(graph, b.ctx.goFiles, b.contentReader)
+	return golang.AddGoIntraPackageDependencies(graph, b.ctx.goFiles, b.contentReader)
 }
