@@ -8,7 +8,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func BuildKotlinProjectImports(
+func ResolveKotlinProjectImports(
 	absPath string,
 	filePath string,
 	kotlinPackageIndex map[string][]string,

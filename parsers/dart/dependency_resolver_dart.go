@@ -8,7 +8,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func BuildDartProjectImports(
+func ResolveDartProjectImports(
 	absPath string,
 	filePath string,
 	ext string,

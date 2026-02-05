@@ -6,7 +6,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-func BuildTypeScriptProjectImports(
+func ResolveTypeScriptProjectImports(
 	absPath string,
 	filePath string,
 	ext string,

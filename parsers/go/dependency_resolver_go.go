@@ -34,7 +34,7 @@ func BuildGoPackageExportIndices(dirToFiles map[string][]string, contentReader v
 	return goPackageExportIndices
 }
 
-func BuildGoProjectImports(
+func ResolveGoProjectImports(
 	absPath string,
 	filePath string,
 	dirToFiles map[string][]string,

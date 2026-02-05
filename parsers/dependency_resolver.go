@@ -8,13 +8,13 @@ import (
 	"github.com/LegacyCodeHQ/sanity/vcs"
 )
 
-// DependencyBuilder builds project imports per file and can finalize graph-wide dependencies.
-type DependencyBuilder interface {
-	BuildProjectImports(absPath, filePath, ext string) ([]string, error)
+// DependencyResolver resolves project imports per file and can finalize graph-wide dependencies.
+type DependencyResolver interface {
+	ResolveProjectImports(absPath, filePath, ext string) ([]string, error)
 	FinalizeGraph(graph DependencyGraph) error
 }
 
-type defaultDependencyBuilder struct {
+type defaultDependencyResolver struct {
 	ctx                  *dependencyGraphContext
 	contentReader        vcs.ContentReader
 	goPackageExportIndex map[string]_go.GoPackageExportIndex
@@ -23,12 +23,12 @@ type defaultDependencyBuilder struct {
 	kotlinFilePackages   map[string]string
 }
 
-// NewDefaultDependencyBuilder creates the built-in language-aware dependency builder.
-func NewDefaultDependencyBuilder(ctx *dependencyGraphContext, contentReader vcs.ContentReader) DependencyBuilder {
+// NewDefaultDependencyResolver creates the built-in language-aware dependency resolver.
+func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs.ContentReader) DependencyResolver {
 	goPackageExportIndex := _go.BuildGoPackageExportIndices(ctx.dirToFiles, contentReader)
 	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
 
-	return &defaultDependencyBuilder{
+	return &defaultDependencyResolver{
 		ctx:                  ctx,
 		contentReader:        contentReader,
 		goPackageExportIndex: goPackageExportIndex,
@@ -38,12 +38,12 @@ func NewDefaultDependencyBuilder(ctx *dependencyGraphContext, contentReader vcs.
 	}
 }
 
-func (b *defaultDependencyBuilder) BuildProjectImports(absPath, filePath, ext string) ([]string, error) {
+func (b *defaultDependencyResolver) ResolveProjectImports(absPath, filePath, ext string) ([]string, error) {
 	switch ext {
 	case ".dart":
-		return dart.BuildDartProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
+		return dart.ResolveDartProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
 	case ".go":
-		return _go.BuildGoProjectImports(
+		return _go.ResolveGoProjectImports(
 			absPath,
 			filePath,
 			b.ctx.dirToFiles,
@@ -52,7 +52,7 @@ func (b *defaultDependencyBuilder) BuildProjectImports(absPath, filePath, ext st
 			b.contentReader,
 		)
 	case ".kt":
-		return kotlin.BuildKotlinProjectImports(
+		return kotlin.ResolveKotlinProjectImports(
 			absPath,
 			filePath,
 			b.kotlinPackageIndex,
@@ -62,12 +62,12 @@ func (b *defaultDependencyBuilder) BuildProjectImports(absPath, filePath, ext st
 			b.contentReader,
 		)
 	case ".ts", ".tsx":
-		return typescript.BuildTypeScriptProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
+		return typescript.ResolveTypeScriptProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
 	default:
 		return []string{}, nil
 	}
 }
 
-func (b *defaultDependencyBuilder) FinalizeGraph(graph DependencyGraph) error {
+func (b *defaultDependencyResolver) FinalizeGraph(graph DependencyGraph) error {
 	return _go.AddGoIntraPackageDependencies(graph, b.ctx.goFiles, b.contentReader)
 }

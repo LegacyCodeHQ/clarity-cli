@@ -18,18 +18,18 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 		return nil, err
 	}
 
-	return BuildDependencyGraphWithBuilder(filePaths, NewDefaultDependencyBuilder(ctx, contentReader))
+	return BuildDependencyGraphWithResolver(filePaths, NewDefaultDependencyResolver(ctx, contentReader))
 }
 
-// BuildDependencyGraphWithBuilder builds a graph using the provided DependencyBuilder implementation.
-func BuildDependencyGraphWithBuilder(
+// BuildDependencyGraphWithResolver builds a graph using the provided DependencyResolver implementation.
+func BuildDependencyGraphWithResolver(
 	filePaths []string,
-	dependencyBuilder DependencyBuilder,
+	dependencyResolver DependencyResolver,
 ) (DependencyGraph, error) {
 	graph := make(DependencyGraph)
 
-	if dependencyBuilder == nil {
-		return nil, fmt.Errorf("dependency builder is required")
+	if dependencyResolver == nil {
+		return nil, fmt.Errorf("dependency resolver is required")
 	}
 
 	// Second pass: build the dependency graph
@@ -49,7 +49,7 @@ func BuildDependencyGraphWithBuilder(
 			continue
 		}
 
-		projectImports, err := dependencyBuilder.BuildProjectImports(absPath, filePath, ext)
+		projectImports, err := dependencyResolver.ResolveProjectImports(absPath, filePath, ext)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +62,7 @@ func BuildDependencyGraphWithBuilder(
 	}
 
 	// Third pass: add intra-package dependencies for languages that need it.
-	if err := dependencyBuilder.FinalizeGraph(graph); err != nil {
+	if err := dependencyResolver.FinalizeGraph(graph); err != nil {
 		return graph, fmt.Errorf("failed to add intra-package dependencies: %w", err)
 	}
 
