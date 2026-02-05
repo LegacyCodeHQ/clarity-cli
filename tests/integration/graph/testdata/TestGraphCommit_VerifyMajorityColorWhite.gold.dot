@@ -1,0 +1,43 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+  label="sanity • 5aa9769 • 32 files";
+  labelloc=t;
+  labeljust=l;
+  fontsize=10;
+  fontname=Courier;
+
+  "git_test.go" [label="git_test.go\n+149 -198", style=filled, fillcolor=lightgreen];
+  "TestGetCommitDartFiles_HeadReference.gold.txt" [label="🪴 TestGetCommitDartFiles_HeadReference.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitDartFiles_HeadTildeReference.gold.txt" [label="🪴 TestGetCommitDartFiles_HeadTildeReference.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitDartFiles_IncludesAllFiles.gold.txt" [label="🪴 TestGetCommitDartFiles_IncludesAllFiles.gold.txt\n+3", style=filled, fillcolor=white];
+  "TestGetCommitDartFiles_MultipleFiles.gold.txt" [label="🪴 TestGetCommitDartFiles_MultipleFiles.gold.txt\n+3", style=filled, fillcolor=white];
+  "TestGetCommitDartFiles_NonDartFiles.gold.txt" [label="🪴 TestGetCommitDartFiles_NonDartFiles.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitDartFiles_SingleCommit.gold.txt" [label="🪴 TestGetCommitDartFiles_SingleCommit.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitFileStats_MarksNewFiles.gold.txt" [label="🪴 TestGetCommitFileStats_MarksNewFiles.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetCommitRangeFileStats_AdditionsAndDeletions.gold.txt" [label="🪴 TestGetCommitRangeFileStats_AdditionsAndDeletions.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitRangeFileStats_MultipleFiles.gold.txt" [label="🪴 TestGetCommitRangeFileStats_MultipleFiles.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetCommitRangeFileStats_NewFile.gold.txt" [label="🪴 TestGetCommitRangeFileStats_NewFile.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitRangeFiles_ExcludesDeletedFiles.gold.txt" [label="🪴 TestGetCommitRangeFiles_ExcludesDeletedFiles.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitRangeFiles_ModifiedFile.gold.txt" [label="🪴 TestGetCommitRangeFiles_ModifiedFile.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitRangeFiles_MultipleCommits.gold.txt" [label="🪴 TestGetCommitRangeFiles_MultipleCommits.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetCommitRangeFiles_NoChanges.gold.txt" [label="🪴 TestGetCommitRangeFiles_NoChanges.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitRangeFiles_Success.gold.txt" [label="🪴 TestGetCommitRangeFiles_Success.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_AfterFileDeleted.gold.txt" [label="🪴 TestGetCommitTreeFiles_AfterFileDeleted.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_FilesInSubdirectories.gold.txt" [label="🪴 TestGetCommitTreeFiles_FilesInSubdirectories.gold.txt\n+3", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_HEAD.gold.txt" [label="🪴 TestGetCommitTreeFiles_HEAD.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_MultipleFiles.gold.txt" [label="🪴 TestGetCommitTreeFiles_MultipleFiles.gold.txt\n+3", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_OlderCommit.gold.txt" [label="🪴 TestGetCommitTreeFiles_OlderCommit.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_ReturnsAllFilesAcrossCommits.gold.txt" [label="🪴 TestGetCommitTreeFiles_ReturnsAllFilesAcrossCommits.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetCommitTreeFiles_SingleFile.gold.txt" [label="🪴 TestGetCommitTreeFiles_SingleFile.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_EmptyRepo.gold.txt" [label="🪴 TestGetUncommittedDartFiles_EmptyRepo.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_IncludesAllFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_IncludesAllFiles.gold.txt\n+4", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_MixedStates.gold.txt" [label="🪴 TestGetUncommittedDartFiles_MixedStates.gold.txt\n+3", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_ModifiedFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_ModifiedFiles.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_NoUncommittedFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_NoUncommittedFiles.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_StagedFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_StagedFiles.gold.txt\n+1", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_UntrackedFiles.gold.txt" [label="🪴 TestGetUncommittedDartFiles_UntrackedFiles.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetUncommittedDartFiles_UntrackedFilesInSubdirectory.gold.txt" [label="🪴 TestGetUncommittedDartFiles_UntrackedFilesInSubdirectory.gold.txt\n+2", style=filled, fillcolor=white];
+  "TestGetUncommittedFileStats_MarksNewAndUntrackedFiles.gold.txt" [label="🪴 TestGetUncommittedFileStats_MarksNewAndUntrackedFiles.gold.txt\n+3", style=filled, fillcolor=white];
+
+}

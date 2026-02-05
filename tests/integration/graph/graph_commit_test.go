@@ -76,3 +76,10 @@ func TestGraphCommit_VerifyComplexRelationships(t *testing.T) {
 	g := testhelpers.DotGoldie(t)
 	g.Assert(t, t.Name(), []byte(output))
 }
+
+func TestGraphCommit_VerifyMajorityColorWhite(t *testing.T) {
+	output := internal.GraphSubcommand(t, "5aa97693902e9bacaad15158068105c0ca18107a")
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
