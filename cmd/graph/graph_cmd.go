@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/depgraph"
@@ -105,6 +106,11 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		return nil
 	}
 
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err == nil && verbose {
+		emitUnsupportedFileWarning(cmd, filePaths)
+	}
+
 	contentReader := selectContentReader(opts, toCommit)
 
 	graph, err := depgraph.BuildDependencyGraph(filePaths, contentReader)
@@ -197,12 +203,12 @@ func parseCommitRange(opts *graphOptions) (string, string, bool, error) {
 
 func determineFilePaths(cmd *cobra.Command, opts *graphOptions, fromCommit, toCommit string, isCommitRange bool) ([]string, bool, error) {
 	if len(opts.includes) > 0 {
-		filePaths, err := expandPaths(opts.includes)
+		filePaths, err := expandPaths(opts.includes, true)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to expand paths: %w", err)
 		}
 		if len(filePaths) == 0 {
-			return nil, false, fmt.Errorf("no supported files found in specified paths")
+			return nil, false, fmt.Errorf("no files found in specified paths")
 		}
 		return filePaths, false, nil
 	}
@@ -224,7 +230,7 @@ func determineFilePaths(cmd *cobra.Command, opts *graphOptions, fromCommit, toCo
 	}
 
 	if opts.targetFile != "" {
-		filePaths, err := expandPaths([]string{opts.repoPath})
+		filePaths, err := expandPaths([]string{opts.repoPath}, false)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to expand working directory: %w", err)
 		}
@@ -265,7 +271,7 @@ func collectBetweenFilePaths(opts *graphOptions, toCommit string) ([]string, err
 		return filePaths, nil
 	}
 
-	filePaths, err := expandPaths([]string{opts.repoPath})
+	filePaths, err := expandPaths([]string{opts.repoPath}, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand working directory: %w", err)
 	}
@@ -465,8 +471,8 @@ var supportedExtensions = map[string]bool{
 }
 
 // expandPaths expands file paths and directories into individual file paths.
-// Directories are recursively walked and only files with supported extensions are included.
-func expandPaths(paths []string) ([]string, error) {
+// Directories are recursively walked and regular files are included based on includeUnsupportedFiles.
+func expandPaths(paths []string, includeUnsupportedFiles bool) ([]string, error) {
 	var result []string
 
 	for _, path := range paths {
@@ -487,7 +493,11 @@ func expandPaths(paths []string) ([]string, error) {
 					return nil
 				}
 
-				// Check if file has a supported extension
+				if includeUnsupportedFiles {
+					result = append(result, filePath)
+					return nil
+				}
+
 				ext := filepath.Ext(filePath)
 				if supportedExtensions[ext] {
 					result = append(result, filePath)
@@ -505,6 +515,40 @@ func expandPaths(paths []string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+func emitUnsupportedFileWarning(cmd *cobra.Command, filePaths []string) {
+	unsupportedCount := 0
+	unsupportedByExt := make(map[string]bool)
+
+	for _, filePath := range filePaths {
+		ext := filepath.Ext(filePath)
+		if supportedExtensions[ext] {
+			continue
+		}
+
+		unsupportedCount++
+		if ext == "" {
+			unsupportedByExt["<no extension>"] = true
+			continue
+		}
+		unsupportedByExt[ext] = true
+	}
+
+	if unsupportedCount == 0 {
+		return
+	}
+
+	unsupportedExts := make([]string, 0, len(unsupportedByExt))
+	for ext := range unsupportedByExt {
+		unsupportedExts = append(unsupportedExts, ext)
+	}
+	sort.Strings(unsupportedExts)
+
+	fmt.Fprintf(cmd.ErrOrStderr(),
+		"Warning: dependency extraction is unsupported for %d file(s) (%v); rendering standalone nodes without dependency edges for those files.\n",
+		unsupportedCount,
+		unsupportedExts)
 }
 
 // resolveAndValidatePaths resolves file paths to absolute paths and validates they exist in the graph.
