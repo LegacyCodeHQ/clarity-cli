@@ -43,7 +43,7 @@ func BuildDependencyGraphWithResolver(
 		ext := filepath.Ext(absPath)
 
 		// Check if this is a supported file type
-		if !isSupportedDependencyFileExt(ext) {
+		if !dependencyResolver.SupportsFileExtension(ext) {
 			// Unsupported files are included in the graph with no dependencies
 			graph[absPath] = []string{}
 			continue
@@ -67,15 +67,6 @@ func BuildDependencyGraphWithResolver(
 	}
 
 	return graph, nil
-}
-
-func isSupportedDependencyFileExt(ext string) bool {
-	switch ext {
-	case ".dart", ".go", ".kt", ".ts", ".tsx":
-		return true
-	default:
-		return false
-	}
 }
 
 // deduplicatePaths removes duplicate entries while preserving insertion order

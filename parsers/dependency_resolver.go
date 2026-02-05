@@ -10,9 +10,12 @@ import (
 
 // DependencyResolver resolves project imports per file and can finalize graph-wide dependencies.
 type DependencyResolver interface {
+	SupportsFileExtension(ext string) bool
 	ResolveProjectImports(absPath, filePath, ext string) ([]string, error)
 	FinalizeGraph(graph DependencyGraph) error
 }
+
+type importResolverFunc func(absPath, filePath, ext string) ([]string, error)
 
 type defaultDependencyResolver struct {
 	ctx                *dependencyGraphContext
@@ -21,6 +24,7 @@ type defaultDependencyResolver struct {
 	kotlinPackageIndex map[string][]string
 	kotlinPackageTypes map[string]map[string][]string
 	kotlinFilePackages map[string]string
+	importResolvers    map[string]importResolverFunc
 }
 
 // NewDefaultDependencyResolver creates the built-in language-aware dependency resolver.
@@ -28,7 +32,7 @@ func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs
 	goImportResolver := _go.NewProjectImportResolver(ctx.dirToFiles, ctx.suppliedFiles, contentReader)
 	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := kotlin.BuildKotlinIndices(ctx.kotlinFiles, contentReader)
 
-	return &defaultDependencyResolver{
+	resolver := &defaultDependencyResolver{
 		ctx:                ctx,
 		contentReader:      contentReader,
 		goImportResolver:   goImportResolver,
@@ -36,29 +40,54 @@ func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs
 		kotlinPackageTypes: kotlinPackageTypes,
 		kotlinFilePackages: kotlinFilePackages,
 	}
+
+	resolver.importResolvers = map[string]importResolverFunc{
+		".dart": resolver.resolveDartImports,
+		".go":   resolver.resolveGoImports,
+		".kt":   resolver.resolveKotlinImports,
+		".ts":   resolver.resolveTypeScriptImports,
+		".tsx":  resolver.resolveTypeScriptImports,
+	}
+
+	return resolver
+}
+
+func (b *defaultDependencyResolver) SupportsFileExtension(ext string) bool {
+	_, ok := b.importResolvers[ext]
+	return ok
 }
 
 func (b *defaultDependencyResolver) ResolveProjectImports(absPath, filePath, ext string) ([]string, error) {
-	switch ext {
-	case ".dart":
-		return dart.ResolveDartProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
-	case ".go":
-		return b.goImportResolver.ResolveProjectImports(absPath, filePath)
-	case ".kt":
-		return kotlin.ResolveKotlinProjectImports(
-			absPath,
-			filePath,
-			b.kotlinPackageIndex,
-			b.kotlinPackageTypes,
-			b.kotlinFilePackages,
-			b.ctx.suppliedFiles,
-			b.contentReader,
-		)
-	case ".ts", ".tsx":
-		return typescript.ResolveTypeScriptProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
-	default:
+	resolveImports, ok := b.importResolvers[ext]
+	if !ok {
 		return []string{}, nil
 	}
+
+	return resolveImports(absPath, filePath, ext)
+}
+
+func (b *defaultDependencyResolver) resolveDartImports(absPath, filePath, ext string) ([]string, error) {
+	return dart.ResolveDartProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
+}
+
+func (b *defaultDependencyResolver) resolveGoImports(absPath, filePath, _ string) ([]string, error) {
+	return b.goImportResolver.ResolveProjectImports(absPath, filePath)
+}
+
+func (b *defaultDependencyResolver) resolveKotlinImports(absPath, filePath, _ string) ([]string, error) {
+	return kotlin.ResolveKotlinProjectImports(
+		absPath,
+		filePath,
+		b.kotlinPackageIndex,
+		b.kotlinPackageTypes,
+		b.kotlinFilePackages,
+		b.ctx.suppliedFiles,
+		b.contentReader,
+	)
+}
+
+func (b *defaultDependencyResolver) resolveTypeScriptImports(absPath, filePath, ext string) ([]string, error) {
+	return typescript.ResolveTypeScriptProjectImports(absPath, filePath, ext, b.ctx.suppliedFiles, b.contentReader)
 }
 
 func (b *defaultDependencyResolver) FinalizeGraph(graph DependencyGraph) error {
