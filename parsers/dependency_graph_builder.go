@@ -22,67 +22,9 @@ import (
 func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (DependencyGraph, error) {
 	graph := make(DependencyGraph)
 
-	// First pass: build a set of all supplied file paths (as absolute paths)
-	// Also build a map from directories to files for Go package resolution
-	// And collect Kotlin files for package indexing
-	suppliedFiles := make(map[string]bool)
-	dirToFiles := make(map[string][]string)
-	kotlinFiles := []string{}
-	goFiles := []string{}
-
-	for _, filePath := range filePaths {
-		absPath, err := filepath.Abs(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve path %s: %w", filePath, err)
-		}
-		suppliedFiles[absPath] = true
-
-		// Map directory to file for Go package imports
-		dir := filepath.Dir(absPath)
-		dirToFiles[dir] = append(dirToFiles[dir], absPath)
-
-		// Collect Kotlin files for package indexing
-		if filepath.Ext(absPath) == ".kt" {
-			kotlinFiles = append(kotlinFiles, absPath)
-		}
-
-		// Collect Go files for export indexing
-		if filepath.Ext(absPath) == ".go" {
-			goFiles = append(goFiles, absPath)
-		}
-	}
-
-	// Build Go package export indices for symbol-level cross-package resolution
-	goPackageExportIndices := make(map[string]_go.GoPackageExportIndex) // packageDir -> export index
-	for dir, files := range dirToFiles {
-		// Check if this directory has Go files
-		hasGoFiles := false
-		var goFilesInDir []string
-		for _, f := range files {
-			if filepath.Ext(f) == ".go" {
-				hasGoFiles = true
-				goFilesInDir = append(goFilesInDir, f)
-			}
-		}
-		if hasGoFiles {
-			exportIndex, err := _go.BuildPackageExportIndex(goFilesInDir, vcs.ContentReader(contentReader))
-			if err == nil {
-				goPackageExportIndices[dir] = exportIndex
-			}
-		}
-	}
-
-	// Build Kotlin package index if we have Kotlin files
-	var kotlinPackageIndex map[string][]string
-	var kotlinPackageTypes map[string]map[string][]string
-	kotlinFilePackages := make(map[string]string)
-	if len(kotlinFiles) > 0 {
-		kotlinPackageIndex, kotlinPackageTypes = buildKotlinPackageIndex(kotlinFiles, contentReader)
-		for pkg, files := range kotlinPackageIndex {
-			for _, file := range files {
-				kotlinFilePackages[file] = pkg
-			}
-		}
+	ctx, err := buildDependencyGraphContext(filePaths, contentReader)
+	if err != nil {
+		return nil, err
 	}
 
 	// Second pass: build the dependency graph
@@ -102,201 +44,9 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 			continue
 		}
 
-		// Parse imports based on file type
-		var projectImports []string
-
-		if ext == ".dart" {
-			content, err := contentReader(absPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
-			}
-
-			imports, err := dart.ParseImports(content)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
-			}
-
-			// Filter for project imports only that are in the supplied file list
-			for _, imp := range imports {
-				if projImp, ok := imp.(dart.ProjectImport); ok {
-					// Resolve relative path to absolute
-					resolvedPath := resolveImportPath(absPath, projImp.URI(), ext)
-
-					// Only include if the dependency is in the supplied files
-					if suppliedFiles[resolvedPath] {
-						projectImports = append(projectImports, resolvedPath)
-					}
-				}
-			}
-		} else if ext == ".go" {
-			sourceContent, err := contentReader(absPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
-			}
-
-			imports, err := _go.ParseGoImports(sourceContent)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
-			}
-
-			// Parse //go:embed directives
-			embeds, _ := _go.ParseGoEmbeds(sourceContent)
-			for _, embed := range embeds {
-				// Resolve embed pattern relative to the source file's directory
-				embedPath := resolveGoEmbedPath(absPath, embed.Pattern, suppliedFiles)
-				if embedPath != "" {
-					projectImports = append(projectImports, embedPath)
-				}
-			}
-
-			// Extract export info for symbol-level cross-package resolution
-			exportInfo, _ := _go.ExtractGoExportInfoFromContent(absPath, sourceContent)
-
-			// Determine if this is a test file
-			isTestFile := strings.HasSuffix(absPath, "_test.go")
-
-			// Filter for internal imports (including those that look external but are part of the module)
-			for _, imp := range imports {
-				var importPath string
-
-				// Check both InternalImport and ExternalImport types
-				// resolveGoImportPath will determine if they're actually part of this module
-				switch typedImp := imp.(type) {
-				case _go.InternalImport:
-					importPath = typedImp.Path()
-				case _go.ExternalImport:
-					importPath = typedImp.Path()
-				default:
-					continue
-				}
-
-				// Resolve import path to package directory
-				packageDir := resolveGoImportPath(absPath, importPath, contentReader)
-
-				// Skip if packageDir is empty (means it's truly external or couldn't be resolved)
-				if packageDir == "" {
-					continue
-				}
-
-				// Check if we're importing from the same directory
-				sourceDir := filepath.Dir(absPath)
-				sameDir := sourceDir == packageDir
-
-				// Get the export index for this package (if available)
-				exportIndex, hasExportIndex := goPackageExportIndices[packageDir]
-
-				// Get the symbols actually used from this import
-				var usedSymbols map[string]bool
-				if exportInfo != nil {
-					usedSymbols = _go.GetUsedSymbolsFromPackage(exportInfo, importPath)
-				}
-
-				// Find files in the supplied list that are in this package
-				if files, ok := dirToFiles[packageDir]; ok {
-					for _, depFile := range files {
-						// Don't add self-dependencies
-						if depFile == absPath {
-							continue
-						}
-
-						// Skip test files from other packages (they can't export symbols)
-						if strings.HasSuffix(depFile, "_test.go") && !sameDir {
-							continue
-						}
-
-						// Go imports only create dependencies on Go source files
-						// Non-Go file dependencies should come from //go:embed directives
-						if filepath.Ext(depFile) != ".go" {
-							continue
-						}
-
-						// Symbol-level filtering for cross-package imports:
-						// - Different directory imports always use symbol filtering
-						// - Same directory imports use symbol filtering when source is a test file
-						//   (test files in package X_test import package X via explicit imports)
-						if (!sameDir || isTestFile) && hasExportIndex && usedSymbols != nil && len(usedSymbols) > 0 {
-							// Only include this file if it defines a symbol we actually use
-							fileDefinesUsedSymbol := false
-							for symbol := range usedSymbols {
-								if definingFiles, ok := exportIndex[symbol]; ok {
-									for _, defFile := range definingFiles {
-										if defFile == depFile {
-											fileDefinesUsedSymbol = true
-											break
-										}
-									}
-								}
-								if fileDefinesUsedSymbol {
-									break
-								}
-							}
-
-							if !fileDefinesUsedSymbol {
-								continue
-							}
-						}
-
-						projectImports = append(projectImports, depFile)
-					}
-				}
-			}
-		} else if ext == ".kt" {
-			content, err := contentReader(absPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
-			}
-
-			imports, err := kotlin.ParseKotlinImports(content)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
-			}
-
-			// Extract project packages for classification
-			projectPackages := make(map[string]bool)
-			for pkg := range kotlinPackageIndex {
-				projectPackages[pkg] = true
-			}
-
-			// Reclassify imports with knowledge of project packages
-			imports = kotlin.ClassifyWithProjectPackages(imports, projectPackages)
-
-			// Filter for internal imports and resolve to files
-			for _, imp := range imports {
-				if internalImp, ok := imp.(kotlin.InternalImport); ok {
-					// Resolve to file paths
-					resolvedFiles := resolveKotlinImportPath(absPath, internalImp, kotlinPackageIndex, suppliedFiles)
-					projectImports = append(projectImports, resolvedFiles...)
-				}
-			}
-
-			if len(kotlinPackageTypes) > 0 {
-				samePackageDeps := resolveKotlinSamePackageDependencies(
-					absPath,
-					contentReader,
-					kotlinFilePackages,
-					kotlinPackageTypes,
-					imports,
-					suppliedFiles)
-				projectImports = append(projectImports, samePackageDeps...)
-			}
-		} else if ext == ".ts" || ext == ".tsx" {
-			content, err := contentReader(absPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
-			}
-
-			imports, parseErr := typescript.ParseTypeScriptImports(content, ext == ".tsx")
-			if parseErr != nil {
-				return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, parseErr)
-			}
-
-			// Filter for internal imports and resolve to files
-			for _, imp := range imports {
-				if internalImp, ok := imp.(typescript.InternalImport); ok {
-					resolvedFiles := typescript.ResolveTypeScriptImportPath(absPath, internalImp.Path(), suppliedFiles)
-					projectImports = append(projectImports, resolvedFiles...)
-				}
-			}
+		projectImports, err := buildProjectImports(absPath, filePath, ext, ctx, contentReader)
+		if err != nil {
+			return nil, err
 		}
 
 		if len(projectImports) > 0 {
@@ -310,36 +60,381 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 	// This handles dependencies between files in the same package (which don't import each other)
 	// Note: goFiles was already collected in the first pass
 
-	if len(goFiles) > 0 {
-		intraDeps, err := _go.BuildIntraPackageDependencies(goFiles, vcs.ContentReader(contentReader))
+	if err := addGoIntraPackageDependencies(graph, ctx.goFiles, contentReader); err != nil {
+		// Don't fail if intra-package analysis fails, just skip it
+		return graph, nil
+	}
+
+	return graph, nil
+}
+
+type dependencyGraphContext struct {
+	suppliedFiles          map[string]bool
+	dirToFiles             map[string][]string
+	kotlinFiles            []string
+	goFiles                []string
+	goPackageExportIndices map[string]_go.GoPackageExportIndex
+	kotlinPackageIndex     map[string][]string
+	kotlinPackageTypes     map[string]map[string][]string
+	kotlinFilePackages     map[string]string
+}
+
+func buildDependencyGraphContext(filePaths []string, contentReader vcs.ContentReader) (*dependencyGraphContext, error) {
+	suppliedFiles, dirToFiles, kotlinFiles, goFiles, err := collectDependencyGraphFiles(filePaths)
+	if err != nil {
+		return nil, err
+	}
+
+	goPackageExportIndices := buildGoPackageExportIndices(dirToFiles, contentReader)
+	kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages := buildKotlinIndices(kotlinFiles, contentReader)
+
+	return &dependencyGraphContext{
+		suppliedFiles:          suppliedFiles,
+		dirToFiles:             dirToFiles,
+		kotlinFiles:            kotlinFiles,
+		goFiles:                goFiles,
+		goPackageExportIndices: goPackageExportIndices,
+		kotlinPackageIndex:     kotlinPackageIndex,
+		kotlinPackageTypes:     kotlinPackageTypes,
+		kotlinFilePackages:     kotlinFilePackages,
+	}, nil
+}
+
+func collectDependencyGraphFiles(filePaths []string) (map[string]bool, map[string][]string, []string, []string, error) {
+	suppliedFiles := make(map[string]bool)
+	dirToFiles := make(map[string][]string)
+	var kotlinFiles []string
+	var goFiles []string
+
+	for _, filePath := range filePaths {
+		absPath, err := filepath.Abs(filePath)
 		if err != nil {
-			// Don't fail if intra-package analysis fails, just skip it
-			return graph, nil
+			return nil, nil, nil, nil, fmt.Errorf("failed to resolve path %s: %w", filePath, err)
+		}
+		suppliedFiles[absPath] = true
+
+		// Map directory to file for Go package imports
+		dir := filepath.Dir(absPath)
+		dirToFiles[dir] = append(dirToFiles[dir], absPath)
+
+		// Collect Kotlin files for package indexing
+		if filepath.Ext(absPath) == ".kt" {
+			kotlinFiles = append(kotlinFiles, absPath)
 		}
 
-		// Merge intra-package dependencies into the graph
-		for file, deps := range intraDeps {
-			if existingDeps, ok := graph[file]; ok {
-				// Combine and deduplicate
-				depSet := make(map[string]bool)
-				for _, dep := range existingDeps {
-					depSet[dep] = true
-				}
-				for _, dep := range deps {
-					depSet[dep] = true
-				}
+		// Collect Go files for export indexing
+		if filepath.Ext(absPath) == ".go" {
+			goFiles = append(goFiles, absPath)
+		}
+	}
 
-				// Convert back to slice
-				merged := make([]string, 0, len(depSet))
-				for dep := range depSet {
-					merged = append(merged, dep)
-				}
-				graph[file] = merged
+	return suppliedFiles, dirToFiles, kotlinFiles, goFiles, nil
+}
+
+func buildGoPackageExportIndices(dirToFiles map[string][]string, contentReader vcs.ContentReader) map[string]_go.GoPackageExportIndex {
+	goPackageExportIndices := make(map[string]_go.GoPackageExportIndex) // packageDir -> export index
+	for dir, files := range dirToFiles {
+		// Check if this directory has Go files
+		hasGoFiles := false
+		var goFilesInDir []string
+		for _, f := range files {
+			if filepath.Ext(f) == ".go" {
+				hasGoFiles = true
+				goFilesInDir = append(goFilesInDir, f)
+			}
+		}
+		if hasGoFiles {
+			exportIndex, err := _go.BuildPackageExportIndex(goFilesInDir, vcs.ContentReader(contentReader))
+			if err == nil {
+				goPackageExportIndices[dir] = exportIndex
 			}
 		}
 	}
 
-	return graph, nil
+	return goPackageExportIndices
+}
+
+func buildKotlinIndices(
+	kotlinFiles []string,
+	contentReader vcs.ContentReader,
+) (map[string][]string, map[string]map[string][]string, map[string]string) {
+	if len(kotlinFiles) == 0 {
+		return nil, nil, map[string]string{}
+	}
+
+	kotlinPackageIndex, kotlinPackageTypes := buildKotlinPackageIndex(kotlinFiles, contentReader)
+	kotlinFilePackages := make(map[string]string)
+	for pkg, files := range kotlinPackageIndex {
+		for _, file := range files {
+			kotlinFilePackages[file] = pkg
+		}
+	}
+
+	return kotlinPackageIndex, kotlinPackageTypes, kotlinFilePackages
+}
+
+func buildProjectImports(
+	absPath string,
+	filePath string,
+	ext string,
+	ctx *dependencyGraphContext,
+	contentReader vcs.ContentReader,
+) ([]string, error) {
+	switch ext {
+	case ".dart":
+		return buildDartProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
+	case ".go":
+		return buildGoProjectImports(absPath, filePath, ctx, contentReader)
+	case ".kt":
+		return buildKotlinProjectImports(absPath, filePath, ctx, contentReader)
+	case ".ts", ".tsx":
+		return buildTypeScriptProjectImports(absPath, filePath, ext, ctx.suppliedFiles, contentReader)
+	default:
+		return []string{}, nil
+	}
+}
+
+func buildDartProjectImports(
+	absPath string,
+	filePath string,
+	ext string,
+	suppliedFiles map[string]bool,
+	contentReader vcs.ContentReader,
+) ([]string, error) {
+	content, err := contentReader(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
+	}
+
+	imports, err := dart.ParseImports(content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+	}
+
+	var projectImports []string
+	for _, imp := range imports {
+		if projImp, ok := imp.(dart.ProjectImport); ok {
+			resolvedPath := resolveImportPath(absPath, projImp.URI(), ext)
+			if suppliedFiles[resolvedPath] {
+				projectImports = append(projectImports, resolvedPath)
+			}
+		}
+	}
+
+	return projectImports, nil
+}
+
+func buildGoProjectImports(
+	absPath string,
+	filePath string,
+	ctx *dependencyGraphContext,
+	contentReader vcs.ContentReader,
+) ([]string, error) {
+	sourceContent, err := contentReader(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
+	}
+
+	imports, err := _go.ParseGoImports(sourceContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+	}
+
+	var projectImports []string
+
+	// Parse //go:embed directives
+	embeds, _ := _go.ParseGoEmbeds(sourceContent)
+	for _, embed := range embeds {
+		embedPath := resolveGoEmbedPath(absPath, embed.Pattern, ctx.suppliedFiles)
+		if embedPath != "" {
+			projectImports = append(projectImports, embedPath)
+		}
+	}
+
+	// Extract export info for symbol-level cross-package resolution
+	exportInfo, _ := _go.ExtractGoExportInfoFromContent(absPath, sourceContent)
+
+	// Determine if this is a test file
+	isTestFile := strings.HasSuffix(absPath, "_test.go")
+
+	for _, imp := range imports {
+		var importPath string
+
+		// Check both InternalImport and ExternalImport types
+		// resolveGoImportPath will determine if they're actually part of this module
+		switch typedImp := imp.(type) {
+		case _go.InternalImport:
+			importPath = typedImp.Path()
+		case _go.ExternalImport:
+			importPath = typedImp.Path()
+		default:
+			continue
+		}
+
+		packageDir := resolveGoImportPath(absPath, importPath, contentReader)
+		if packageDir == "" {
+			continue
+		}
+
+		sourceDir := filepath.Dir(absPath)
+		sameDir := sourceDir == packageDir
+		exportIndex, hasExportIndex := ctx.goPackageExportIndices[packageDir]
+
+		var usedSymbols map[string]bool
+		if exportInfo != nil {
+			usedSymbols = _go.GetUsedSymbolsFromPackage(exportInfo, importPath)
+		}
+
+		if files, ok := ctx.dirToFiles[packageDir]; ok {
+			for _, depFile := range files {
+				if depFile == absPath {
+					continue
+				}
+
+				if strings.HasSuffix(depFile, "_test.go") && !sameDir {
+					continue
+				}
+
+				if filepath.Ext(depFile) != ".go" {
+					continue
+				}
+
+				if (!sameDir || isTestFile) && hasExportIndex && usedSymbols != nil && len(usedSymbols) > 0 {
+					fileDefinesUsedSymbol := false
+					for symbol := range usedSymbols {
+						if definingFiles, ok := exportIndex[symbol]; ok {
+							for _, defFile := range definingFiles {
+								if defFile == depFile {
+									fileDefinesUsedSymbol = true
+									break
+								}
+							}
+						}
+						if fileDefinesUsedSymbol {
+							break
+						}
+					}
+
+					if !fileDefinesUsedSymbol {
+						continue
+					}
+				}
+
+				projectImports = append(projectImports, depFile)
+			}
+		}
+	}
+
+	return projectImports, nil
+}
+
+func buildKotlinProjectImports(
+	absPath string,
+	filePath string,
+	ctx *dependencyGraphContext,
+	contentReader vcs.ContentReader,
+) ([]string, error) {
+	content, err := contentReader(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
+	}
+
+	imports, err := kotlin.ParseKotlinImports(content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, err)
+	}
+
+	projectPackages := make(map[string]bool)
+	for pkg := range ctx.kotlinPackageIndex {
+		projectPackages[pkg] = true
+	}
+
+	imports = kotlin.ClassifyWithProjectPackages(imports, projectPackages)
+
+	var projectImports []string
+	for _, imp := range imports {
+		if internalImp, ok := imp.(kotlin.InternalImport); ok {
+			resolvedFiles := resolveKotlinImportPath(absPath, internalImp, ctx.kotlinPackageIndex, ctx.suppliedFiles)
+			projectImports = append(projectImports, resolvedFiles...)
+		}
+	}
+
+	if len(ctx.kotlinPackageTypes) > 0 {
+		samePackageDeps := resolveKotlinSamePackageDependencies(
+			absPath,
+			contentReader,
+			ctx.kotlinFilePackages,
+			ctx.kotlinPackageTypes,
+			imports,
+			ctx.suppliedFiles,
+		)
+		projectImports = append(projectImports, samePackageDeps...)
+	}
+
+	return projectImports, nil
+}
+
+func buildTypeScriptProjectImports(
+	absPath string,
+	filePath string,
+	ext string,
+	suppliedFiles map[string]bool,
+	contentReader vcs.ContentReader,
+) ([]string, error) {
+	content, err := contentReader(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
+	}
+
+	imports, parseErr := typescript.ParseTypeScriptImports(content, ext == ".tsx")
+	if parseErr != nil {
+		return nil, fmt.Errorf("failed to parse imports in %s: %w", filePath, parseErr)
+	}
+
+	var projectImports []string
+	for _, imp := range imports {
+		if internalImp, ok := imp.(typescript.InternalImport); ok {
+			resolvedFiles := typescript.ResolveTypeScriptImportPath(absPath, internalImp.Path(), suppliedFiles)
+			projectImports = append(projectImports, resolvedFiles...)
+		}
+	}
+
+	return projectImports, nil
+}
+
+func addGoIntraPackageDependencies(
+	graph DependencyGraph,
+	goFiles []string,
+	contentReader vcs.ContentReader,
+) error {
+	if len(goFiles) == 0 {
+		return nil
+	}
+
+	intraDeps, err := _go.BuildIntraPackageDependencies(goFiles, vcs.ContentReader(contentReader))
+	if err != nil {
+		return err
+	}
+
+	for file, deps := range intraDeps {
+		if existingDeps, ok := graph[file]; ok {
+			depSet := make(map[string]bool)
+			for _, dep := range existingDeps {
+				depSet[dep] = true
+			}
+			for _, dep := range deps {
+				depSet[dep] = true
+			}
+
+			merged := make([]string, 0, len(depSet))
+			for dep := range depSet {
+				merged = append(merged, dep)
+			}
+			graph[file] = merged
+		}
+	}
+
+	return nil
 }
 
 // resolveImportPath converts a relative import URI to an absolute path
