@@ -17,7 +17,7 @@ func TestLanguagesCommand_PrintsSupportedLanguagesAndExtensions(t *testing.T) {
 	expected := `Dart (.dart)
 Go (.go)
 Java (.java)
-Kotlin (.kt)
+Kotlin (.kt, .kts)
 TypeScript (.ts, .tsx)
 `
 

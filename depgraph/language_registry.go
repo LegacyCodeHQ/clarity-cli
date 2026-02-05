@@ -22,7 +22,7 @@ var languageRegistry = []languageRegistryEntry{
 	{Name: "Dart", Extensions: []string{".dart"}, ResolverKey: languageResolverDart},
 	{Name: "Go", Extensions: []string{".go"}, ResolverKey: languageResolverGo},
 	{Name: "Java", Extensions: []string{".java"}, ResolverKey: languageResolverJava},
-	{Name: "Kotlin", Extensions: []string{".kt"}, ResolverKey: languageResolverKotlin},
+	{Name: "Kotlin", Extensions: []string{".kt", ".kts"}, ResolverKey: languageResolverKotlin},
 	{Name: "TypeScript", Extensions: []string{".ts", ".tsx"}, ResolverKey: languageResolverTypeScript},
 }
 

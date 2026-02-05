@@ -54,7 +54,7 @@ func collectDependencyGraphFiles(filePaths []string) (map[string]bool, map[strin
 		}
 
 		// Collect Kotlin files for package indexing
-		if filepath.Ext(absPath) == ".kt" {
+		if ext := filepath.Ext(absPath); ext == ".kt" || ext == ".kts" {
 			kotlinFiles = append(kotlinFiles, absPath)
 		}
 

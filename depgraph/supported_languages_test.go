@@ -28,6 +28,9 @@ func TestIsSupportedLanguageExtension(t *testing.T) {
 	if !IsSupportedLanguageExtension(".go") {
 		t.Fatalf("IsSupportedLanguageExtension(.go) = false, want true")
 	}
+	if !IsSupportedLanguageExtension(".kts") {
+		t.Fatalf("IsSupportedLanguageExtension(.kts) = false, want true")
+	}
 	if IsSupportedLanguageExtension(".md") {
 		t.Fatalf("IsSupportedLanguageExtension(.md) = true, want false")
 	}
