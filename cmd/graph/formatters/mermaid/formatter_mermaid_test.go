@@ -5,6 +5,7 @@ import (
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/mermaid"
+	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 	"github.com/sebdah/goldie/v2"
@@ -255,5 +256,5 @@ func TestMermaidFormatter_TestFileTakesPriorityOverNewFile(t *testing.T) {
 }
 
 func mermaidGoldie(t *testing.T) *goldie.Goldie {
-	return goldie.New(t, goldie.WithNameSuffix(".gold.mermaid"))
+	return testhelpers.GoldieWithSuffix(t, ".gold.mermaid")
 }

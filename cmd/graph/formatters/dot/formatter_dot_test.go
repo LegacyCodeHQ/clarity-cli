@@ -5,6 +5,7 @@ import (
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/sanity/cmd/graph/formatters/dot"
+	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/parsers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 	"github.com/sebdah/goldie/v2"
@@ -188,5 +189,5 @@ func TestDependencyGraph_ToDOT_NodesAreDeclaredOnlyOnce(t *testing.T) {
 }
 
 func dotGoldie(t *testing.T) *goldie.Goldie {
-	return goldie.New(t, goldie.WithNameSuffix(".gold.dot"))
+	return testhelpers.GoldieWithSuffix(t, ".gold.dot")
 }

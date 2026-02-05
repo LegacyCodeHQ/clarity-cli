@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LegacyCodeHQ/sanity/internal/testhelpers"
 	"github.com/LegacyCodeHQ/sanity/vcs"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
@@ -84,7 +85,7 @@ func modifyFile(t *testing.T, filePath string) {
 
 // gitGoldie creates a goldie instance for git tests
 func gitGoldie(t *testing.T) *goldie.Goldie {
-	return goldie.New(t, goldie.WithNameSuffix(".gold.txt"))
+	return testhelpers.GoldieWithSuffix(t, ".gold.txt")
 }
 
 // normalizeFilePaths normalizes file paths for golden file comparison
