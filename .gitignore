@@ -14,3 +14,6 @@ coverage.tmp
 
 # goreleaser
 dist/
+
+# Beads
+.beads/bd.*
