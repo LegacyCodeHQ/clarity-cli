@@ -149,8 +149,8 @@ func (f *Formatter) Format(g depgraph.DependencyGraph, opts formatters.FormatOpt
 
 	// Add styles for different node types
 	// Mermaid uses classDef for styling and class for applying styles
-	testNodes := []string{}
-	newFileNodes := []string{}
+	var testNodes []string
+	var newFileNodes []string
 
 	for _, source := range filePaths {
 		sourceBase := filepath.Base(source)
