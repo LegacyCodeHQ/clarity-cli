@@ -96,6 +96,86 @@ func TestGraphInput_WithSupportedFiles_RendersNode(t *testing.T) {
 	}
 }
 
+func TestGraphInputRelativePath_WithRepo_ResolvesFromRepoRoot(t *testing.T) {
+	repoDir := t.TempDir()
+	relativePath := filepath.Join("src", "main.go")
+	absolutePath := filepath.Join(repoDir, relativePath)
+
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(absolutePath, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-r", repoDir, "-i", relativePath, "-f", "dot"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), `"main.go"`) {
+		t.Fatalf("expected graph output to include main.go node, got:\n%s", stdout.String())
+	}
+}
+
+func TestGraphBetweenRelativePaths_WithRepo_ResolvesFromRepoRoot(t *testing.T) {
+	repoDir := t.TempDir()
+	leftFile := filepath.Join(repoDir, "a.go")
+	rightFile := filepath.Join(repoDir, "b.go")
+	for _, filePath := range []string{leftFile, rightFile} {
+		if err := os.WriteFile(filePath, []byte("package main\n"), 0o644); err != nil {
+			t.Fatalf("os.WriteFile() error = %v", err)
+		}
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-r", repoDir, "-w", "a.go,b.go", "-f", "dot"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, `"a.go"`) || !strings.Contains(output, `"b.go"`) {
+		t.Fatalf("expected graph output to include a.go and b.go nodes, got:\n%s", output)
+	}
+}
+
+func TestGraphFileRelativePath_WithRepo_ResolvesFromRepoRoot(t *testing.T) {
+	repoDir := t.TempDir()
+	targetRelativePath := filepath.Join("pkg", "main.go")
+	targetAbsolutePath := filepath.Join(repoDir, targetRelativePath)
+
+	if err := os.MkdirAll(filepath.Dir(targetAbsolutePath), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(targetAbsolutePath, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-r", repoDir, "-p", targetRelativePath, "-f", "dot"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), `"main.go"`) {
+		t.Fatalf("expected graph output to include main.go node, got:\n%s", stdout.String())
+	}
+}
+
 func gitInitRepo(t *testing.T, repoDir string) {
 	t.Helper()
 

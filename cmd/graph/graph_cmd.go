@@ -92,13 +92,17 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 	}
 
 	ensureRepoPath(opts)
+	pathResolver, err := NewPathResolver(opts.repoPath)
+	if err != nil {
+		return fmt.Errorf("failed to create path resolver: %w", err)
+	}
 
 	fromCommit, toCommit, isCommitRange, err := parseCommitRange(opts)
 	if err != nil {
 		return err
 	}
 
-	filePaths, done, err := determineFilePaths(cmd, opts, fromCommit, toCommit, isCommitRange)
+	filePaths, done, err := determineFilePaths(cmd, opts, pathResolver, fromCommit, toCommit, isCommitRange)
 	if err != nil {
 		return err
 	}
@@ -118,12 +122,12 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		return fmt.Errorf("failed to build dependency graph: %w", err)
 	}
 
-	graph, filePaths, err = applyTargetFileFilter(opts, graph, filePaths)
+	graph, filePaths, err = applyTargetFileFilter(opts, pathResolver, graph, filePaths)
 	if err != nil {
 		return err
 	}
 
-	graph, filePaths, err = applyBetweenFilter(opts, graph, filePaths)
+	graph, filePaths, err = applyBetweenFilter(opts, pathResolver, graph, filePaths)
 	if err != nil {
 		return err
 	}
@@ -201,9 +205,18 @@ func parseCommitRange(opts *graphOptions) (string, string, bool, error) {
 	return fromCommit, toCommit, isCommitRange, nil
 }
 
-func determineFilePaths(cmd *cobra.Command, opts *graphOptions, fromCommit, toCommit string, isCommitRange bool) ([]string, bool, error) {
+func determineFilePaths(cmd *cobra.Command, opts *graphOptions, pathResolver PathResolver, fromCommit, toCommit string, isCommitRange bool) ([]string, bool, error) {
 	if len(opts.includes) > 0 {
-		filePaths, err := expandPaths(opts.includes, true)
+		resolvedIncludes := make([]string, 0, len(opts.includes))
+		for _, include := range opts.includes {
+			resolvedInclude, err := pathResolver.Resolve(RawPath(include))
+			if err != nil {
+				return nil, false, fmt.Errorf("failed to resolve input path %q: %w", include, err)
+			}
+			resolvedIncludes = append(resolvedIncludes, resolvedInclude.String())
+		}
+
+		filePaths, err := expandPaths(resolvedIncludes, true)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to expand paths: %w", err)
 		}
@@ -310,32 +323,32 @@ func selectContentReader(opts *graphOptions, toCommit string) vcs.ContentReader 
 	return vcs.FilesystemContentReader()
 }
 
-func applyTargetFileFilter(opts *graphOptions, graph depgraph.DependencyGraph, filePaths []string) (depgraph.DependencyGraph, []string, error) {
+func applyTargetFileFilter(opts *graphOptions, pathResolver PathResolver, graph depgraph.DependencyGraph, filePaths []string) (depgraph.DependencyGraph, []string, error) {
 	if opts.targetFile == "" {
 		return graph, filePaths, nil
 	}
 
-	absTargetFile, err := filepath.Abs(opts.targetFile)
+	absTargetFile, err := pathResolver.Resolve(RawPath(opts.targetFile))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve file path: %w", err)
 	}
 
-	if !depgraph.ContainsNode(graph, absTargetFile) {
+	if !depgraph.ContainsNode(graph, absTargetFile.String()) {
 		return nil, nil, fmt.Errorf("file not found in graph: %s", opts.targetFile)
 	}
 
-	graph = filterGraphByLevel(graph, absTargetFile, opts.depthLevel)
+	graph = filterGraphByLevel(graph, absTargetFile.String(), opts.depthLevel)
 	filePaths = graphFiles(graph)
 
 	return graph, filePaths, nil
 }
 
-func applyBetweenFilter(opts *graphOptions, graph depgraph.DependencyGraph, filePaths []string) (depgraph.DependencyGraph, []string, error) {
+func applyBetweenFilter(opts *graphOptions, pathResolver PathResolver, graph depgraph.DependencyGraph, filePaths []string) (depgraph.DependencyGraph, []string, error) {
 	if len(opts.betweenFiles) == 0 {
 		return graph, filePaths, nil
 	}
 
-	resolvedPaths, missingPaths := resolveAndValidatePaths(opts.betweenFiles, graph)
+	resolvedPaths, missingPaths := resolveAndValidatePaths(opts.betweenFiles, pathResolver, graph)
 	if len(missingPaths) > 0 {
 		return nil, nil, fmt.Errorf("files not found in graph: %v", missingPaths)
 	}
@@ -553,16 +566,16 @@ func emitUnsupportedFileWarning(cmd *cobra.Command, filePaths []string) {
 
 // resolveAndValidatePaths resolves file paths to absolute paths and validates they exist in the graph.
 // Returns the list of resolved paths that exist in the graph and the list of paths that were not found.
-func resolveAndValidatePaths(paths []string, graph depgraph.DependencyGraph) (resolved []string, missing []string) {
+func resolveAndValidatePaths(paths []string, pathResolver PathResolver, graph depgraph.DependencyGraph) (resolved []string, missing []string) {
 	for _, p := range paths {
-		absPath, err := filepath.Abs(p)
+		absPath, err := pathResolver.Resolve(RawPath(p))
 		if err != nil {
 			missing = append(missing, p)
 			continue
 		}
 
-		if depgraph.ContainsNode(graph, absPath) {
-			resolved = append(resolved, absPath)
+		if depgraph.ContainsNode(graph, absPath.String()) {
+			resolved = append(resolved, absPath.String())
 		} else {
 			missing = append(missing, p)
 		}
