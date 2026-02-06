@@ -35,6 +35,21 @@ const (
 	MaturityStable
 )
 
+func (level MaturityLevel) String() string {
+	switch level {
+	case MaturityVibed:
+		return "Vibed"
+	case MaturityBasicTesting:
+		return "BasicTesting"
+	case MaturityActiveTesting:
+		return "ActiveTesting"
+	case MaturityStable:
+		return "Stable"
+	default:
+		return "Unknown"
+	}
+}
+
 // Module describes pluggable language support.
 type Module interface {
 	Name() string

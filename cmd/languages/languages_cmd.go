@@ -32,15 +32,21 @@ func runLanguages(cmd *cobra.Command, _ []string) error {
 
 	writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 
-	if _, err := fmt.Fprintln(writer, "Language\tExtensions"); err != nil {
+	if _, err := fmt.Fprintln(writer, "Language\tMaturity\tExtensions"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(writer, "--------\t----------"); err != nil {
+	if _, err := fmt.Fprintln(writer, "--------\t--------\t----------"); err != nil {
 		return err
 	}
 
 	for _, language := range languages {
-		if _, err := fmt.Fprintf(writer, "%s\t%s\n", language.Name, strings.Join(language.Extensions, ", ")); err != nil {
+		if _, err := fmt.Fprintf(
+			writer,
+			"%s\t%s\t%s\n",
+			language.Name,
+			language.Maturity,
+			strings.Join(language.Extensions, ", "),
+		); err != nil {
 			return err
 		}
 	}
