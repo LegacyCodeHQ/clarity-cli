@@ -33,7 +33,7 @@ public class App {}
 	}
 
 	cmd := NewCommand()
-	cmd.SetArgs([]string{"-i", filepath.Join(repoDir, "src"), "-f", "dot"})
+	cmd.SetArgs([]string{"-i", filepath.Join(repoDir, "src"), "-f", "dot", "--allow-outside-repo"})
 
 	var stdout bytes.Buffer
 	cmd.SetOut(&stdout)
@@ -104,7 +104,7 @@ func TestGraphInput_WithSupportedFiles_RendersNode(t *testing.T) {
 	}
 
 	cmd := NewCommand()
-	cmd.SetArgs([]string{"-i", supportedFile, "-f", "dot"})
+	cmd.SetArgs([]string{"-i", supportedFile, "-f", "dot", "--allow-outside-repo"})
 
 	var stdout bytes.Buffer
 	cmd.SetOut(&stdout)

@@ -34,6 +34,21 @@ func GraphSubcommandInputWithRepo(t *testing.T, repoPath string, inputs ...strin
 
 	cmd := graphcmd.NewCommand()
 	args := []string{"-f", "dot", "-r", repoPath}
+	allowOutside := false
+	for _, input := range inputs {
+		checkPath := input
+		if !filepath.IsAbs(input) {
+			checkPath = filepath.Join(repoPath, input)
+		}
+		rel, err := filepath.Rel(repoPath, checkPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			allowOutside = true
+			break
+		}
+	}
+	if allowOutside {
+		args = append(args, "--allow-outside-repo")
+	}
 	if len(inputs) > 0 {
 		args = append(args, "-i", strings.Join(inputs, ","))
 	}

@@ -18,7 +18,7 @@ func TestPathResolverResolve_WithRepoBase_ResolvesRelativePathFromRepo(t *testin
 		t.Fatalf("Resolve() error = %v", err)
 	}
 
-	expected := filepath.Join(repoDir, "src", "main.go")
+	expected := filepath.Join(resolveSymlinks(repoDir), "src", "main.go")
 	if resolved.String() != expected {
 		t.Fatalf("expected %q, got %q", expected, resolved.String())
 	}
@@ -53,6 +53,7 @@ func TestPathResolverResolve_WithoutRepoBase_UsesCurrentWorkingDirectory(t *test
 	if err != nil {
 		t.Fatalf("filepath.Abs() error = %v", err)
 	}
+	expected = resolveSymlinks(expected)
 	if resolved.String() != expected {
 		t.Fatalf("expected %q, got %q", expected, resolved.String())
 	}

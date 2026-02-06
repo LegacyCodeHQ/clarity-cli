@@ -22,6 +22,10 @@ type PathResolver struct {
 	allowOutside bool
 }
 
+func (r PathResolver) BaseDir() string {
+	return r.baseDir.String()
+}
+
 func NewPathResolver(baseDir string, allowOutside bool) (PathResolver, error) {
 	if baseDir == "" {
 		baseDir = "."

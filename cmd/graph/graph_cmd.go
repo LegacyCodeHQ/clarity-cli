@@ -99,6 +99,7 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create path resolver: %w", err)
 	}
+	opts.repoPath = pathResolver.BaseDir()
 
 	fromCommit, toCommit, isCommitRange, err := parseCommitRange(opts)
 	if err != nil {

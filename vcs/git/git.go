@@ -87,36 +87,6 @@ func validateGitRelPath(path string) error {
 	return nil
 }
 
-func validateGitRef(ref string) error {
-	if ref == "" {
-		return fmt.Errorf("git reference cannot be empty")
-	}
-	if strings.HasPrefix(ref, "-") {
-		return fmt.Errorf("git reference cannot start with '-' : %q", ref)
-	}
-	if strings.ContainsAny(ref, "\x00\n\r\t ") {
-		return fmt.Errorf("git reference contains whitespace or NUL: %q", ref)
-	}
-	return nil
-}
-
-func validateGitRelPath(path string) error {
-	if path == "" {
-		return fmt.Errorf("git path cannot be empty")
-	}
-	if filepath.IsAbs(path) {
-		return fmt.Errorf("git path must be relative: %q", path)
-	}
-	if strings.Contains(path, "\x00") {
-		return fmt.Errorf("git path contains NUL: %q", path)
-	}
-	cleaned := filepath.Clean(path)
-	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("git path escapes repository: %q", path)
-	}
-	return nil
-}
-
 // validateCommit checks if the given commit reference exists in the repository
 func validateCommit(repoPath, commitID string) error {
 	if err := validateGitRef(commitID); err != nil {
