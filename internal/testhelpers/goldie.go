@@ -15,6 +15,10 @@ func DotGoldie(t *testing.T) *goldie.Goldie {
 }
 
 func GitGoldie(t *testing.T) *goldie.Goldie {
+	return TextGoldie(t)
+}
+
+func TextGoldie(t *testing.T) *goldie.Goldie {
 	return goldieWithExtension(t, "txt")
 }
 
