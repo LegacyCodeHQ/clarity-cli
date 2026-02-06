@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"text/tabwriter"
+	"unicode/utf8"
 
 	"github.com/LegacyCodeHQ/sanity/depgraph"
 	"github.com/LegacyCodeHQ/sanity/depgraph/langsupport"
@@ -56,14 +57,16 @@ func runLanguages(cmd *cobra.Command, _ []string) error {
 	if _, err := fmt.Fprintln(cmd.OutOrStdout()); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(cmd.OutOrStdout(), "------------------------------------------------------"); err != nil {
-		return err
-	}
 	legendParts := make([]string, 0, len(langsupport.MaturityLevels()))
 	for _, level := range langsupport.MaturityLevels() {
 		legendParts = append(legendParts, fmt.Sprintf("%s %s", level.Symbol(), level.DisplayName()))
 	}
-	if _, err := fmt.Fprintln(cmd.OutOrStdout(), strings.Join(legendParts, "  ")); err != nil {
+	legendLine := strings.Join(legendParts, "  ")
+	separator := strings.Repeat("-", utf8.RuneCountInString(legendLine))
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), separator); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), legendLine); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintln(cmd.OutOrStdout()); err != nil {
