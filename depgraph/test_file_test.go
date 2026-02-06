@@ -74,6 +74,46 @@ func TestIsTestFile(t *testing.T) {
 			want:     false,
 		},
 		{
+			name:     "c test prefix",
+			filePath: "/project/tests/test_math.c",
+			want:     true,
+		},
+		{
+			name:     "c non-test file",
+			filePath: "/project/src/main.c",
+			want:     false,
+		},
+		{
+			name:     "cpp test suffix",
+			filePath: "/project/tests/math_test.cpp",
+			want:     true,
+		},
+		{
+			name:     "cpp non-test file",
+			filePath: "/project/src/main.cpp",
+			want:     false,
+		},
+		{
+			name:     "csharp tests suffix",
+			filePath: "/project/tests/HandlersTests.cs",
+			want:     true,
+		},
+		{
+			name:     "csharp non-test file",
+			filePath: "/project/src/Program.cs",
+			want:     false,
+		},
+		{
+			name:     "swift tests directory",
+			filePath: "/project/Tests/AppTests.swift",
+			want:     true,
+		},
+		{
+			name:     "swift non-test file",
+			filePath: "/project/Sources/App.swift",
+			want:     false,
+		},
+		{
 			name:     "python test prefix",
 			filePath: "/project/tests/test_handlers.py",
 			want:     true,

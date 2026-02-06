@@ -18,4 +18,6 @@ digraph dependencies {
 
   "dart_parser.go" -> "binding.go";
   "binding_test.go" -> "binding.go";
+  "parser.c" -> "parser.h";
+  "scanner.c" -> "parser.h";
 }

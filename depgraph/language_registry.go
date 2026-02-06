@@ -1,6 +1,9 @@
 package depgraph
 
 import (
+	"github.com/LegacyCodeHQ/sanity/depgraph/c"
+	"github.com/LegacyCodeHQ/sanity/depgraph/cpp"
+	"github.com/LegacyCodeHQ/sanity/depgraph/csharp"
 	"github.com/LegacyCodeHQ/sanity/depgraph/dart"
 	"github.com/LegacyCodeHQ/sanity/depgraph/golang"
 	"github.com/LegacyCodeHQ/sanity/depgraph/java"
@@ -8,6 +11,7 @@ import (
 	"github.com/LegacyCodeHQ/sanity/depgraph/kotlin"
 	"github.com/LegacyCodeHQ/sanity/depgraph/langsupport"
 	"github.com/LegacyCodeHQ/sanity/depgraph/python"
+	"github.com/LegacyCodeHQ/sanity/depgraph/swift"
 	"github.com/LegacyCodeHQ/sanity/depgraph/typescript"
 )
 
@@ -18,12 +22,16 @@ type languageRegistryEntry struct {
 // languageRegistry is the single source of truth for supported languages.
 // Adding/removing a language should happen here.
 var languageRegistry = []languageRegistryEntry{
+	{Module: c.Module{}},
+	{Module: cpp.Module{}},
+	{Module: csharp.Module{}},
 	{Module: dart.Module{}},
 	{Module: golang.Module{}},
 	{Module: javascript.Module{}},
 	{Module: java.Module{}},
 	{Module: kotlin.Module{}},
 	{Module: python.Module{}},
+	{Module: swift.Module{}},
 	{Module: typescript.Module{}},
 }
 

@@ -8,11 +8,30 @@ func TestSupportedLanguages(t *testing.T) {
 		t.Fatalf("SupportedLanguages() returned no languages")
 	}
 
+	foundC := false
+	foundCpp := false
+	foundCSharp := false
 	foundJavaScript := false
 	foundPython := false
+	foundSwift := false
 	foundTypeScript := false
 	for _, language := range languages {
 		switch language.Name {
+		case "C":
+			foundC = true
+			if len(language.Extensions) != 2 {
+				t.Fatalf("C extension count = %d, want 2", len(language.Extensions))
+			}
+		case "C++":
+			foundCpp = true
+			if len(language.Extensions) != 6 {
+				t.Fatalf("C++ extension count = %d, want 6", len(language.Extensions))
+			}
+		case "C#":
+			foundCSharp = true
+			if len(language.Extensions) != 1 {
+				t.Fatalf("C# extension count = %d, want 1", len(language.Extensions))
+			}
 		case "JavaScript":
 			foundJavaScript = true
 			if len(language.Extensions) != 2 {
@@ -23,6 +42,11 @@ func TestSupportedLanguages(t *testing.T) {
 			if len(language.Extensions) != 1 {
 				t.Fatalf("Python extension count = %d, want 1", len(language.Extensions))
 			}
+		case "Swift":
+			foundSwift = true
+			if len(language.Extensions) != 1 {
+				t.Fatalf("Swift extension count = %d, want 1", len(language.Extensions))
+			}
 		case "TypeScript":
 			foundTypeScript = true
 			if len(language.Extensions) != 2 {
@@ -31,11 +55,23 @@ func TestSupportedLanguages(t *testing.T) {
 		}
 	}
 
+	if !foundC {
+		t.Fatalf("SupportedLanguages() missing C")
+	}
+	if !foundCpp {
+		t.Fatalf("SupportedLanguages() missing C++")
+	}
+	if !foundCSharp {
+		t.Fatalf("SupportedLanguages() missing C#")
+	}
 	if !foundJavaScript {
 		t.Fatalf("SupportedLanguages() missing JavaScript")
 	}
 	if !foundPython {
 		t.Fatalf("SupportedLanguages() missing Python")
+	}
+	if !foundSwift {
+		t.Fatalf("SupportedLanguages() missing Swift")
 	}
 	if !foundTypeScript {
 		t.Fatalf("SupportedLanguages() missing TypeScript")
@@ -43,6 +79,15 @@ func TestSupportedLanguages(t *testing.T) {
 }
 
 func TestIsSupportedLanguageExtension(t *testing.T) {
+	if !IsSupportedLanguageExtension(".c") {
+		t.Fatalf("IsSupportedLanguageExtension(.c) = false, want true")
+	}
+	if !IsSupportedLanguageExtension(".cpp") {
+		t.Fatalf("IsSupportedLanguageExtension(.cpp) = false, want true")
+	}
+	if !IsSupportedLanguageExtension(".cs") {
+		t.Fatalf("IsSupportedLanguageExtension(.cs) = false, want true")
+	}
 	if !IsSupportedLanguageExtension(".go") {
 		t.Fatalf("IsSupportedLanguageExtension(.go) = false, want true")
 	}
@@ -54,6 +99,9 @@ func TestIsSupportedLanguageExtension(t *testing.T) {
 	}
 	if !IsSupportedLanguageExtension(".py") {
 		t.Fatalf("IsSupportedLanguageExtension(.py) = false, want true")
+	}
+	if !IsSupportedLanguageExtension(".swift") {
+		t.Fatalf("IsSupportedLanguageExtension(.swift) = false, want true")
 	}
 	if !IsSupportedLanguageExtension(".kts") {
 		t.Fatalf("IsSupportedLanguageExtension(.kts) = false, want true")

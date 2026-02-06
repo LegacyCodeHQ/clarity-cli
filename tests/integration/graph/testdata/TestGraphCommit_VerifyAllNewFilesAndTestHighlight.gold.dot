@@ -14,4 +14,6 @@ digraph dependencies {
   "scanner.c" [label="🪴 scanner.c\n+130", style=filled, fillcolor=white];
 
   "binding_test.go" -> "binding.go";
+  "parser.c" -> "parser.h";
+  "scanner.c" -> "parser.h";
 }

@@ -16,12 +16,16 @@ func TestLanguagesCommand_PrintsSupportedLanguagesAndExtensions(t *testing.T) {
 
 	expected := `Language    Extensions
 --------    ----------
+C           .c, .h
+C++         .cc, .cpp, .cxx, .hpp, .hh, .hxx
+C#          .cs
 Dart        .dart
 Go          .go
 JavaScript  .js, .jsx
 Java        .java
 Kotlin      .kt, .kts
 Python      .py
+Swift       .swift
 TypeScript  .ts, .tsx
 `
 
