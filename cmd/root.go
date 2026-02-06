@@ -53,7 +53,8 @@ func init() {
 	rootCmd.AddCommand(prime.Cmd)
 
 	// Global flags inherited by all subcommands.
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Print verbose diagnostics")
+	rootCmd.PersistentFlags().BoolP("version", "v", false, "Print version information and exit")
+	rootCmd.PersistentFlags().BoolP("verbose", "V", false, "Show detailed diagnostics")
 
 	// Initialize annotations for version template
 	if rootCmd.Annotations == nil {
