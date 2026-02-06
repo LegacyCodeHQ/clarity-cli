@@ -33,6 +33,11 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
       - name: Run tests with coverage
         run: make test-coverage
 
