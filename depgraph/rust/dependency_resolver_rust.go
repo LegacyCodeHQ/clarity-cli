@@ -28,7 +28,7 @@ func ResolveRustProjectImports(
 	for _, imp := range imports {
 		switch imp.Kind {
 		case RustImportUse:
-			projectImports = append(projectImports, resolveRustUsePath(absPath, imp.Path, suppliedFiles)...)
+			projectImports = append(projectImports, resolveRustUsePath(absPath, imp.Path, suppliedFiles, contentReader)...)
 		case RustImportModDecl:
 			projectImports = append(projectImports, resolveRustModDecl(absPath, imp.Path, suppliedFiles)...)
 		case RustImportExternCrate:
@@ -53,7 +53,7 @@ func resolveRustModDecl(sourceFile, moduleName string, suppliedFiles map[string]
 	return filterSuppliedFiles(candidates, suppliedFiles)
 }
 
-func resolveRustUsePath(sourceFile, importPath string, suppliedFiles map[string]bool) []string {
+func resolveRustUsePath(sourceFile, importPath string, suppliedFiles map[string]bool, contentReader vcs.ContentReader) []string {
 	path := strings.TrimSpace(importPath)
 	if path == "" {
 		return nil
@@ -64,7 +64,7 @@ func resolveRustUsePath(sourceFile, importPath string, suppliedFiles map[string]
 
 	switch parts[0] {
 	case "crate":
-		root, ok := findRustCrateRoot(sourceFile, suppliedFiles)
+		root, ok := findRustCrateRoot(sourceFile, suppliedFiles, contentReader)
 		if !ok {
 			return nil
 		}
@@ -115,12 +115,17 @@ func resolveRustModuleCandidates(baseDir string, parts []string, suppliedFiles m
 	return filterSuppliedFiles(candidates, suppliedFiles)
 }
 
-func findRustCrateRoot(sourceFile string, suppliedFiles map[string]bool) (string, bool) {
+func findRustCrateRoot(sourceFile string, suppliedFiles map[string]bool, contentReader vcs.ContentReader) (string, bool) {
 	dir := filepath.Dir(sourceFile)
 	for {
 		candidate := filepath.Join(dir, "Cargo.toml")
 		if suppliedFiles[candidate] {
 			return dir, true
+		}
+		if contentReader != nil {
+			if _, err := contentReader(candidate); err == nil {
+				return dir, true
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
