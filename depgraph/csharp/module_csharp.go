@@ -19,7 +19,7 @@ func (Module) NewResolver(ctx *langsupport.Context, contentReader vcs.ContentRea
 	return resolver{ctx: ctx, contentReader: contentReader}
 }
 
-func (Module) IsTestFile(filePath string) bool {
+func (Module) IsTestFile(filePath string, _ vcs.ContentReader) bool {
 	return IsTestFile(filePath)
 }
 

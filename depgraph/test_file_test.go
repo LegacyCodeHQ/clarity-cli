@@ -137,7 +137,7 @@ func TestIsTestFile(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, depgraph.IsTestFile(tc.filePath))
+			assert.Equal(t, tc.want, depgraph.IsTestFile(tc.filePath, nil))
 		})
 	}
 }

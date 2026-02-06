@@ -21,7 +21,7 @@ digraph dependencies {
   "graph_paths.go" [label="graph_paths.go\n+16 -11", style=filled, fillcolor=white];
   "graph_paths_test.go" [label="graph_paths_test.go\n+81 -110", style=filled, fillcolor=lightgreen];
   "go.mod" [label="go.mod\n+1", style=filled, fillcolor=mistyrose];
-  "go.sum" [label="go.sum\n+2", style=filled, fillcolor=lightcyan];
+  "go.sum" [label="go.sum\n+2", style=filled, fillcolor=lightsalmon];
 
   "formatter_dot.go" -> "dependency_graph.go";
   "formatter_dot_test.go" -> "formatter_dot.go";

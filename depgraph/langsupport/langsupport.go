@@ -29,5 +29,5 @@ type Module interface {
 	Name() string
 	Extensions() []string
 	NewResolver(ctx *Context, contentReader vcs.ContentReader) Resolver
-	IsTestFile(filePath string) bool
+	IsTestFile(filePath string, contentReader vcs.ContentReader) bool
 }

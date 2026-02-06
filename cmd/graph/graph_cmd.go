@@ -139,7 +139,7 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 	format, _ := formatters.ParseOutputFormat(opts.outputFormat)
 	fileStats := collectFileStats(cmd, opts, format, fromCommit, toCommit, isCommitRange)
 	label := buildGraphLabel(opts, format, fromCommit, toCommit, isCommitRange, filePaths)
-	fileGraph, err := depgraph.NewFileDependencyGraph(graph, fileStats)
+	fileGraph, err := depgraph.NewFileDependencyGraph(graph, fileStats, contentReader)
 	if err != nil {
 		return fmt.Errorf("failed to build file graph metadata: %w", err)
 	}

@@ -220,9 +220,9 @@ func (f *Formatter) GenerateURL(output string) (string, bool) {
 
 func getExtensionColors(fileNames []string) map[string]string {
 	availableColors := []string{
-		"lightblue", "lightyellow", "mistyrose", "lightcyan", "lightsalmon",
+		"lightblue", "lightyellow", "mistyrose", "lightsalmon",
 		"lightpink", "lavender", "peachpuff", "plum", "powderblue", "khaki",
-		"palegreen", "palegoldenrod", "paleturquoise", "thistle",
+		"palegoldenrod", "thistle",
 	}
 
 	uniqueExtensions := make(map[string]bool)

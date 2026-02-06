@@ -8,12 +8,12 @@ digraph dependencies {
   fontname=Courier;
 
   ".gitattributes" [label=".gitattributes\n+3 -3", style=filled, fillcolor=lightyellow];
-  "language-parsing.md" [label="language-parsing.md\n+11 -7", style=filled, fillcolor=lightsalmon];
+  "language-parsing.md" [label="language-parsing.md\n+11 -7", style=filled, fillcolor=lightpink];
   "dart_parser.go" [label="dart_parser.go\n+3 -3", style=filled, fillcolor=white];
   "binding.go" [label="binding.go\n+1 -1", style=filled, fillcolor=white];
   "binding_test.go" [label="binding_test.go\n+3 -3", style=filled, fillcolor=lightgreen];
   "parser.c" [label="parser.c", style=filled, fillcolor=lightblue];
-  "parser.h" [label="parser.h", style=filled, fillcolor=lightcyan];
+  "parser.h" [label="parser.h", style=filled, fillcolor=lightsalmon];
   "scanner.c" [label="scanner.c", style=filled, fillcolor=lightblue];
 
   "dart_parser.go" -> "binding.go";

@@ -43,8 +43,9 @@ type FileCycle struct {
 	Path []string
 }
 
-// NewFileDependencyGraph creates a file-annotated graph from a dependency graph and optional file stats.
-func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStats) (FileDependencyGraph, error) {
+// NewFileDependencyGraph creates a file-annotated graph from a dependency graph, optional file stats,
+// and an optional content reader used for richer test detection.
+func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStats, contentReader vcs.ContentReader) (FileDependencyGraph, error) {
 	adjacency, err := AdjacencyList(g)
 	if err != nil {
 		return FileDependencyGraph{}, err
@@ -61,7 +62,7 @@ func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStat
 
 	for _, node := range nodes {
 		md := FileMetadata{
-			IsTest:    IsTestFile(node),
+			IsTest:    IsTestFile(node, contentReader),
 			Extension: filepath.Ext(filepath.Base(node)),
 		}
 

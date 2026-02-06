@@ -17,7 +17,7 @@ func testGraph(adjacency map[string][]string) depgraph.DependencyGraph {
 
 func testFileGraph(t *testing.T, adjacency map[string][]string, stats map[string]vcs.FileStats) depgraph.FileDependencyGraph {
 	t.Helper()
-	fileGraph, err := depgraph.NewFileDependencyGraph(testGraph(adjacency), stats)
+	fileGraph, err := depgraph.NewFileDependencyGraph(testGraph(adjacency), stats, nil)
 	require.NoError(t, err)
 	return fileGraph
 }

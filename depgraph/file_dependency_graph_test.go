@@ -24,7 +24,7 @@ func TestNewFileDependencyGraph(t *testing.T) {
 		},
 	}
 
-	fileGraph, err := depgraph.NewFileDependencyGraph(graph, stats)
+	fileGraph, err := depgraph.NewFileDependencyGraph(graph, stats, nil)
 	require.NoError(t, err)
 
 	mainMeta, ok := fileGraph.Meta.Files["/project/main.go"]
@@ -52,7 +52,7 @@ func TestNewFileDependencyGraph_DetectsCycles(t *testing.T) {
 		"/project/d.go": {},
 	})
 
-	fileGraph, err := depgraph.NewFileDependencyGraph(graph, nil)
+	fileGraph, err := depgraph.NewFileDependencyGraph(graph, nil, nil)
 	require.NoError(t, err)
 
 	require.Len(t, fileGraph.Meta.Cycles, 1)
