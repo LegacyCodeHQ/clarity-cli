@@ -10,9 +10,19 @@ import (
 	"github.com/smacker/go-tree-sitter/rust"
 )
 
-// RustImport represents a Rust import statement.
+// RustImportKind describes the type of Rust import-like declaration.
+type RustImportKind int
+
+const (
+	RustImportUse RustImportKind = iota
+	RustImportExternCrate
+	RustImportModDecl
+)
+
+// RustImport represents a Rust import statement or module declaration.
 type RustImport struct {
 	Path string
+	Kind RustImportKind
 }
 
 // RustImports parses a Rust file and returns its imports.
@@ -53,11 +63,15 @@ func extractImports(rootNode *sitter.Node, sourceCode []byte) []RustImport {
 		switch n.Type() {
 		case "use_declaration":
 			if path := extractUsePath(n, sourceCode); path != "" {
-				imports = append(imports, RustImport{Path: path})
+				imports = append(imports, RustImport{Path: path, Kind: RustImportUse})
 			}
 		case "extern_crate_declaration":
 			if crate := extractExternCrate(n, sourceCode); crate != "" {
-				imports = append(imports, RustImport{Path: crate})
+				imports = append(imports, RustImport{Path: crate, Kind: RustImportExternCrate})
+			}
+		case "mod_item":
+			if modName := extractModDecl(n, sourceCode); modName != "" {
+				imports = append(imports, RustImport{Path: modName, Kind: RustImportModDecl})
 			}
 		}
 
@@ -117,4 +131,47 @@ func extractExternCrate(node *sitter.Node, sourceCode []byte) string {
 		}
 	}
 	return ""
+}
+
+func extractModDecl(node *sitter.Node, sourceCode []byte) string {
+	if node == nil {
+		return ""
+	}
+	if modItemHasBody(node) {
+		return ""
+	}
+
+	if nameNode := node.ChildByFieldName("name"); nameNode != nil {
+		return strings.TrimSpace(nameNode.Content(sourceCode))
+	}
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		if child == nil {
+			continue
+		}
+		if child.Type() == "identifier" {
+			return strings.TrimSpace(child.Content(sourceCode))
+		}
+	}
+	return ""
+}
+
+func modItemHasBody(node *sitter.Node) bool {
+	if node == nil {
+		return false
+	}
+	if body := node.ChildByFieldName("body"); body != nil {
+		return true
+	}
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		if child == nil {
+			continue
+		}
+		switch child.Type() {
+		case "block", "declaration_list":
+			return true
+		}
+	}
+	return false
 }

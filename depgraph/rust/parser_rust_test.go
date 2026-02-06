@@ -14,14 +14,20 @@ func TestParseRustImports(t *testing.T) {
 use std::io;
 use crate::utils::helper as h;
 extern crate serde;
+mod nested;
 `
 	imports, err := ParseRustImports([]byte(source))
 
 	require.NoError(t, err)
-	assert.Len(t, imports, 3)
+	assert.Len(t, imports, 4)
 	assert.Equal(t, "std::io", imports[0].Path)
+	assert.Equal(t, RustImportUse, imports[0].Kind)
 	assert.Equal(t, "crate::utils::helper", imports[1].Path)
+	assert.Equal(t, RustImportUse, imports[1].Kind)
 	assert.Equal(t, "serde", imports[2].Path)
+	assert.Equal(t, RustImportExternCrate, imports[2].Kind)
+	assert.Equal(t, "nested", imports[3].Path)
+	assert.Equal(t, RustImportModDecl, imports[3].Kind)
 }
 
 func TestRustImports_ValidFile(t *testing.T) {
@@ -39,4 +45,5 @@ use std::fmt;
 	require.NoError(t, err)
 	assert.Len(t, imports, 1)
 	assert.Equal(t, "std::fmt", imports[0].Path)
+	assert.Equal(t, RustImportUse, imports[0].Kind)
 }
