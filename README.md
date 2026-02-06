@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/LegacyCodeHQ/sanity)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/LegacyCodeHQ/sanity)](https://github.com/LegacyCodeHQ/sanity/releases)
 
-Audit AI-generated code, understand codebases, and stabilize vibe-coded apps.
+[Audit AI-generated code](https://youtu.be/EqOwJnZSiQs), understand codebases, and stabilize vibe-coded apps.
 
 ## The Problem
 
