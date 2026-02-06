@@ -1,6 +1,7 @@
 module github.com/LegacyCodeHQ/sanity
 
 go 1.25
+toolchain go1.25.7
 
 require (
 	github.com/atotto/clipboard v0.1.4
