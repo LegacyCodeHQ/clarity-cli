@@ -88,6 +88,7 @@ func ResolveCSharpProjectImports(
 	}
 
 	importedTypeNames := make(map[string]bool)
+	resolvedTypes := make(map[string]bool)
 	scope := fileToScope[absPath]
 	for _, imp := range imports {
 		path := imp.Path
@@ -106,6 +107,7 @@ func ResolveCSharpProjectImports(
 					continue
 				}
 				addDep(files[0])
+				resolvedTypes[ref] = true
 			}
 			continue
 		}
@@ -127,6 +129,7 @@ func ResolveCSharpProjectImports(
 			continue
 		}
 		addDep(files[0])
+		resolvedTypes[typeName] = true
 	}
 
 	// Same-namespace references do not require using directives in C#.
@@ -141,8 +144,29 @@ func ResolveCSharpProjectImports(
 					continue
 				}
 				addDep(files[0])
+				resolvedTypes[ref] = true
 			}
 		}
+	}
+
+	// Cross-scope fallback: if a referenced type resolves to exactly one changed file
+	// across all scopes, link it. This captures project-reference/global-using flows
+	// while still avoiding fan-out from duplicate type names (e.g. start vs finished).
+	globalTypeMatches := make(map[string][]string)
+	for _, typeMap := range namespaceToTypes {
+		for typeName, files := range typeMap {
+			globalTypeMatches[typeName] = append(globalTypeMatches[typeName], files...)
+		}
+	}
+	for _, ref := range referencedTypes {
+		if declaredTypes[ref] || importedTypeNames[ref] || resolvedTypes[ref] {
+			continue
+		}
+		files := uniqueStrings(globalTypeMatches[ref])
+		if len(files) != 1 {
+			continue
+		}
+		addDep(files[0])
 	}
 
 	_ = namespaceToFiles // retained for future namespace-wide heuristics.
@@ -175,6 +199,22 @@ func inferCSharpFileScope(filePath string) string {
 
 func scopeKey(scope, namespace string) string {
 	return scope + "::" + namespace
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) <= 1 {
+		return values
+	}
+	seen := make(map[string]bool, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
 }
 
 func containsString(values []string, target string) bool {

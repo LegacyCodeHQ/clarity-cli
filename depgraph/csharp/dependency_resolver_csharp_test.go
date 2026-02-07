@@ -216,3 +216,42 @@ public class Car { public int Passengers { get; set; } }
 	assert.NotContains(t, imports, finishedCalculatorPath)
 	assert.NotContains(t, imports, finishedExternalPath)
 }
+
+func TestResolveCSharpProjectImports_LinksUniqueCrossScopeType(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	projADir := filepath.Join(tmpDir, "A")
+	projBDir := filepath.Join(tmpDir, "B")
+	require.NoError(t, os.MkdirAll(projADir, 0o755))
+	require.NoError(t, os.MkdirAll(projBDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(projADir, "a.csproj"), []byte(`<Project Sdk="Microsoft.NET.Sdk"></Project>`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projBDir, "b.csproj"), []byte(`<Project Sdk="Microsoft.NET.Sdk"></Project>`), 0o644))
+
+	sourcePath := filepath.Join(projADir, "Source.cs")
+	require.NoError(t, os.WriteFile(sourcePath, []byte(`namespace A;
+public class Source { public SharedType Value { get; set; } = null!; }
+`), 0o644))
+	targetPath := filepath.Join(projBDir, "SharedType.cs")
+	require.NoError(t, os.WriteFile(targetPath, []byte(`namespace B;
+public class SharedType {}
+`), 0o644))
+
+	supplied := map[string]bool{
+		sourcePath: true,
+		targetPath: true,
+	}
+	reader := vcs.FilesystemContentReader()
+	namespaceToFiles, namespaceToTypes, fileToNamespace, fileToScope := BuildCSharpIndices(supplied, reader)
+
+	imports, err := ResolveCSharpProjectImports(
+		sourcePath,
+		sourcePath,
+		namespaceToFiles,
+		namespaceToTypes,
+		fileToNamespace,
+		fileToScope,
+		supplied,
+		reader)
+	require.NoError(t, err)
+	assert.Contains(t, imports, targetPath)
+}
