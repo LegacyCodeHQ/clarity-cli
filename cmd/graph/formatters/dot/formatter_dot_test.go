@@ -212,6 +212,26 @@ func TestDependencyGraph_ToDOT_HighlightsCycles(t *testing.T) {
 	g.Assert(t, t.Name(), []byte(output))
 }
 
+func TestDependencyGraph_ToDOT_HighlightsAllCycleEdgesInSCC(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/a.go": {"/project/b.go", "/project/c.go"},
+		"/project/b.go": {"/project/a.go"},
+		"/project/c.go": {"/project/a.go"},
+	}, nil)
+
+	formatter := &dot.Formatter{}
+	output, err := formatter.Format(graph, formatters.RenderOptions{})
+	require.NoError(t, err)
+
+	require.Contains(t, output, "\"a.go\" [label=\"a.go\", style=filled, fillcolor=white, color=red];")
+	require.Contains(t, output, "\"b.go\" [label=\"b.go\", style=filled, fillcolor=white, color=red];")
+	require.Contains(t, output, "\"c.go\" [label=\"c.go\", style=filled, fillcolor=white, color=red];")
+	require.Contains(t, output, "\"a.go\" -> \"b.go\" [color=red, style=dashed];")
+	require.Contains(t, output, "\"a.go\" -> \"c.go\" [color=red, style=dashed];")
+	require.Contains(t, output, "\"b.go\" -> \"a.go\" [color=red, style=dashed];")
+	require.Contains(t, output, "\"c.go\" -> \"a.go\" [color=red, style=dashed];")
+}
+
 func TestDependencyGraph_ToDOT_DuplicateBaseNamesStayDistinct(t *testing.T) {
 	graph := testFileGraph(t, map[string][]string{
 		"/project/test/res.send.js":     {"/project/test/support/utils.js"},

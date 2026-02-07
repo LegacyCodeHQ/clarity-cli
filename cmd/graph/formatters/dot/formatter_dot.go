@@ -53,6 +53,13 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 		}
 		sb.WriteString("\n")
 	}
+	for edge, md := range g.Meta.Edges {
+		if !md.InCycle {
+			continue
+		}
+		cycleNodes[edge.From] = true
+		cycleNodes[edge.To] = true
+	}
 
 	// Collect all file paths from the graph to determine extension colors
 	// Sort for deterministic output

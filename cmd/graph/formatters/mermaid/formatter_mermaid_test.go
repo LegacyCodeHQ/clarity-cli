@@ -271,6 +271,26 @@ func TestMermaidFormatter_HighlightsCycles(t *testing.T) {
 	g.Assert(t, t.Name(), []byte(output))
 }
 
+func TestMermaidFormatter_HighlightsAllCycleEdgesInSCC(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/a.go": {"/project/b.go", "/project/c.go"},
+		"/project/b.go": {"/project/a.go"},
+		"/project/c.go": {"/project/a.go"},
+	}, nil)
+
+	formatter := &mermaid.Formatter{}
+	output, err := formatter.Format(graph, formatters.RenderOptions{})
+	require.NoError(t, err)
+
+	require.Contains(t, output, "style n0 stroke:#d62728")
+	require.Contains(t, output, "style n1 stroke:#d62728")
+	require.Contains(t, output, "style n2 stroke:#d62728")
+	require.Contains(t, output, "linkStyle 0 stroke:#d62728")
+	require.Contains(t, output, "linkStyle 1 stroke:#d62728")
+	require.Contains(t, output, "linkStyle 2 stroke:#d62728")
+	require.Contains(t, output, "linkStyle 3 stroke:#d62728")
+}
+
 func TestMermaidFormatter_DuplicateBaseNamesStayDistinct(t *testing.T) {
 	graph := testFileGraph(t, map[string][]string{
 		"/project/test/res.send.js":      {"/project/test/support/utils.js"},

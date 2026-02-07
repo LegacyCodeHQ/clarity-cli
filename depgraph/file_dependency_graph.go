@@ -38,7 +38,7 @@ type EdgeMetadata struct {
 	InCycle bool
 }
 
-// FileCycle describes a canonical cycle path.
+// FileCycle describes a representative cycle path for a cyclic SCC.
 type FileCycle struct {
 	Path []string
 }
@@ -80,7 +80,7 @@ func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStat
 		}
 	}
 
-	cycles, cycleEdges := findCanonicalCycles(adjacency)
+	cycles, cycleEdges := findCyclesAndCycleEdges(adjacency)
 	for edge := range cycleEdges {
 		edgeMetadata := edges[edge]
 		edgeMetadata.InCycle = true
@@ -97,7 +97,7 @@ func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStat
 	}, nil
 }
 
-func findCanonicalCycles(adjacency map[string][]string) ([]FileCycle, map[FileEdge]bool) {
+func findCyclesAndCycleEdges(adjacency map[string][]string) ([]FileCycle, map[FileEdge]bool) {
 	sccs := stronglyConnectedComponents(adjacency)
 	cycleEdges := make(map[FileEdge]bool)
 
@@ -105,6 +105,18 @@ func findCanonicalCycles(adjacency map[string][]string) ([]FileCycle, map[FileEd
 	for _, scc := range sccs {
 		if !isCyclicSCC(adjacency, scc) {
 			continue
+		}
+
+		allowed := make(map[string]bool, len(scc))
+		for _, node := range scc {
+			allowed[node] = true
+		}
+		for _, from := range scc {
+			for _, to := range adjacency[from] {
+				if allowed[to] {
+					cycleEdges[FileEdge{From: from, To: to}] = true
+				}
+			}
 		}
 
 		pathWithClosure := canonicalCyclePath(adjacency, scc)
@@ -115,10 +127,6 @@ func findCanonicalCycles(adjacency map[string][]string) ([]FileCycle, map[FileEd
 		cyclePath := append([]string(nil), pathWithClosure[:len(pathWithClosure)-1]...)
 		cycles = append(cycles, FileCycle{Path: cyclePath})
 
-		for i := 0; i < len(pathWithClosure)-1; i++ {
-			edge := FileEdge{From: pathWithClosure[i], To: pathWithClosure[i+1]}
-			cycleEdges[edge] = true
-		}
 	}
 
 	return cycles, cycleEdges

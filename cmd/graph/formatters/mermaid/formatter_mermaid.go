@@ -50,6 +50,13 @@ func (f *Formatter) Format(g depgraph.FileDependencyGraph, opts formatters.Rende
 			sb.WriteString(fmt.Sprintf("%%%% C%d: %s\n", i+1, strings.Join(cycleParts, " -> ")))
 		}
 	}
+	for edge, md := range g.Meta.Edges {
+		if !md.InCycle {
+			continue
+		}
+		cycleNodes[edge.From] = true
+		cycleNodes[edge.To] = true
+	}
 
 	// Collect and sort file paths for deterministic output
 	filePaths := make([]string, 0, len(adjacency))
