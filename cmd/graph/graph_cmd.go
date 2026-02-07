@@ -11,7 +11,6 @@ import (
 	"github.com/LegacyCodeHQ/sanity/vcs"
 	"github.com/LegacyCodeHQ/sanity/vcs/git"
 
-	"github.com/atotto/clipboard"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +19,6 @@ type graphOptions struct {
 	repoPath        string
 	commitID        string
 	generateURL     bool
-	copyToClipboard bool
 	allowOutside    bool
 	includes        []string
 	betweenFiles    []string
@@ -66,8 +64,6 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&opts.includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
 	// Add between flag for finding paths between files
 	cmd.Flags().StringSliceVarP(&opts.betweenFiles, "between", "w", nil, "Find all paths between specified files (comma-separated)")
-	// Add clipboard flag for copying output to clipboard
-	cmd.Flags().BoolVarP(&opts.copyToClipboard, "clipboard", "b", false, "Automatically copy output to clipboard")
 	// Add file flag for showing dependencies of a specific file
 	cmd.Flags().StringVarP(&opts.targetFile, "file", "p", "", "Show dependencies for a specific file")
 	// Add level flag for limiting dependency depth
@@ -453,13 +449,6 @@ func emitOutput(cmd *cobra.Command, opts *graphOptions, format formatters.Output
 		}
 	} else {
 		fmt.Fprintln(cmd.OutOrStdout(), output)
-	}
-
-	if opts.copyToClipboard {
-		if err := clipboard.WriteAll(output); err != nil {
-			return fmt.Errorf("failed to copy to clipboard: %w", err)
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), "\n✅ Content copied to your clipboard.")
 	}
 
 	return nil
