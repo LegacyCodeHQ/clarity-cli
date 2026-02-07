@@ -193,6 +193,13 @@ func resolveKotlinSamePackageDependencies(
 	if len(typeReferences) == 0 {
 		return []string{}
 	}
+	declaredTypes := ExtractTopLevelTypeNames(sourceCode)
+	declaredTypeSet := make(map[string]bool, len(declaredTypes))
+	for _, typeName := range declaredTypes {
+		if typeName != "" {
+			declaredTypeSet[typeName] = true
+		}
+	}
 
 	importedNames := make(map[string]bool)
 	for _, imp := range imports {
@@ -208,6 +215,12 @@ func resolveKotlinSamePackageDependencies(
 	seen := make(map[string]bool)
 	var deps []string
 	for _, ref := range typeReferences {
+		// Ignore references to top-level types declared in the same file.
+		// This avoids linking sibling source-set files that declare the same
+		// expect/actual type names in Kotlin Multiplatform projects.
+		if declaredTypeSet[ref] {
+			continue
+		}
 		if importedNames[ref] {
 			continue
 		}
