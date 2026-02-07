@@ -90,6 +90,25 @@ func TestResolvePythonImportPath(t *testing.T) {
 	assert.Contains(t, resolved, "/project/pkg/sub/tools/__init__.py")
 }
 
+func TestResolvePythonAbsoluteImportPath(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/legacy/src/dexter/model.py":                   true,
+		"/project/legacy/src/dexter/tools/__init__.py":          true,
+		"/project/legacy/src/dexter/tools/finance/api.py":       true,
+		"/project/legacy/src/dexter/utils/logger.py":            true,
+		"/project/legacy/src/other/external_lookalike/model.py": true,
+	}
+
+	resolved := ResolvePythonAbsoluteImportPath("dexter.model", suppliedFiles)
+	assert.Equal(t, []string{"/project/legacy/src/dexter/model.py"}, resolved)
+
+	resolved = ResolvePythonAbsoluteImportPath("dexter.tools", suppliedFiles)
+	assert.Equal(t, []string{"/project/legacy/src/dexter/tools/__init__.py"}, resolved)
+
+	resolved = ResolvePythonAbsoluteImportPath("dexter.tools.finance.api", suppliedFiles)
+	assert.Equal(t, []string{"/project/legacy/src/dexter/tools/finance/api.py"}, resolved)
+}
+
 // Helper functions
 
 func extractPaths(imports []PythonImport) []string {

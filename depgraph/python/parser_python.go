@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -210,5 +211,27 @@ func ResolvePythonImportPath(sourceFile, importPath string, suppliedFiles map[st
 		resolvedPaths = append(resolvedPaths, packageCandidate)
 	}
 
+	return resolvedPaths
+}
+
+// ResolvePythonAbsoluteImportPath resolves an absolute Python package import
+// (e.g. "dexter.tools.finance.api") to matching project files.
+func ResolvePythonAbsoluteImportPath(importPath string, suppliedFiles map[string]bool) []string {
+	if importPath == "" || strings.HasPrefix(importPath, ".") {
+		return nil
+	}
+
+	modulePath := strings.ReplaceAll(importPath, ".", string(filepath.Separator))
+	fileSuffix := string(filepath.Separator) + modulePath + ".py"
+	packageSuffix := string(filepath.Separator) + filepath.Join(modulePath, "__init__.py")
+
+	var resolvedPaths []string
+	for suppliedPath := range suppliedFiles {
+		if strings.HasSuffix(suppliedPath, fileSuffix) || strings.HasSuffix(suppliedPath, packageSuffix) {
+			resolvedPaths = append(resolvedPaths, suppliedPath)
+		}
+	}
+
+	sort.Strings(resolvedPaths)
 	return resolvedPaths
 }

@@ -25,10 +25,10 @@ func ResolvePythonProjectImports(
 
 	var projectImports []string
 	for _, imp := range imports {
-		if internalImp, ok := imp.(InternalImport); ok {
-			resolvedFiles := ResolvePythonImportPath(absPath, internalImp.Path(), suppliedFiles)
-			projectImports = append(projectImports, resolvedFiles...)
-		}
+		resolvedFiles := ResolvePythonImportPath(absPath, imp.Path(), suppliedFiles)
+		projectImports = append(projectImports, resolvedFiles...)
+		resolvedFiles = ResolvePythonAbsoluteImportPath(imp.Path(), suppliedFiles)
+		projectImports = append(projectImports, resolvedFiles...)
 	}
 
 	return projectImports, nil
