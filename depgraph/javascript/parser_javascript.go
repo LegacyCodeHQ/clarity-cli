@@ -166,6 +166,14 @@ func extractImportsFromTree(rootNode *sitter.Node, sourceCode []byte, lang *sitt
   source: (string) @export.source)
 `
 
+	// Query for CommonJS require calls: require('module')
+	requireQuery := `
+(call_expression
+  function: (identifier) @require.fn
+  arguments: (arguments (string) @require.source)
+  (#eq? @require.fn "require"))
+`
+
 	// Execute import query
 	importResults, err := executeQuery(rootNode, sourceCode, lang, importQuery)
 	if err == nil {
@@ -176,6 +184,12 @@ func extractImportsFromTree(rootNode *sitter.Node, sourceCode []byte, lang *sitt
 	exportResults, err := executeQuery(rootNode, sourceCode, lang, exportQuery)
 	if err == nil {
 		imports = append(imports, exportResults...)
+	}
+
+	// Execute CommonJS require query
+	requireResults, err := executeQuery(rootNode, sourceCode, lang, requireQuery)
+	if err == nil {
+		imports = append(imports, requireResults...)
 	}
 
 	// If queries fail, fall back to manual tree traversal
@@ -210,6 +224,11 @@ func executeQuery(rootNode *sitter.Node, sourceCode []byte, lang *sitter.Languag
 		match = cursor.FilterPredicates(match, sourceCode)
 
 		for _, capture := range match.Captures {
+			captureName := query.CaptureNameForId(capture.Index)
+			if !strings.HasSuffix(captureName, ".source") {
+				continue
+			}
+
 			content := capture.Node.Content(sourceCode)
 			importPath := cleanImportPath(content)
 

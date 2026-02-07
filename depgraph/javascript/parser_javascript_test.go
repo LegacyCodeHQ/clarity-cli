@@ -49,6 +49,42 @@ export default function App() {
 	assert.Contains(t, paths, "./components/Button")
 }
 
+func TestParseJavaScriptImports_CommonJSRequire(t *testing.T) {
+	source := `
+const fs = require('fs');
+const express = require('express');
+const utils = require('./utils');
+`
+	imports, err := ParseJavaScriptImports([]byte(source), false)
+
+	require.NoError(t, err)
+	assert.Len(t, imports, 3)
+
+	paths := extractPaths(imports)
+	assert.Contains(t, paths, "fs")
+	assert.Contains(t, paths, "express")
+	assert.Contains(t, paths, "./utils")
+
+	assertImportType(t, imports, "fs", NodeBuiltinImport{})
+	assertImportType(t, imports, "express", ExternalImport{})
+	assertImportType(t, imports, "./utils", InternalImport{})
+}
+
+func TestParseJavaScriptImports_MixedESMAndRequire(t *testing.T) {
+	source := `
+import path from 'path';
+const utils = require('./utils');
+`
+	imports, err := ParseJavaScriptImports([]byte(source), false)
+
+	require.NoError(t, err)
+	assert.Len(t, imports, 2)
+
+	paths := extractPaths(imports)
+	assert.Contains(t, paths, "path")
+	assert.Contains(t, paths, "./utils")
+}
+
 func TestJavaScriptImports_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.jsx")
