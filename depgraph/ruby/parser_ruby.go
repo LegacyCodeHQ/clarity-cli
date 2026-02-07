@@ -206,23 +206,59 @@ func ResolveRubyConstantReferencePath(ref string, suppliedFiles map[string]bool)
 		segments[i] = camelToSnake(segment)
 	}
 
-	targetSuffix := strings.Join(segments, "/") + ".rb"
-	matches := make([]string, 0, 2)
+	for end := len(segments); end >= 2; end-- {
+		if resolved := resolveRubyConstantSegments(segments[:end], suppliedFiles); len(resolved) == 1 {
+			return resolved
+		}
+	}
+
+	return nil
+}
+
+func resolveRubyConstantSegments(segments []string, suppliedFiles map[string]bool) []string {
+	bestPath := ""
+	bestGaps := 0
+	bestTrailing := 0
+	bestLeading := 0
+	tie := false
 
 	for filePath, exists := range suppliedFiles {
 		if !exists || filepath.Ext(filePath) != ".rb" {
 			continue
 		}
-		normalizedPath := filepath.ToSlash(filePath)
-		if strings.HasSuffix(normalizedPath, "/"+targetSuffix) || normalizedPath == targetSuffix {
-			matches = append(matches, filePath)
+
+		pathParts := rubyPathComponents(filePath)
+		matchIdxs, ok := subsequenceMatch(pathParts, segments)
+		if !ok {
+			continue
+		}
+
+		gaps := 0
+		for i := 1; i < len(matchIdxs); i++ {
+			gaps += matchIdxs[i] - matchIdxs[i-1] - 1
+		}
+		leading := matchIdxs[0]
+		trailing := len(pathParts) - 1 - matchIdxs[len(matchIdxs)-1]
+
+		if bestPath == "" || isBetterConstantPathMatch(gaps, trailing, leading, bestGaps, bestTrailing, bestLeading) {
+			bestPath = filePath
+			bestGaps = gaps
+			bestTrailing = trailing
+			bestLeading = leading
+			tie = false
+			continue
+		}
+
+		if gaps == bestGaps && trailing == bestTrailing && leading == bestLeading {
+			tie = true
 		}
 	}
 
-	if len(matches) != 1 {
+	if bestPath == "" || tie {
 		return nil
 	}
-	return matches
+
+	return []string{bestPath}
 }
 
 func camelToSnake(s string) string {
@@ -242,4 +278,51 @@ func camelToSnake(s string) string {
 	}
 
 	return b.String()
+}
+
+func rubyPathComponents(filePath string) []string {
+	normalized := filepath.ToSlash(strings.TrimSuffix(filePath, ".rb"))
+	parts := strings.Split(normalized, "/")
+	out := parts[:0]
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		out = append(out, part)
+	}
+	return out
+}
+
+func subsequenceMatch(pathParts, targetParts []string) ([]int, bool) {
+	if len(targetParts) == 0 {
+		return nil, false
+	}
+
+	indices := make([]int, 0, len(targetParts))
+	next := 0
+	for i, part := range pathParts {
+		if next >= len(targetParts) {
+			break
+		}
+		if part != targetParts[next] {
+			continue
+		}
+		indices = append(indices, i)
+		next++
+	}
+
+	return indices, next == len(targetParts)
+}
+
+func isBetterConstantPathMatch(gaps, trailing, leading, bestGaps, bestTrailing, bestLeading int) bool {
+	if gaps != bestGaps {
+		return gaps < bestGaps
+	}
+	if trailing != bestTrailing {
+		return trailing < bestTrailing
+	}
+	if leading != bestLeading {
+		return leading < bestLeading
+	}
+	return false
 }

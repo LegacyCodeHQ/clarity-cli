@@ -98,3 +98,31 @@ func TestResolveRubyConstantReferencePath_Ambiguous(t *testing.T) {
 	resolved := ResolveRubyConstantReferencePath("ActiveSupport::Cache::Coder", suppliedFiles)
 	assert.Empty(t, resolved)
 }
+
+func TestResolveRubyConstantReferencePath_AllowsIntermediateDirectories(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb": true,
+	}
+
+	resolved := ResolveRubyConstantReferencePath("ActionController::RequestForgeryProtection", suppliedFiles)
+	assert.Equal(t, []string{"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb"}, resolved)
+}
+
+func TestResolveRubyConstantReferencePath_PrefersMoreSpecificPath(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/lib/action_controller/request_forgery_protection.rb":       true,
+		"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb": true,
+	}
+
+	resolved := ResolveRubyConstantReferencePath("ActionController::RequestForgeryProtection", suppliedFiles)
+	assert.Equal(t, []string{"/project/lib/action_controller/request_forgery_protection.rb"}, resolved)
+}
+
+func TestResolveRubyConstantReferencePath_UsesEnclosingConstantPrefix(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb": true,
+	}
+
+	resolved := ResolveRubyConstantReferencePath("ActionController::RequestForgeryProtection::AUTHENTICITY_TOKEN_LENGTH", suppliedFiles)
+	assert.Equal(t, []string{"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb"}, resolved)
+}

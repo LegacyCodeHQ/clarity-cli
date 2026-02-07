@@ -78,3 +78,33 @@ end
 	adj := mustAdjacency(t, graph)
 	assert.NotContains(t, adj[logSubscriberPath], logSubscriberPath)
 }
+
+func TestBuildDependencyGraph_RubyConstantResolvesAcrossIntermediateDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	sourcePath := filepath.Join(tmpDir, "actionpack", "lib", "action_controller", "metal", "request_forgery_protection.rb")
+	testPath := filepath.Join(tmpDir, "actionpack", "test", "controller", "request_forgery_protection_test.rb")
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(sourcePath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(testPath), 0o755))
+
+	require.NoError(t, os.WriteFile(sourcePath, []byte(`module ActionController
+  module RequestForgeryProtection
+  end
+end
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(testPath, []byte(`class RequestForgeryProtectionTest
+  def test_length
+    ActionController::RequestForgeryProtection::AUTHENTICITY_TOKEN_LENGTH
+  end
+end
+`), 0o644))
+
+	files := []string{sourcePath, testPath}
+	graph, err := depgraph.BuildDependencyGraph(files, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+
+	adj := mustAdjacency(t, graph)
+	assert.Contains(t, adj[testPath], sourcePath)
+}
