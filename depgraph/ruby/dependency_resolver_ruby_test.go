@@ -56,4 +56,25 @@ end
 
 	adj := mustAdjacency(t, graph)
 	assert.Contains(t, adj[testPath], coderPath)
+	assert.NotContains(t, adj[coderPath], coderPath)
+}
+
+func TestBuildDependencyGraph_RubyDoesNotCreateSelfDependencyFromConstantDeclaration(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	logSubscriberPath := filepath.Join(tmpDir, "activesupport", "lib", "active_support", "log_subscriber.rb")
+	require.NoError(t, os.MkdirAll(filepath.Dir(logSubscriberPath), 0o755))
+
+	require.NoError(t, os.WriteFile(logSubscriberPath, []byte(`module ActiveSupport
+  class LogSubscriber < Subscriber
+  end
+end
+`), 0o644))
+
+	files := []string{logSubscriberPath}
+	graph, err := depgraph.BuildDependencyGraph(files, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+
+	adj := mustAdjacency(t, graph)
+	assert.NotContains(t, adj[logSubscriberPath], logSubscriberPath)
 }

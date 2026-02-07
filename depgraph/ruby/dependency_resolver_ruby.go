@@ -28,6 +28,9 @@ func ResolveRubyProjectImports(
 	for _, imp := range imports {
 		resolvedFiles := ResolveRubyImportPath(absPath, imp, suppliedFiles)
 		for _, file := range resolvedFiles {
+			if file == absPath {
+				continue
+			}
 			if _, ok := seen[file]; ok {
 				continue
 			}
@@ -40,6 +43,9 @@ func ResolveRubyProjectImports(
 	for _, ref := range constantRefs {
 		resolvedFiles := ResolveRubyConstantReferencePath(ref, suppliedFiles)
 		for _, file := range resolvedFiles {
+			if file == absPath {
+				continue
+			}
 			if _, ok := seen[file]; ok {
 				continue
 			}
