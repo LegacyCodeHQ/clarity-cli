@@ -60,3 +60,41 @@ func TestIsTestFile(t *testing.T) {
 	assert.True(t, IsTestFile("test/user_test.rb"))
 	assert.False(t, IsTestFile("lib/user.rb"))
 }
+
+func TestParseRubyConstantReferences(t *testing.T) {
+	source := `
+class CacheCoderTest < ActiveSupport::TestCase
+  setup do
+    @coder = ActiveSupport::Cache::Coder.new(Serializer)
+    @error = ::JSON::ParserError
+  end
+end
+`
+
+	refs := ParseRubyConstantReferences([]byte(source))
+	assert.ElementsMatch(t, []string{
+		"ActiveSupport::TestCase",
+		"ActiveSupport::Cache::Coder",
+		"JSON::ParserError",
+	}, refs)
+}
+
+func TestResolveRubyConstantReferencePath(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/activesupport/lib/active_support/cache/coder.rb": true,
+		"/project/activesupport/lib/active_support/cache/entry.rb": true,
+	}
+
+	resolved := ResolveRubyConstantReferencePath("ActiveSupport::Cache::Coder", suppliedFiles)
+	assert.Equal(t, []string{"/project/activesupport/lib/active_support/cache/coder.rb"}, resolved)
+}
+
+func TestResolveRubyConstantReferencePath_Ambiguous(t *testing.T) {
+	suppliedFiles := map[string]bool{
+		"/project/a/lib/active_support/cache/coder.rb": true,
+		"/project/b/lib/active_support/cache/coder.rb": true,
+	}
+
+	resolved := ResolveRubyConstantReferencePath("ActiveSupport::Cache::Coder", suppliedFiles)
+	assert.Empty(t, resolved)
+}

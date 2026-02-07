@@ -23,9 +23,29 @@ func ResolveRubyProjectImports(
 	}
 
 	var projectImports []string
+	seen := make(map[string]struct{})
+
 	for _, imp := range imports {
 		resolvedFiles := ResolveRubyImportPath(absPath, imp, suppliedFiles)
-		projectImports = append(projectImports, resolvedFiles...)
+		for _, file := range resolvedFiles {
+			if _, ok := seen[file]; ok {
+				continue
+			}
+			seen[file] = struct{}{}
+			projectImports = append(projectImports, file)
+		}
+	}
+
+	constantRefs := ParseRubyConstantReferences(content)
+	for _, ref := range constantRefs {
+		resolvedFiles := ResolveRubyConstantReferencePath(ref, suppliedFiles)
+		for _, file := range resolvedFiles {
+			if _, ok := seen[file]; ok {
+				continue
+			}
+			seen[file] = struct{}{}
+			projectImports = append(projectImports, file)
+		}
 	}
 
 	return projectImports, nil

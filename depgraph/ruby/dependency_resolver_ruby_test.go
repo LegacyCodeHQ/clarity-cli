@@ -1,0 +1,59 @@
+package ruby_test
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/LegacyCodeHQ/sanity/depgraph"
+	"github.com/LegacyCodeHQ/sanity/vcs"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func mustAdjacency(t *testing.T, g depgraph.DependencyGraph) map[string][]string {
+	t.Helper()
+	adj, err := depgraph.AdjacencyList(g)
+	require.NoError(t, err)
+	return adj
+}
+
+func TestBuildDependencyGraph_RubyConstantReferenceResolvesToSourceFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	coderPath := filepath.Join(tmpDir, "activesupport", "lib", "active_support", "cache", "coder.rb")
+	testPath := filepath.Join(tmpDir, "activesupport", "test", "cache", "cache_coder_test.rb")
+	abstractUnitPath := filepath.Join(tmpDir, "activesupport", "test", "abstract_unit.rb")
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(coderPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(testPath), 0o755))
+
+	require.NoError(t, os.WriteFile(coderPath, []byte(`module ActiveSupport
+  module Cache
+    class Coder
+    end
+  end
+end
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(testPath, []byte(`# frozen_string_literal: true
+require_relative "../abstract_unit"
+
+class CacheCoderTest < ActiveSupport::TestCase
+  def test_roundtrip
+    ActiveSupport::Cache::Coder.new
+  end
+end
+`), 0o644))
+
+	// Keep abstract_unit out of supplied files, mirroring commit-scoped graphing.
+	require.NoError(t, os.MkdirAll(filepath.Dir(abstractUnitPath), 0o755))
+	require.NoError(t, os.WriteFile(abstractUnitPath, []byte("class AbstractUnit; end\n"), 0o644))
+
+	files := []string{coderPath, testPath}
+	graph, err := depgraph.BuildDependencyGraph(files, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+
+	adj := mustAdjacency(t, graph)
+	assert.Contains(t, adj[testPath], coderPath)
+}

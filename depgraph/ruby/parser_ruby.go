@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // RubyImport represents a require/require_relative in a Ruby file.
@@ -158,4 +160,86 @@ func existingPaths(candidates []string, suppliedFiles map[string]bool) []string 
 		}
 	}
 	return resolved
+}
+
+var rubyConstantReferencePattern = regexp.MustCompile(`(?:^|[^A-Za-z0-9_:])(::)?([A-Z][A-Za-z0-9_]*(?:::[A-Z][A-Za-z0-9_]*)+)`)
+
+// ParseRubyConstantReferences extracts qualified constant references from Ruby source.
+// Examples: ActiveSupport::Cache::Coder, ::JSON::ParserError.
+func ParseRubyConstantReferences(sourceCode []byte) []string {
+	matches := rubyConstantReferencePattern.FindAllSubmatch(sourceCode, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(matches))
+	refs := make([]string, 0, len(matches))
+	for _, m := range matches {
+		ref := string(m[2])
+		if ref == "" {
+			continue
+		}
+		if _, ok := seen[ref]; ok {
+			continue
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+
+	return refs
+}
+
+// ResolveRubyConstantReferencePath maps a qualified constant reference to a concrete file path.
+// Returns no paths when resolution is ambiguous.
+func ResolveRubyConstantReferencePath(ref string, suppliedFiles map[string]bool) []string {
+	normalized := strings.TrimPrefix(strings.TrimSpace(ref), "::")
+	if normalized == "" || !strings.Contains(normalized, "::") {
+		return nil
+	}
+
+	segments := strings.Split(normalized, "::")
+	if len(segments) < 2 {
+		return nil
+	}
+
+	for i, segment := range segments {
+		segments[i] = camelToSnake(segment)
+	}
+
+	targetSuffix := strings.Join(segments, "/") + ".rb"
+	matches := make([]string, 0, 2)
+
+	for filePath, exists := range suppliedFiles {
+		if !exists || filepath.Ext(filePath) != ".rb" {
+			continue
+		}
+		normalizedPath := filepath.ToSlash(filePath)
+		if strings.HasSuffix(normalizedPath, "/"+targetSuffix) || normalizedPath == targetSuffix {
+			matches = append(matches, filePath)
+		}
+	}
+
+	if len(matches) != 1 {
+		return nil
+	}
+	return matches
+}
+
+func camelToSnake(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 4)
+
+	runes := []rune(s)
+	for i, r := range runes {
+		if i > 0 && unicode.IsUpper(r) {
+			prev := runes[i-1]
+			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextLower) {
+				b.WriteByte('_')
+			}
+		}
+		b.WriteRune(unicode.ToLower(r))
+	}
+
+	return b.String()
 }
