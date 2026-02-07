@@ -44,8 +44,7 @@ func runLanguages(cmd *cobra.Command, _ []string) error {
 			"%s %s\t%s\n",
 			language.Maturity.Symbol(),
 			language.Name,
-			strings.Join(language.Extensions, ", "),
-		); err != nil {
+			strings.Join(language.Extensions, ", ")); err != nil {
 			return err
 		}
 	}

@@ -49,8 +49,7 @@ func ResolveSwiftProjectImports(
 			moduleIndex,
 			typeReferenceSet,
 			typeIndex,
-			contentReader,
-		)...)
+			contentReader)...)
 	}
 
 	for _, imp := range imports {
@@ -65,8 +64,7 @@ func ResolveSwiftProjectImports(
 			moduleIndex,
 			typeReferenceSet,
 			typeIndex,
-			contentReader,
-		)...)
+			contentReader)...)
 	}
 
 	return deduplicateSwiftPaths(projectImports), nil
