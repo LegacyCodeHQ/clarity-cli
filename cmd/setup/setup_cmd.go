@@ -1,4 +1,4 @@
-package init
+package setup
 
 import (
 	_ "embed"
@@ -9,21 +9,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:embed INIT.md
-var initTemplate string
+//go:embed SETUP.md
+var setupTemplate string
 
-// Cmd represents the init command
+// Cmd represents the setup command
 var Cmd = &cobra.Command{
-	Use:   "init",
+	Use:   "setup",
 	Short: "Initialize sanity in the current directory",
 	Long: `Initialize sanity in the current directory by adding instructions to AGENTS.md.
 
 This creates or updates AGENTS.md with a minimal snippet that helps AI agents
 understand how to use sanity.`,
-	RunE: runInit,
+	RunE: runSetup,
 }
 
-func runInit(_ *cobra.Command, _ []string) error {
+func runSetup(_ *cobra.Command, _ []string) error {
 	// Check if we're in a git repository
 	if _, err := os.Stat(".git"); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository (no .git directory found)")
@@ -56,12 +56,12 @@ func writeAgentsFile(filename string) error {
 		defer f.Close()
 
 		// Add newline before appending
-		if _, err := f.WriteString("\n" + initTemplate); err != nil {
+		if _, err := f.WriteString("\n" + setupTemplate); err != nil {
 			return fmt.Errorf("failed to append to %s: %w", filename, err)
 		}
 	} else {
 		// Create new file or overwrite
-		if err := os.WriteFile(filename, []byte(initTemplate), 0644); err != nil {
+		if err := os.WriteFile(filename, []byte(setupTemplate), 0644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", filename, err)
 		}
 	}

@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/LegacyCodeHQ/sanity/cmd/graph"
-	initcmd "github.com/LegacyCodeHQ/sanity/cmd/init"
 	"github.com/LegacyCodeHQ/sanity/cmd/languages"
+	setupcmd "github.com/LegacyCodeHQ/sanity/cmd/setup"
 	"github.com/spf13/cobra"
 )
 
@@ -45,8 +45,8 @@ func Execute() {
 func init() {
 	// Register subcommands
 	rootCmd.AddCommand(graph.Cmd)
-	rootCmd.AddCommand(initcmd.Cmd)
 	rootCmd.AddCommand(languages.Cmd)
+	rootCmd.AddCommand(setupcmd.Cmd)
 
 	// Global flags inherited by all subcommands.
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose/debug output")
