@@ -57,3 +57,25 @@ func TestResolveSwiftProjectImports_TestsModuleImportsMain(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{mainPath}, imports)
 }
+
+func TestResolveSwiftProjectImports_FlatLayoutResolvesTypeReference(t *testing.T) {
+	tmpDir := t.TempDir()
+	appDir := filepath.Join(tmpDir, "sanity-desktop")
+	require.NoError(t, os.MkdirAll(appDir, 0o755))
+
+	viewPath := filepath.Join(appDir, "DependencyGraphView.swift")
+	require.NoError(t, os.WriteFile(viewPath, []byte("import SwiftUI\nimport ComposableArchitecture\n\nstruct DependencyGraphView: View {\n    let store: StoreOf<DependencyGraphFeature>\n}\n"), 0o644))
+
+	featurePath := filepath.Join(appDir, "DependencyGraphFeature.swift")
+	require.NoError(t, os.WriteFile(featurePath, []byte("import ComposableArchitecture\n\nstruct DependencyGraphFeature: Reducer {}\n"), 0o644))
+
+	reader := vcs.FilesystemContentReader()
+	supplied := map[string]bool{
+		viewPath:    true,
+		featurePath: true,
+	}
+
+	imports, err := ResolveSwiftProjectImports(viewPath, viewPath, supplied, reader)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{featurePath}, imports)
+}

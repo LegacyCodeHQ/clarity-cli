@@ -3,6 +3,7 @@ package swift
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/LegacyCodeHQ/sanity/vcs"
@@ -47,6 +48,13 @@ func ResolveSwiftProjectImports(
 			absPath,
 			moduleName,
 			moduleIndex,
+			typeReferenceSet,
+			typeIndex,
+			contentReader)...)
+	} else {
+		projectImports = append(projectImports, resolveSwiftCandidatesByTypeReferences(
+			absPath,
+			allSwiftCandidates(suppliedFiles),
 			typeReferenceSet,
 			typeIndex,
 			contentReader)...)
@@ -113,6 +121,21 @@ func resolveSwiftModuleImport(
 		return nil
 	}
 
+	return resolveSwiftCandidatesByTypeReferences(
+		sourceFile,
+		candidates,
+		typeReferences,
+		typeIndex,
+		contentReader)
+}
+
+func resolveSwiftCandidatesByTypeReferences(
+	sourceFile string,
+	candidates []string,
+	typeReferences map[string]bool,
+	typeIndex map[string][]string,
+	contentReader vcs.ContentReader,
+) []string {
 	var resolved []string
 	for _, path := range candidates {
 		if path == sourceFile {
@@ -122,7 +145,6 @@ func resolveSwiftModuleImport(
 			resolved = append(resolved, path)
 		}
 	}
-
 	return resolved
 }
 
@@ -176,4 +198,16 @@ func deduplicateSwiftPaths(paths []string) []string {
 		result = append(result, path)
 	}
 	return result
+}
+
+func allSwiftCandidates(suppliedFiles map[string]bool) []string {
+	candidates := make([]string, 0, len(suppliedFiles))
+	for filePath, ok := range suppliedFiles {
+		if !ok || filepath.Ext(filePath) != ".swift" {
+			continue
+		}
+		candidates = append(candidates, filePath)
+	}
+	sort.Strings(candidates)
+	return candidates
 }
