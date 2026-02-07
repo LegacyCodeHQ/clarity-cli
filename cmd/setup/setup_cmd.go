@@ -15,12 +15,9 @@ var setupTemplate string
 // Cmd represents the setup command
 var Cmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Initialize sanity in the current directory",
-	Long: `Initialize sanity in the current directory by adding instructions to AGENTS.md.
-
-This creates or updates AGENTS.md with a minimal snippet that helps AI agents
-understand how to use sanity.`,
-	RunE: runSetup,
+	Short: "Add sanity usage instructions to AGENTS.md",
+	Long:  `Initialize AGENTS.md with instructions for AI agents to use sanity.`,
+	RunE:  runSetup,
 }
 
 func runSetup(_ *cobra.Command, _ []string) error {
