@@ -26,11 +26,15 @@ Use this workflow to validate language support end-to-end in `sanity`.
 2. Clone into `/tmp`.
 3. Build a review queue before rendering graphs:
    - Use non-merge commits only.
-   - Use commits with `5-25` changed files.
+   - Use commits with `5-30` changed files.
+   - Prioritize commits that are mostly about the target language (based on file extensions/paths).
+   - Each selected commit should include at least a few files in the target language (minimum 3 unless unavailable).
    - Default queue size is 10 commits unless the user requests a different count.
 4. Show the queue to the user before starting graph renders.
 5. Render exactly one commit at a time in the IDE:
    - `go run . graph --repo /tmp/<repo> -c <sha> -f mermaid`
+   - Always include the rendered diagram directly in chat (Mermaid fenced block). If Mermaid is not visible, provide DOT/text fallback in chat.
+   - If diagrams still are not visible to the user, generate and open the graph URL in the browser (for example `sanity graph -u` or equivalent URL output).
 6. Pause after each commit and wait for explicit user confirmation (for example, `next`) before continuing.
 7. Continue this request/response loop until the queue is complete or the user stops.
 8. Keep validation focused on edge quality for each commit:
