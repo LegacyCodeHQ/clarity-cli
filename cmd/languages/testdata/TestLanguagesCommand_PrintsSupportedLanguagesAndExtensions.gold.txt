@@ -6,7 +6,7 @@
 ● Go          .go
 ◐ JavaScript  .js, .jsx
 ◐ Java        .java
-○ Kotlin      .kt, .kts
+◐ Kotlin      .kt, .kts
 ◐ Python      .py
 ◐ Rust        .rs
 ◐ Swift       .swift
