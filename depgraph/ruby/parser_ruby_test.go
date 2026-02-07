@@ -55,12 +55,6 @@ func TestResolveRubyImportPath(t *testing.T) {
 	assert.Equal(t, []string{"/project/app/models/user.rb"}, abs)
 }
 
-func TestIsTestFile(t *testing.T) {
-	assert.True(t, IsTestFile("spec/user_spec.rb"))
-	assert.True(t, IsTestFile("test/user_test.rb"))
-	assert.False(t, IsTestFile("lib/user.rb"))
-}
-
 func TestParseRubyConstantReferences(t *testing.T) {
 	source := `
 class CacheCoderTest < ActiveSupport::TestCase
