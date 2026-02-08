@@ -29,17 +29,38 @@ type whyOptions struct {
 }
 
 type directConnection struct {
-	From    string        `json:"from"`
-	To      string        `json:"to"`
-	Type    string        `json:"type"`
-	Members []string      `json:"members,omitempty"`
-	Calls   []memberUsage `json:"calls,omitempty"`
+	From    string         `json:"from"`
+	To      string         `json:"to"`
+	Type    string         `json:"type"`
+	Members []memberSymbol `json:"members,omitempty"`
+	Calls   []memberUsage  `json:"calls,omitempty"`
 }
 
 type memberUsage struct {
-	Caller string `json:"caller"`
-	Callee string `json:"callee"`
-	Line   int    `json:"line"`
+	Caller string       `json:"caller"`
+	Callee memberSymbol `json:"callee"`
+	Line   int          `json:"line"`
+}
+
+type memberSymbol struct {
+	Name string     `json:"name"`
+	Meta SymbolMeta `json:"meta"`
+}
+
+type SymbolKind string
+
+const (
+	SymbolKindFunc   SymbolKind = "func"
+	SymbolKindMethod SymbolKind = "method"
+	SymbolKindType   SymbolKind = "type"
+	SymbolKindVar    SymbolKind = "var"
+	SymbolKindConst  SymbolKind = "const"
+)
+
+type SymbolMeta struct {
+	Kind     SymbolKind `json:"kind"`
+	Receiver string     `json:"receiver,omitempty"`
+	Exported bool       `json:"exported"`
 }
 
 // Cmd represents the why command.
@@ -223,12 +244,16 @@ func formatTextOutput(repoRoot, fromPath, toPath string, connections []directCon
 	for _, c := range connections {
 		lines = append(lines, fmt.Sprintf("- %s depends on %s", displayPath(repoRoot, c.From), displayPath(repoRoot, c.To)))
 		if len(c.Members) > 0 {
-			lines = append(lines, fmt.Sprintf("  members: %s", strings.Join(c.Members, ", ")))
+			labels := make([]string, 0, len(c.Members))
+			for _, member := range c.Members {
+				labels = append(labels, fmt.Sprintf("%s (%s)", formatSymbolLabel(member), formatSymbolKind(member.Meta)))
+			}
+			lines = append(lines, fmt.Sprintf("  members: %s", strings.Join(labels, ", ")))
 		}
 		if len(c.Calls) > 0 {
 			lines = append(lines, "  calls:")
 			for _, call := range c.Calls {
-				lines = append(lines, fmt.Sprintf("    - %s:%d -> %s", call.Caller, call.Line, call.Callee))
+				lines = append(lines, fmt.Sprintf("    - %s:%d -> %s (%s)", call.Caller, call.Line, formatSymbolLabel(call.Callee), formatSymbolKind(call.Callee.Meta)))
 			}
 		}
 	}
@@ -239,41 +264,76 @@ func formatDOTOutput(repoRoot, fromPath, toPath string, connections []directConn
 	var b strings.Builder
 	b.WriteString("digraph G {\n")
 	b.WriteString("  rankdir=LR;\n")
-	b.WriteString(fmt.Sprintf("  %q [label=%q];\n", fromPath, displayPath(repoRoot, fromPath)))
-	b.WriteString(fmt.Sprintf("  %q [label=%q];\n", toPath, displayPath(repoRoot, toPath)))
+	hasMemberDetails := false
 	for _, c := range connections {
-		if len(c.Members) == 0 {
+		if len(c.Members) > 0 {
+			hasMemberDetails = true
+			break
+		}
+	}
+
+	if !hasMemberDetails {
+		b.WriteString(fmt.Sprintf("  %q [label=%q, shape=box];\n", fromPath, displayPath(repoRoot, fromPath)))
+		b.WriteString(fmt.Sprintf("  %q [label=%q, shape=box];\n", toPath, displayPath(repoRoot, toPath)))
+		for _, c := range connections {
 			b.WriteString(fmt.Sprintf("  %q -> %q;\n", c.From, c.To))
+		}
+		b.WriteString("}")
+		return b.String()
+	}
+
+	for connIdx, c := range connections {
+		if len(c.Members) == 0 {
 			continue
 		}
-		if len(c.Calls) > 0 {
-			callerNodes := make(map[string]string)
-			for _, call := range c.Calls {
-				if _, ok := callerNodes[call.Caller]; ok {
-					continue
-				}
-				callerNode := c.From + "::caller::" + call.Caller
-				callerNodes[call.Caller] = callerNode
-				b.WriteString(fmt.Sprintf("  %q [label=%q, shape=ellipse];\n", callerNode, call.Caller+"()"))
-				b.WriteString(fmt.Sprintf("  %q -> %q [style=dotted];\n", c.From, callerNode))
+
+		callerClusterID := fmt.Sprintf("cluster_caller_%d", connIdx)
+		calleeClusterID := fmt.Sprintf("cluster_callee_%d", connIdx)
+		callerDisplay := displayPath(repoRoot, c.From)
+		calleeDisplay := displayPath(repoRoot, c.To)
+
+		b.WriteString(fmt.Sprintf("  subgraph %s {\n", callerClusterID))
+		b.WriteString(fmt.Sprintf("    label=%q;\n", callerDisplay))
+		b.WriteString("    style=rounded;\n")
+		b.WriteString("    color=gray50;\n")
+		callerNodes := make(map[string]string)
+		if len(c.Calls) == 0 {
+			callerNodeID := fmt.Sprintf("caller_%d", connIdx)
+			callerNodes["<group>"] = callerNodeID
+			b.WriteString(fmt.Sprintf("    %q [label=%q, shape=box];\n", callerNodeID, "calls members"))
+		} else {
+			for callerIdx, caller := range uniqueCallers(c.Calls) {
+				callerID := fmt.Sprintf("caller_%d_%d", connIdx, callerIdx)
+				callerNodes[caller] = callerID
+				b.WriteString(fmt.Sprintf("    %q [label=%q, shape=box];\n", callerID, caller+"()"))
 			}
-			memberNodes := make(map[string]string)
+		}
+		b.WriteString("  }\n")
+
+		b.WriteString(fmt.Sprintf("  subgraph %s {\n", calleeClusterID))
+		b.WriteString(fmt.Sprintf("    label=%q;\n", calleeDisplay))
+		b.WriteString("    style=rounded;\n")
+		b.WriteString("    color=gray50;\n")
+		memberNodes := make(map[string]string)
+		for memberIdx, member := range c.Members {
+			memberID := fmt.Sprintf("member_%s_%d_%d", sanitizeMermaidID(member.Name), connIdx, memberIdx)
+			memberNodes[member.Name] = memberID
+			b.WriteString(fmt.Sprintf("    %q [label=%q, shape=ellipse];\n", memberID, formatSymbolLabel(member)))
+		}
+		b.WriteString("  }\n")
+
+		if len(c.Calls) == 0 {
+			callerID := callerNodes["<group>"]
 			for _, member := range c.Members {
-				memberNode := c.To + "::" + member
-				memberNodes[member] = memberNode
-				b.WriteString(fmt.Sprintf("  %q [label=%q, shape=ellipse];\n", memberNode, member))
-				b.WriteString(fmt.Sprintf("  %q -> %q [style=dashed, dir=none];\n", memberNode, c.To))
-			}
-			for _, call := range c.Calls {
-				b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n", callerNodes[call.Caller], memberNodes[call.Callee], fmt.Sprintf("L%d", call.Line)))
+				b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n", callerID, memberNodes[member.Name], "calls"))
 			}
 			continue
 		}
-		for _, member := range c.Members {
-			memberNode := c.To + "::" + member
-			b.WriteString(fmt.Sprintf("  %q [label=%q, shape=ellipse];\n", memberNode, member))
-			b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n", c.From, memberNode, "uses"))
-			b.WriteString(fmt.Sprintf("  %q -> %q [style=dashed, dir=none];\n", memberNode, c.To))
+
+		for _, call := range c.Calls {
+			callerID := callerNodes[call.Caller]
+			memberID := memberNodes[call.Callee.Name]
+			b.WriteString(fmt.Sprintf("  %q -> %q [label=%q];\n", callerID, memberID, formatCallLabel(call)))
 		}
 	}
 	b.WriteString("}")
@@ -336,20 +396,20 @@ func formatMermaidOutput(repoRoot, fromPath, toPath string, connections []direct
 		b.WriteString(fmt.Sprintf("  subgraph %s[%q]\n", calleeGroupID, calleeDisplay))
 		memberNodes := make(map[string]string)
 		for memberIdx, member := range c.Members {
-			memberID := fmt.Sprintf("m_%s_%d_%d", sanitizeMermaidID(member), connIdx, memberIdx)
-			memberNodes[member] = memberID
-			b.WriteString(fmt.Sprintf("    %s[%q]\n", memberID, member))
+			memberID := fmt.Sprintf("m_%s_%d_%d", sanitizeMermaidID(member.Name), connIdx, memberIdx)
+			memberNodes[member.Name] = memberID
+			b.WriteString(fmt.Sprintf("    %s[%q]\n", memberID, formatSymbolLabel(member)))
 		}
 		b.WriteString("  end\n")
 		if len(c.Calls) == 0 {
 			for _, member := range c.Members {
-				b.WriteString(fmt.Sprintf("  %s -->|%q| %s\n", callerNodeID, "calls", memberNodes[member]))
+				b.WriteString(fmt.Sprintf("  %s -->|%q| %s\n", callerNodeID, "calls", memberNodes[member.Name]))
 			}
 		} else {
 			for _, call := range c.Calls {
 				callerID := callerNodes[call.Caller]
-				memberID := memberNodes[call.Callee]
-				b.WriteString(fmt.Sprintf("  %s -->|%q| %s\n", callerID, fmt.Sprintf("L%d", call.Line), memberID))
+				memberID := memberNodes[call.Callee.Name]
+				b.WriteString(fmt.Sprintf("  %s -->|%q| %s\n", callerID, formatCallLabel(call), memberID))
 			}
 		}
 	}
@@ -402,28 +462,46 @@ func findReferencedMembers(fromPath, toPath string) ([]memberUsage, error) {
 	return calls, nil
 }
 
-func parseGoTopLevelMembers(path string) (map[string]struct{}, error) {
+func parseGoTopLevelMembers(path string) (map[string]SymbolMeta, error) {
 	fileSet := token.NewFileSet()
 	file, err := parser.ParseFile(fileSet, path, nil, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	members := make(map[string]struct{})
+	members := make(map[string]SymbolMeta)
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
 			if d.Name != nil {
-				members[d.Name.Name] = struct{}{}
+				meta := SymbolMeta{
+					Kind:     SymbolKindFunc,
+					Exported: ast.IsExported(d.Name.Name),
+				}
+				if d.Recv != nil {
+					meta.Kind = SymbolKindMethod
+					meta.Receiver = receiverName(d.Recv)
+				}
+				members[d.Name.Name] = meta
 			}
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
-					members[s.Name.Name] = struct{}{}
+					members[s.Name.Name] = SymbolMeta{
+						Kind:     SymbolKindType,
+						Exported: ast.IsExported(s.Name.Name),
+					}
 				case *ast.ValueSpec:
+					kind := SymbolKindVar
+					if d.Tok == token.CONST {
+						kind = SymbolKindConst
+					}
 					for _, n := range s.Names {
-						members[n.Name] = struct{}{}
+						members[n.Name] = SymbolMeta{
+							Kind:     kind,
+							Exported: ast.IsExported(n.Name),
+						}
 					}
 				}
 			}
@@ -432,7 +510,7 @@ func parseGoTopLevelMembers(path string) (map[string]struct{}, error) {
 	return members, nil
 }
 
-func parseGoCalledIdentifiers(path string, targetMembers map[string]struct{}) ([]memberUsage, error) {
+func parseGoCalledIdentifiers(path string, targetMembers map[string]SymbolMeta) ([]memberUsage, error) {
 	fileSet := token.NewFileSet()
 	file, err := parser.ParseFile(fileSet, path, nil, 0)
 	if err != nil {
@@ -449,8 +527,8 @@ func parseGoCalledIdentifiers(path string, targetMembers map[string]struct{}) ([
 		if calls[i].Caller != calls[j].Caller {
 			return calls[i].Caller < calls[j].Caller
 		}
-		if calls[i].Callee != calls[j].Callee {
-			return calls[i].Callee < calls[j].Callee
+		if calls[i].Callee.Name != calls[j].Callee.Name {
+			return calls[i].Callee.Name < calls[j].Callee.Name
 		}
 		return calls[i].Line < calls[j].Line
 	})
@@ -459,7 +537,7 @@ func parseGoCalledIdentifiers(path string, targetMembers map[string]struct{}) ([
 
 type goCallVisitor struct {
 	fileSet       *token.FileSet
-	targetMembers map[string]struct{}
+	targetMembers map[string]SymbolMeta
 	calls         *[]memberUsage
 	funcStack     []string
 	nodeStack     []ast.Node
@@ -496,7 +574,8 @@ func (v *goCallVisitor) Visit(node ast.Node) ast.Visitor {
 	if callee == "" {
 		return v
 	}
-	if _, ok := v.targetMembers[callee]; !ok {
+	meta, ok := v.targetMembers[callee]
+	if !ok {
 		return v
 	}
 
@@ -507,8 +586,11 @@ func (v *goCallVisitor) Visit(node ast.Node) ast.Visitor {
 	pos := v.fileSet.Position(callExpr.Pos())
 	*v.calls = append(*v.calls, memberUsage{
 		Caller: caller,
-		Callee: callee,
-		Line:   pos.Line,
+		Callee: memberSymbol{
+			Name: callee,
+			Meta: meta,
+		},
+		Line: pos.Line,
 	})
 	return v
 }
@@ -524,18 +606,75 @@ func calledIdentifier(expr ast.Expr) string {
 	}
 }
 
-func collectMembersFromCalls(calls []memberUsage) []string {
+func collectMembersFromCalls(calls []memberUsage) []memberSymbol {
 	seen := make(map[string]struct{})
-	members := make([]string, 0, len(calls))
+	members := make([]memberSymbol, 0, len(calls))
 	for _, c := range calls {
-		if _, ok := seen[c.Callee]; ok {
+		if _, ok := seen[c.Callee.Name]; ok {
 			continue
 		}
-		seen[c.Callee] = struct{}{}
+		seen[c.Callee.Name] = struct{}{}
 		members = append(members, c.Callee)
 	}
-	sort.Strings(members)
+	sort.Slice(members, func(i, j int) bool {
+		return members[i].Name < members[j].Name
+	})
 	return members
+}
+
+func receiverName(recv *ast.FieldList) string {
+	if recv == nil || len(recv.List) == 0 {
+		return ""
+	}
+	return exprString(recv.List[0].Type)
+}
+
+func exprString(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.StarExpr:
+		return "*" + exprString(e.X)
+	case *ast.SelectorExpr:
+		return exprString(e.X) + "." + e.Sel.Name
+	case *ast.IndexExpr:
+		return exprString(e.X)
+	case *ast.IndexListExpr:
+		return exprString(e.X)
+	default:
+		return ""
+	}
+}
+
+func formatSymbolLabel(symbol memberSymbol) string {
+	switch symbol.Meta.Kind {
+	case SymbolKindFunc:
+		return symbol.Name + "()"
+	case SymbolKindMethod:
+		if symbol.Meta.Receiver == "" {
+			return symbol.Name + "()"
+		}
+		return fmt.Sprintf("(%s).%s()", symbol.Meta.Receiver, symbol.Name)
+	case SymbolKindType:
+		return "type " + symbol.Name
+	case SymbolKindVar:
+		return "var " + symbol.Name
+	case SymbolKindConst:
+		return "const " + symbol.Name
+	default:
+		return symbol.Name
+	}
+}
+
+func formatSymbolKind(meta SymbolMeta) string {
+	if meta.Kind == SymbolKindMethod && meta.Receiver != "" {
+		return fmt.Sprintf("%s %s", meta.Kind, meta.Receiver)
+	}
+	return string(meta.Kind)
+}
+
+func formatCallLabel(call memberUsage) string {
+	return fmt.Sprintf("L%d (calls %s)", call.Line, formatSymbolKind(call.Callee.Meta))
 }
 
 func sanitizeMermaidID(input string) string {

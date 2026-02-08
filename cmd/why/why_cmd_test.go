@@ -160,8 +160,11 @@ func TestX(t *testing.T) {
 	if len(members) != 1 {
 		t.Fatalf("expected 1 usage, got %#v", members)
 	}
-	if members[0].Callee != "ParseSwiftImports" {
+	if members[0].Callee.Name != "ParseSwiftImports" {
 		t.Fatalf("expected callee ParseSwiftImports, got %#v", members[0])
+	}
+	if members[0].Callee.Meta.Kind != SymbolKindFunc {
+		t.Fatalf("expected callee kind func, got %#v", members[0])
 	}
 	if members[0].Caller != "TestX" {
 		t.Fatalf("expected caller TestX, got %#v", members[0])
@@ -192,7 +195,129 @@ func TestWhyCommand_TextShowsMembersForParserAndTest(t *testing.T) {
 	if !strings.Contains(output, "ParseSwiftImports") {
 		t.Fatalf("expected ParseSwiftImports in members, got:\n%s", output)
 	}
+	if !strings.Contains(output, "(func)") {
+		t.Fatalf("expected function kind labels in output, got:\n%s", output)
+	}
 	if !strings.Contains(output, "TestParseSwiftImports") {
 		t.Fatalf("expected caller test function in output, got:\n%s", output)
+	}
+}
+
+func TestParseGoTopLevelMembers_CapturesSymbolKinds(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "target.go")
+	source := `package why
+
+const Pi = 3.14
+var globalFlag = true
+type Graph struct{}
+func ParseSwiftImports() {}
+func (g *Graph) Resolve() {}
+`
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	members, err := parseGoTopLevelMembers(path)
+	if err != nil {
+		t.Fatalf("parseGoTopLevelMembers() error = %v", err)
+	}
+
+	if members["Pi"].Kind != SymbolKindConst {
+		t.Fatalf("expected const kind for Pi, got %#v", members["Pi"])
+	}
+	if members["globalFlag"].Kind != SymbolKindVar {
+		t.Fatalf("expected var kind for globalFlag, got %#v", members["globalFlag"])
+	}
+	if members["Graph"].Kind != SymbolKindType {
+		t.Fatalf("expected type kind for Graph, got %#v", members["Graph"])
+	}
+	if members["ParseSwiftImports"].Kind != SymbolKindFunc {
+		t.Fatalf("expected func kind for ParseSwiftImports, got %#v", members["ParseSwiftImports"])
+	}
+	if members["Resolve"].Kind != SymbolKindMethod {
+		t.Fatalf("expected method kind for Resolve, got %#v", members["Resolve"])
+	}
+	if members["Resolve"].Receiver == "" {
+		t.Fatalf("expected method receiver for Resolve, got %#v", members["Resolve"])
+	}
+}
+
+func TestWhyCommand_MermaidShowsKindAwareLabels(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "target.go")
+	sourcePath := filepath.Join(dir, "source_test.go")
+
+	target := `package why
+const Pi = 3.14
+type Graph struct{}
+func ParseSwiftImports() {}
+`
+	source := `package why
+func TestX() {
+	ParseSwiftImports()
+}
+`
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-r", dir, "-f", "mermaid", "target.go", "source_test.go"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "ParseSwiftImports()") {
+		t.Fatalf("expected function-style label in mermaid, got:\n%s", output)
+	}
+}
+
+func TestWhyCommand_MermaidShowsMethodReceiverLabels(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "target.go")
+	sourcePath := filepath.Join(dir, "source_test.go")
+
+	target := `package why
+type Graph struct{}
+func (g *Graph) Resolve() {}
+`
+	source := `package why
+func TestX() {
+	var g Graph
+	g.Resolve()
+}
+`
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-r", dir, "-f", "mermaid", "target.go", "source_test.go"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "(*Graph).Resolve()") {
+		t.Fatalf("expected method receiver label in mermaid, got:\n%s", output)
+	}
+	if !strings.Contains(output, "L") || !strings.Contains(output, "(calls method *Graph)") {
+		t.Fatalf("expected method+line relationship label in mermaid, got:\n%s", output)
 	}
 }
