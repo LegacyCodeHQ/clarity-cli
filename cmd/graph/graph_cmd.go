@@ -21,6 +21,8 @@ type graphOptions struct {
 	commitID     string
 	generateURL  bool
 	allowOutside bool
+	includeExt   string
+	includeExts  []string
 	excludeExt   string
 	excludeExts  []string
 	includes     []string
@@ -65,6 +67,8 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&opts.generateURL, "url", "u", false, "Generate visualization URL (supported formats: dot, mermaid)")
 	// Add input flag for explicit files/directories
 	cmd.Flags().StringSliceVarP(&opts.includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
+	// Add extension inclusion flag
+	cmd.Flags().StringVar(&opts.includeExt, "include-ext", "", "Include only files with these extensions (comma-separated, e.g. .go,.java)")
 	// Add extension exclusion flag
 	cmd.Flags().StringVar(&opts.excludeExt, "exclude-ext", "", "Exclude files with these extensions (comma-separated, e.g. .go,.java)")
 	// Add between flag for finding paths between files
@@ -100,6 +104,11 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 	}
 	if done {
 		return nil
+	}
+
+	filePaths, err = applyIncludeExtensionFilter(opts, filePaths)
+	if err != nil {
+		return err
 	}
 
 	filePaths, err = applyExcludeExtensionFilter(opts, filePaths)
@@ -156,8 +165,16 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 }
 
 func validateGraphOptions(opts *graphOptions) error {
+	if opts.includeExt != "" {
+		includeExts, err := normalizeExtensions("--include-ext", opts.includeExt)
+		if err != nil {
+			return err
+		}
+		opts.includeExts = includeExts
+	}
+
 	if opts.excludeExt != "" {
-		excludeExts, err := normalizeExtensions(opts.excludeExt)
+		excludeExts, err := normalizeExtensions("--exclude-ext", opts.excludeExt)
 		if err != nil {
 			return err
 		}
@@ -183,7 +200,7 @@ func validateGraphOptions(opts *graphOptions) error {
 	return nil
 }
 
-func normalizeExtensions(rawExts string) ([]string, error) {
+func normalizeExtensions(flagName, rawExts string) ([]string, error) {
 	parts := strings.Split(rawExts, ",")
 	exts := make([]string, 0, len(parts))
 	seen := make(map[string]struct{}, len(parts))
@@ -191,16 +208,16 @@ func normalizeExtensions(rawExts string) ([]string, error) {
 	for _, part := range parts {
 		ext := strings.TrimSpace(part)
 		if ext == "" {
-			return nil, fmt.Errorf("--exclude-ext cannot contain empty extensions")
+			return nil, fmt.Errorf("%s cannot contain empty extensions", flagName)
 		}
 		if strings.Contains(ext, string(filepath.Separator)) {
-			return nil, fmt.Errorf("--exclude-ext must be file extensions, got %q", part)
+			return nil, fmt.Errorf("%s must be file extensions, got %q", flagName, part)
 		}
 		if !strings.HasPrefix(ext, ".") {
 			ext = "." + ext
 		}
 		if ext == "." {
-			return nil, fmt.Errorf("--exclude-ext must include extension characters")
+			return nil, fmt.Errorf("%s must include extension characters", flagName)
 		}
 
 		ext = strings.ToLower(ext)
@@ -212,7 +229,7 @@ func normalizeExtensions(rawExts string) ([]string, error) {
 	}
 
 	if len(exts) == 0 {
-		return nil, fmt.Errorf("--exclude-ext cannot be empty")
+		return nil, fmt.Errorf("%s cannot be empty", flagName)
 	}
 
 	return exts, nil
@@ -505,6 +522,30 @@ func emitOutput(cmd *cobra.Command, opts *graphOptions, format formatters.Output
 	}
 
 	return nil
+}
+
+func applyIncludeExtensionFilter(opts *graphOptions, filePaths []string) ([]string, error) {
+	if len(opts.includeExts) == 0 {
+		return filePaths, nil
+	}
+
+	includedExts := make(map[string]struct{}, len(opts.includeExts))
+	for _, ext := range opts.includeExts {
+		includedExts[ext] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(filePaths))
+	for _, filePath := range filePaths {
+		if _, ok := includedExts[strings.ToLower(filepath.Ext(filePath))]; ok {
+			filtered = append(filtered, filePath)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return nil, fmt.Errorf("no files remain after applying --include-ext %q", opts.includeExt)
+	}
+
+	return filtered, nil
 }
 
 func applyExcludeExtensionFilter(opts *graphOptions, filePaths []string) ([]string, error) {

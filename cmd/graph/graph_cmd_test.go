@@ -118,6 +118,115 @@ func TestGraphInput_WithSupportedFiles_RendersNode(t *testing.T) {
 	}
 }
 
+func TestGraphInput_IncludeExt_KeepsOnlyMatchingExtension(t *testing.T) {
+	repoDir := t.TempDir()
+	goFile := filepath.Join(repoDir, "main.go")
+	javaFile := filepath.Join(repoDir, "Helper.java")
+
+	if err := os.WriteFile(goFile, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(javaFile, []byte("public class Helper {}\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-i", repoDir, "-f", "dot", "--allow-outside-repo", "--include-ext", ".go"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, `"main.go"`) {
+		t.Fatalf("expected graph output to include main.go node, got:\n%s", output)
+	}
+	if strings.Contains(output, `"Helper.java"`) {
+		t.Fatalf("expected graph output to exclude Helper.java node, got:\n%s", output)
+	}
+}
+
+func TestGraphInput_IncludeExt_MultipleExtensions_AreAccepted(t *testing.T) {
+	repoDir := t.TempDir()
+	goFile := filepath.Join(repoDir, "main.go")
+	javaFile := filepath.Join(repoDir, "Helper.java")
+	pyFile := filepath.Join(repoDir, "tool.py")
+	if err := os.WriteFile(goFile, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(javaFile, []byte("public class Helper {}\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(pyFile, []byte("print('hello')\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"-i", repoDir, "-f", "dot", "--allow-outside-repo", "--include-ext", "go,.java"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, `"main.go"`) {
+		t.Fatalf("expected graph output to include main.go node, got:\n%s", output)
+	}
+	if !strings.Contains(output, `"Helper.java"`) {
+		t.Fatalf("expected graph output to include Helper.java node, got:\n%s", output)
+	}
+	if strings.Contains(output, `"tool.py"`) {
+		t.Fatalf("expected graph output to exclude tool.py node, got:\n%s", output)
+	}
+}
+
+func TestGraphInput_IncludeExtAndExcludeExt_ExcludeWins(t *testing.T) {
+	repoDir := t.TempDir()
+	goFile := filepath.Join(repoDir, "main.go")
+	javaFile := filepath.Join(repoDir, "Helper.java")
+	pyFile := filepath.Join(repoDir, "tool.py")
+	if err := os.WriteFile(goFile, []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(javaFile, []byte("public class Helper {}\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	if err := os.WriteFile(pyFile, []byte("print('hello')\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{
+		"-i", repoDir, "-f", "dot", "--allow-outside-repo",
+		"--include-ext", ".go,.java",
+		"--exclude-ext", ".java",
+	})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, `"main.go"`) {
+		t.Fatalf("expected graph output to include main.go node, got:\n%s", output)
+	}
+	if strings.Contains(output, `"Helper.java"`) {
+		t.Fatalf("expected graph output to exclude Helper.java node, got:\n%s", output)
+	}
+	if strings.Contains(output, `"tool.py"`) {
+		t.Fatalf("expected graph output to exclude tool.py node, got:\n%s", output)
+	}
+}
+
 func TestGraphInput_ExcludeExt_SkipsMatchingExtension(t *testing.T) {
 	repoDir := t.TempDir()
 	goFile := filepath.Join(repoDir, "main.go")
