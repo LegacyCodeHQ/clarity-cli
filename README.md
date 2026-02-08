@@ -1,10 +1,10 @@
 # Sanity
 
+[![Built with Sanity](https://raw.githubusercontent.com/LegacyCodeHQ/sanity/main/badges/built-with-sanity-sunrise.svg)](https://raw.githubusercontent.com/LegacyCodeHQ/sanity/main/badges/built-with-sanity-sunrise.svg)
 [![License](https://img.shields.io/github/license/LegacyCodeHQ/sanity)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/LegacyCodeHQ/sanity)](https://github.com/LegacyCodeHQ/sanity/releases)
 [![npm version](https://img.shields.io/npm/v/@legacycodehq/sanity)](https://www.npmjs.com/package/@legacycodehq/sanity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/LegacyCodeHQ/sanity)](https://goreportcard.com/report/github.com/LegacyCodeHQ/sanity)
-[![Built with Sanity](https://raw.githubusercontent.com/LegacyCodeHQ/sanity/main/badges/built-with-sanity-sunrise.svg)](https://raw.githubusercontent.com/LegacyCodeHQ/sanity/main/badges/built-with-sanity-sunrise.svg)
 
 Sanity is a software design tool for developers and coding agents.
 
