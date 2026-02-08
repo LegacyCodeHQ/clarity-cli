@@ -4,7 +4,14 @@
 [![Release](https://img.shields.io/github/v/release/LegacyCodeHQ/sanity)](https://github.com/LegacyCodeHQ/sanity/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/LegacyCodeHQ/sanity)](https://goreportcard.com/report/github.com/LegacyCodeHQ/sanity)
 
-[Audit AI-generated code](https://youtu.be/EqOwJnZSiQs), understand codebases, and stabilize vibe-coded apps.
+Sanity is a software design tool for developers and coding agents.
+
+## Use Cases
+
+- Build maintainable software
+- [Audit AI-generated code](https://youtu.be/EqOwJnZSiQs)
+- Understand codebases
+- Stabilize and reclaim apps built with AI
 
 ## Quick Start
 
