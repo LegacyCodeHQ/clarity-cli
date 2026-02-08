@@ -1,5 +1,11 @@
 # Installation Guide
 
+## npm (macOS/Linux/Windows)
+
+```bash
+npm install -g @legacycodehq/sanity
+```
+
 ## Homebrew (macOS/Linux)
 
 ```bash
