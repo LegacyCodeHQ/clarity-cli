@@ -104,7 +104,7 @@ func TestResolveRubyConstantReferencePath_AllowsIntermediateDirectories(t *testi
 
 func TestResolveRubyConstantReferencePath_PrefersMoreSpecificPath(t *testing.T) {
 	suppliedFiles := map[string]bool{
-		"/project/lib/action_controller/request_forgery_protection.rb":       true,
+		"/project/lib/action_controller/request_forgery_protection.rb":                  true,
 		"/project/actionpack/lib/action_controller/metal/request_forgery_protection.rb": true,
 	}
 

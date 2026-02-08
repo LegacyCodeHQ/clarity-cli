@@ -619,7 +619,7 @@ class MainActivity {
 	err = os.Mkdir(modelsDir, 0755)
 	require.NoError(t, err)
 
-userContent := `package com.example.app.models
+	userContent := `package com.example.app.models
 
 import com.example.app.utils.Validator
 

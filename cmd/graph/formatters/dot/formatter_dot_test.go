@@ -234,7 +234,7 @@ func TestDependencyGraph_ToDOT_HighlightsAllCycleEdgesInSCC(t *testing.T) {
 
 func TestDependencyGraph_ToDOT_DuplicateBaseNamesStayDistinct(t *testing.T) {
 	graph := testFileGraph(t, map[string][]string{
-		"/project/test/res.send.js":     {"/project/test/support/utils.js"},
+		"/project/test/res.send.js":      {"/project/test/support/utils.js"},
 		"/project/test/support/utils.js": {},
 		"/project/lib/utils.js":          {},
 	}, nil)
