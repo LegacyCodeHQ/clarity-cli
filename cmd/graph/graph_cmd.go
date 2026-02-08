@@ -22,6 +22,7 @@ type graphOptions struct {
 	generateURL  bool
 	allowOutside bool
 	excludeExt   string
+	excludeExts  []string
 	includes     []string
 	betweenFiles []string
 	targetFile   string
@@ -65,7 +66,7 @@ func NewCommand() *cobra.Command {
 	// Add input flag for explicit files/directories
 	cmd.Flags().StringSliceVarP(&opts.includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
 	// Add extension exclusion flag
-	cmd.Flags().StringVar(&opts.excludeExt, "exclude-ext", "", "Exclude files with this extension (single extension, e.g. .go)")
+	cmd.Flags().StringVar(&opts.excludeExt, "exclude-ext", "", "Exclude files with these extensions (comma-separated, e.g. .go,.java)")
 	// Add between flag for finding paths between files
 	cmd.Flags().StringSliceVarP(&opts.betweenFiles, "between", "w", nil, "Find all paths between specified files (comma-separated)")
 	// Add file flag for showing dependencies of a specific file
@@ -156,11 +157,11 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 
 func validateGraphOptions(opts *graphOptions) error {
 	if opts.excludeExt != "" {
-		excludeExt, err := normalizeExtension(opts.excludeExt)
+		excludeExts, err := normalizeExtensions(opts.excludeExt)
 		if err != nil {
 			return err
 		}
-		opts.excludeExt = excludeExt
+		opts.excludeExts = excludeExts
 	}
 
 	if len(opts.betweenFiles) > 0 && len(opts.includes) > 0 {
@@ -182,24 +183,39 @@ func validateGraphOptions(opts *graphOptions) error {
 	return nil
 }
 
-func normalizeExtension(rawExt string) (string, error) {
-	ext := strings.TrimSpace(rawExt)
-	if ext == "" {
-		return "", fmt.Errorf("--exclude-ext cannot be empty")
+func normalizeExtensions(rawExts string) ([]string, error) {
+	parts := strings.Split(rawExts, ",")
+	exts := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+
+	for _, part := range parts {
+		ext := strings.TrimSpace(part)
+		if ext == "" {
+			return nil, fmt.Errorf("--exclude-ext cannot contain empty extensions")
+		}
+		if strings.Contains(ext, string(filepath.Separator)) {
+			return nil, fmt.Errorf("--exclude-ext must be file extensions, got %q", part)
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		if ext == "." {
+			return nil, fmt.Errorf("--exclude-ext must include extension characters")
+		}
+
+		ext = strings.ToLower(ext)
+		if _, ok := seen[ext]; ok {
+			continue
+		}
+		seen[ext] = struct{}{}
+		exts = append(exts, ext)
 	}
-	if strings.Contains(ext, ",") {
-		return "", fmt.Errorf("--exclude-ext supports only one extension")
+
+	if len(exts) == 0 {
+		return nil, fmt.Errorf("--exclude-ext cannot be empty")
 	}
-	if strings.Contains(ext, string(filepath.Separator)) {
-		return "", fmt.Errorf("--exclude-ext must be a file extension, got %q", rawExt)
-	}
-	if !strings.HasPrefix(ext, ".") {
-		ext = "." + ext
-	}
-	if ext == "." {
-		return "", fmt.Errorf("--exclude-ext must include extension characters")
-	}
-	return strings.ToLower(ext), nil
+
+	return exts, nil
 }
 
 func ensureRepoPath(opts *graphOptions) {
@@ -492,13 +508,18 @@ func emitOutput(cmd *cobra.Command, opts *graphOptions, format formatters.Output
 }
 
 func applyExcludeExtensionFilter(opts *graphOptions, filePaths []string) ([]string, error) {
-	if opts.excludeExt == "" {
+	if len(opts.excludeExts) == 0 {
 		return filePaths, nil
+	}
+
+	excludedExts := make(map[string]struct{}, len(opts.excludeExts))
+	for _, ext := range opts.excludeExts {
+		excludedExts[ext] = struct{}{}
 	}
 
 	filtered := make([]string, 0, len(filePaths))
 	for _, filePath := range filePaths {
-		if strings.EqualFold(filepath.Ext(filePath), opts.excludeExt) {
+		if _, ok := excludedExts[strings.ToLower(filepath.Ext(filePath))]; ok {
 			continue
 		}
 		filtered = append(filtered, filePath)
