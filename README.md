@@ -1,4 +1,4 @@
-# Clarity
+# Clarity (formerly Sanity)
 
 [![Built with Clarity](https://raw.githubusercontent.com/LegacyCodeHQ/clarity/main/badges/built-with-clarity-sunrise.svg)](https://raw.githubusercontent.com/LegacyCodeHQ/clarity/main/badges/built-with-clarity-sunrise.svg)
 [![License](https://img.shields.io/github/license/LegacyCodeHQ/clarity)](LICENSE)
@@ -7,6 +7,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/LegacyCodeHQ/clarity)](https://goreportcard.com/report/github.com/LegacyCodeHQ/clarity)
 
 Clarity is a software design tool for developers and coding agents.
+
+> **Renamed from Sanity:** If you previously used `sanity`, this is the same project under a new name.
 
 ## Quick Start
 
