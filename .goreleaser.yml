@@ -1,4 +1,4 @@
-# GoReleaser configuration for Sanity CLI
+# GoReleaser configuration for Clarity CLI
 # Documentation: https://goreleaser.com
 version: 2
 
@@ -7,9 +7,9 @@ version: 2
 # via toolchains installed in GitHub Actions (gcc-mingw-w64, gcc-aarch64-linux-gnu, OSXCross).
 # For local development, use 'make build-local' to build for your platform.
 builds:
-  - id: sanity
+  - id: clarity
     main: ./main.go
-    binary: sanity
+    binary: clarity
     env:
       - CGO_ENABLED=1
     goos:
@@ -26,9 +26,9 @@ builds:
     # Inject version information
     ldflags:
       - -s -w
-      - -X github.com/LegacyCodeHQ/sanity/cmd.version={{.Version}}
-      - -X github.com/LegacyCodeHQ/sanity/cmd.buildDate={{.Date}}
-      - -X github.com/LegacyCodeHQ/sanity/cmd.commit={{.ShortCommit}}
+      - -X github.com/LegacyCodeHQ/clarity/cmd.version={{.Version}}
+      - -X github.com/LegacyCodeHQ/clarity/cmd.buildDate={{.Date}}
+      - -X github.com/LegacyCodeHQ/clarity/cmd.commit={{.ShortCommit}}
     # Configure cross-compilation
     overrides:
       # Linux ARM64
@@ -58,7 +58,7 @@ builds:
 
 # Archive configuration
 archives:
-  - id: sanity-archive
+  - id: clarity-archive
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
@@ -96,24 +96,24 @@ changelog:
 release:
   github:
     owner: LegacyCodeHQ
-    name: sanity
+    name: clarity
   draft: false
   prerelease: auto
   mode: append
   name_template: "v{{.Version}}"
   header: |
   footer: |
-    **Full Changelog**: https://github.com/LegacyCodeHQ/sanity/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/LegacyCodeHQ/clarity/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # Homebrew tap - handled by separate workflow job
 # See .github/workflows/release.yml for Homebrew tap publishing
 
 # Snapcraft (optional - uncomment for Linux snap packages)
 # snapcrafts:
-#   - name: sanity
+#   - name: clarity
 #     summary: Analyze and visualize dependency graphs
 #     description: |
-#       Sanity is a CLI tool for analyzing and visualizing dependency graphs
+#       Clarity is a CLI tool for analyzing and visualizing dependency graphs
 #       in your codebase, with support for Dart and Go files.
 #     grade: stable
 #     confinement: classic

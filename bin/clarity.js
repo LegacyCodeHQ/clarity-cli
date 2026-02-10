@@ -4,11 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-const exeName = process.platform === 'win32' ? 'sanity.exe' : 'sanity';
+const exeName = process.platform === 'win32' ? 'clarity.exe' : 'clarity';
 const binaryPath = path.join(__dirname, exeName);
 
 if (!fs.existsSync(binaryPath)) {
-  console.error('Sanity binary is not installed. Reinstall the package and try again.');
+  console.error('Clarity binary is not installed. Reinstall the package and try again.');
   process.exit(1);
 }
 
@@ -17,7 +17,7 @@ const child = spawn(binaryPath, process.argv.slice(2), {
 });
 
 child.on('error', (err) => {
-  console.error(`Failed to start sanity binary: ${err.message}`);
+  console.error(`Failed to start clarity binary: ${err.message}`);
   process.exit(1);
 });
 

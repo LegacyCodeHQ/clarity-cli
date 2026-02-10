@@ -1,21 +1,21 @@
 {
-  "name": "@legacycodehq/sanity",
+  "name": "@legacycodehq/clarity",
   "version": "0.0.0-dev",
-  "description": "Sanity CLI npm wrapper package",
+  "description": "Clarity CLI npm wrapper package",
   "license": "AGPL-3.0-only",
-  "homepage": "https://github.com/LegacyCodeHQ/sanity",
+  "homepage": "https://github.com/LegacyCodeHQ/clarity",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LegacyCodeHQ/sanity.git"
+    "url": "git+https://github.com/LegacyCodeHQ/clarity.git"
   },
   "bugs": {
-    "url": "https://github.com/LegacyCodeHQ/sanity/issues"
+    "url": "https://github.com/LegacyCodeHQ/clarity/issues"
   },
   "bin": {
-    "sanity": "bin/sanity.js"
+    "clarity": "bin/clarity.js"
   },
   "files": [
-    "bin/sanity.js",
+    "bin/clarity.js",
     "scripts/postinstall.js"
   ],
   "scripts": {

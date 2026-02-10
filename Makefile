@@ -92,9 +92,9 @@ coverage-html: coverage
 # No cross-compilation, no GoReleaser, no Zig required
 build-dev:
 	@echo "Building for current platform with version: $(VERSION), commit: $(COMMIT)"
-	CGO_ENABLED=1 go build -ldflags "-s -w -X github.com/LegacyCodeHQ/sanity/cmd.version=$(VERSION) -X github.com/LegacyCodeHQ/sanity/cmd.buildDate=$(BUILD_DATE) -X github.com/LegacyCodeHQ/sanity/cmd.commit=$(COMMIT)" -o sanity ./main.go
+	CGO_ENABLED=1 go build -ldflags "-s -w -X github.com/LegacyCodeHQ/clarity/cmd.version=$(VERSION) -X github.com/LegacyCodeHQ/clarity/cmd.buildDate=$(BUILD_DATE) -X github.com/LegacyCodeHQ/clarity/cmd.commit=$(COMMIT)" -o clarity ./main.go
 	@echo ""
-	@echo "Build successful! Run './sanity --version' to test"
+	@echo "Build successful! Run './clarity --version' to test"
 
 # Validate the GoReleaser configuration
 release-check:
@@ -102,5 +102,5 @@ release-check:
 
 # Clean coverage files and binary
 clean:
-	rm -f coverage.out coverage.html coverage.tmp *.coverprofile *.cover sanity
+	rm -f coverage.out coverage.html coverage.tmp *.coverprofile *.cover clarity
 	rm -rf dist/

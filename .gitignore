@@ -3,9 +3,9 @@
 .vscode/
 
 # application binary
-sanity
-bin/sanity
-bin/sanity.exe
+clarity
+bin/clarity
+bin/clarity.exe
 
 # coverage files
 coverage.out

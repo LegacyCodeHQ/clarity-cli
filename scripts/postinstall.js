@@ -9,28 +9,28 @@ const https = require('node:https');
 const { pipeline } = require('node:stream/promises');
 
 const OWNER = 'LegacyCodeHQ';
-const REPO = 'sanity';
+const REPO = 'clarity';
 const packageJson = require('../package.json');
 
 function toTarget(platform, arch) {
   if (platform === 'darwin' && arch === 'x64') {
-    return { os: 'darwin', arch: 'amd64', archiveExt: 'tar.gz', exeName: 'sanity' };
+    return { os: 'darwin', arch: 'amd64', archiveExt: 'tar.gz', exeName: 'clarity' };
   }
 
   if (platform === 'darwin' && arch === 'arm64') {
-    return { os: 'darwin', arch: 'arm64', archiveExt: 'tar.gz', exeName: 'sanity' };
+    return { os: 'darwin', arch: 'arm64', archiveExt: 'tar.gz', exeName: 'clarity' };
   }
 
   if (platform === 'linux' && arch === 'x64') {
-    return { os: 'linux', arch: 'amd64', archiveExt: 'tar.gz', exeName: 'sanity' };
+    return { os: 'linux', arch: 'amd64', archiveExt: 'tar.gz', exeName: 'clarity' };
   }
 
   if (platform === 'linux' && arch === 'arm64') {
-    return { os: 'linux', arch: 'arm64', archiveExt: 'tar.gz', exeName: 'sanity' };
+    return { os: 'linux', arch: 'arm64', archiveExt: 'tar.gz', exeName: 'clarity' };
   }
 
   if (platform === 'win32' && arch === 'x64') {
-    return { os: 'windows', arch: 'amd64', archiveExt: 'zip', exeName: 'sanity.exe' };
+    return { os: 'windows', arch: 'amd64', archiveExt: 'zip', exeName: 'clarity.exe' };
   }
 
   return null;
@@ -42,7 +42,7 @@ function download(url, destination, redirects = 0) {
       url,
       {
         headers: {
-          'User-Agent': '@legacycodehq/sanity postinstall'
+          'User-Agent': '@legacycodehq/clarity postinstall'
         }
       },
       async (res) => {
@@ -225,16 +225,16 @@ async function main() {
     throw new Error(`Invalid package version '${version}'. Expected a release version like 0.1.0`);
   }
 
-  const archiveName = `sanity_${version}_${target.os}_${target.arch}.${target.archiveExt}`;
-  const checksumName = `sanity_${version}_checksums.txt`;
+  const archiveName = `clarity_${version}_${target.os}_${target.arch}.${target.archiveExt}`;
+  const checksumName = `clarity_${version}_checksums.txt`;
   const releaseBase = `https://github.com/${OWNER}/${REPO}/releases/download/v${version}`;
 
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sanity-npm-'));
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'clarity-npm-'));
   const archivePath = path.join(tmpRoot, archiveName);
   const checksumPath = path.join(tmpRoot, checksumName);
   const extractDir = path.join(tmpRoot, 'extract');
 
-  console.log(`Installing sanity ${version} for ${process.platform}/${process.arch}...`);
+  console.log(`Installing clarity ${version} for ${process.platform}/${process.arch}...`);
 
   await download(`${releaseBase}/${checksumName}`, checksumPath);
   await download(`${releaseBase}/${archiveName}`, archivePath);
@@ -274,6 +274,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`Failed to install sanity binary: ${err.message}`);
+  console.error(`Failed to install clarity binary: ${err.message}`);
   process.exit(1);
 });
