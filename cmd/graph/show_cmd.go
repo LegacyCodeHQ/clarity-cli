@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/LegacyCodeHQ/clarity/cmd/graph/formatters"
+	"github.com/LegacyCodeHQ/clarity/cmd/graph/formatters/dot"
+	"github.com/LegacyCodeHQ/clarity/cmd/graph/formatters/mermaid"
 	"github.com/LegacyCodeHQ/clarity/depgraph"
 	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
@@ -152,7 +154,10 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		return err
 	}
 
-	format, _ := formatters.ParseOutputFormat(opts.outputFormat)
+	format, ok := formatters.ParseOutputFormat(opts.outputFormat)
+	if !ok {
+		return fmt.Errorf("unknown format: %s (valid options: %s)", opts.outputFormat, formatters.SupportedFormats())
+	}
 	fileStats := collectFileStats(cmd, opts, format, fromCommit, toCommit, isCommitRange)
 	label := buildGraphLabel(opts, format, fromCommit, toCommit, isCommitRange, filePaths)
 	fileGraph, err := depgraph.NewFileDependencyGraph(graph, fileStats, contentReader)
@@ -160,10 +165,14 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		return fmt.Errorf("failed to build file graph metadata: %w", err)
 	}
 
-	// Create formatter and generate output
-	formatter, err := NewFormatter(opts.outputFormat)
-	if err != nil {
-		return err
+	var formatter formatters.Formatter
+	switch format {
+	case formatters.OutputFormatDOT:
+		formatter = &dot.Formatter{}
+	case formatters.OutputFormatMermaid:
+		formatter = &mermaid.Formatter{}
+	default:
+		return fmt.Errorf("unknown format: %s (valid options: %s)", opts.outputFormat, formatters.SupportedFormats())
 	}
 
 	renderOpts := formatters.RenderOptions{
@@ -278,6 +287,14 @@ func parseCommitRange(opts *graphOptions) (string, string, bool, error) {
 
 func determineFilePaths(cmd *cobra.Command, opts *graphOptions, pathResolver PathResolver, fromCommit, toCommit string, isCommitRange bool) ([]string, bool, error) {
 	if len(opts.includes) > 0 {
+		if opts.commitID != "" {
+			filePaths, err := collectCommitIncludedFilePaths(opts, pathResolver, toCommit)
+			if err != nil {
+				return nil, false, err
+			}
+			return filePaths, false, nil
+		}
+
 		resolvedIncludes := make([]string, 0, len(opts.includes))
 		for _, include := range opts.includes {
 			resolvedInclude, err := pathResolver.Resolve(RawPath(include))
@@ -341,6 +358,44 @@ func determineFilePaths(cmd *cobra.Command, opts *graphOptions, pathResolver Pat
 	}
 
 	return filePaths, false, nil
+}
+
+func collectCommitIncludedFilePaths(opts *graphOptions, pathResolver PathResolver, toCommit string) ([]string, error) {
+	commitFiles, err := git.GetCommitTreeFiles(opts.repoPath, toCommit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get files from commit tree: %w", err)
+	}
+
+	resolvedIncludes := make([]string, 0, len(opts.includes))
+	for _, include := range opts.includes {
+		resolvedInclude, err := pathResolver.Resolve(RawPath(include))
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve input path %q: %w", include, err)
+		}
+		resolvedIncludes = append(resolvedIncludes, resolveSymlinks(filepath.Clean(resolvedInclude.String())))
+	}
+
+	filtered := make([]string, 0, len(commitFiles))
+	seen := make(map[string]struct{}, len(commitFiles))
+	for _, filePath := range commitFiles {
+		cleanFilePath := resolveSymlinks(filepath.Clean(filePath))
+		for _, includePath := range resolvedIncludes {
+			if cleanFilePath == includePath || strings.HasPrefix(cleanFilePath, includePath+string(filepath.Separator)) {
+				if _, ok := seen[filePath]; ok {
+					break
+				}
+				seen[filePath] = struct{}{}
+				filtered = append(filtered, filePath)
+				break
+			}
+		}
+	}
+
+	if len(filtered) == 0 {
+		return nil, fmt.Errorf("no files found in specified paths")
+	}
+
+	return filtered, nil
 }
 
 func collectBetweenFilePaths(opts *graphOptions, toCommit string) ([]string, error) {

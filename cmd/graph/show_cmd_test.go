@@ -123,6 +123,55 @@ public class App {}
 	}
 }
 
+func TestGraphCommit_WithInput_UsesCommitTreePaths(t *testing.T) {
+	repoDir := t.TempDir()
+	gitInitRepo(t, repoDir)
+
+	if err := os.MkdirAll(filepath.Join(repoDir, "cmd", "graph"), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll() error = %v", err)
+	}
+
+	originalPath := filepath.Join(repoDir, "cmd", "graph", "formatter_factory.go")
+	renamedPath := filepath.Join(repoDir, "cmd", "graph", "formatter.go")
+	fileContent := "package graph\n\nfunc formatterName() string { return \"factory\" }\n"
+
+	if err := os.WriteFile(originalPath, []byte(fileContent), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	gitRun(t, repoDir, "add", ".")
+	gitRun(t, repoDir, "commit", "-m", "add formatter factory file")
+
+	// Simulate a working tree rename not present in HEAD.
+	if err := os.Rename(originalPath, renamedPath); err != nil {
+		t.Fatalf("os.Rename() error = %v", err)
+	}
+	gitRun(t, repoDir, "add", "-A")
+
+	cmd := NewCommand()
+	cmd.SetArgs([]string{
+		"-r", repoDir,
+		"-c", "HEAD",
+		"-i", "cmd/graph",
+		"-f", "dot",
+	})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("cmd.Execute() error = %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, `"formatter_factory.go"`) {
+		t.Fatalf("expected graph output to include formatter_factory.go from HEAD, got:\n%s", output)
+	}
+	if strings.Contains(output, `"formatter.go"`) {
+		t.Fatalf("expected graph output not to include working-tree formatter.go path, got:\n%s", output)
+	}
+}
+
 func TestGraphInput_WithSupportedFiles_RendersNode(t *testing.T) {
 	repoDir := t.TempDir()
 	supportedFile := filepath.Join(repoDir, "main.go")
