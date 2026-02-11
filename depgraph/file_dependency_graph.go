@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
@@ -62,7 +63,7 @@ func NewFileDependencyGraph(g DependencyGraph, fileStats map[string]vcs.FileStat
 
 	for _, node := range nodes {
 		md := FileMetadata{
-			IsTest:    IsTestFile(node, contentReader),
+			IsTest:    registry.IsTestFile(node, contentReader),
 			Extension: filepath.Ext(filepath.Base(node)),
 		}
 

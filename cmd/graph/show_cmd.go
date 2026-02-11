@@ -9,6 +9,7 @@ import (
 
 	"github.com/LegacyCodeHQ/clarity/cmd/graph/formatters"
 	"github.com/LegacyCodeHQ/clarity/depgraph"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 	"github.com/LegacyCodeHQ/clarity/vcs/git"
 
@@ -654,7 +655,7 @@ func expandPaths(paths []string, includeUnsupportedFiles bool) ([]string, error)
 				}
 
 				ext := filepath.Ext(filePath)
-				if depgraph.IsSupportedLanguageExtension(ext) {
+				if registry.IsSupportedLanguageExtension(ext) {
 					result = append(result, filePath)
 				}
 
@@ -678,7 +679,7 @@ func emitUnsupportedFileWarning(cmd *cobra.Command, filePaths []string) {
 
 	for _, filePath := range filePaths {
 		ext := filepath.Ext(filePath)
-		if depgraph.IsSupportedLanguageExtension(ext) {
+		if registry.IsSupportedLanguageExtension(ext) {
 			continue
 		}
 

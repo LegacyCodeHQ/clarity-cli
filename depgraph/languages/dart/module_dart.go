@@ -1,7 +1,7 @@
 package dart
 
 import (
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/moduleapi"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
@@ -15,11 +15,11 @@ func (Module) Extensions() []string {
 	return []string{".dart"}
 }
 
-func (Module) Maturity() langsupport.MaturityLevel {
-	return langsupport.MaturityBasicTests
+func (Module) Maturity() moduleapi.MaturityLevel {
+	return moduleapi.MaturityBasicTests
 }
 
-func (Module) NewResolver(ctx *langsupport.Context, contentReader vcs.ContentReader) langsupport.Resolver {
+func (Module) NewResolver(ctx *moduleapi.Context, contentReader vcs.ContentReader) moduleapi.Resolver {
 	return resolver{ctx: ctx, contentReader: contentReader}
 }
 
@@ -28,7 +28,7 @@ func (Module) IsTestFile(filePath string, _ vcs.ContentReader) bool {
 }
 
 type resolver struct {
-	ctx           *langsupport.Context
+	ctx           *moduleapi.Context
 	contentReader vcs.ContentReader
 }
 
@@ -36,6 +36,6 @@ func (r resolver) ResolveProjectImports(absPath, filePath, ext string) ([]string
 	return ResolveDartProjectImports(absPath, filePath, ext, r.ctx.SuppliedFiles, r.contentReader)
 }
 
-func (resolver) FinalizeGraph(_ langsupport.Graph) error {
+func (resolver) FinalizeGraph(_ moduleapi.Graph) error {
 	return nil
 }

@@ -1,9 +1,9 @@
-package depgraph_test
+package registry_test
 
 import (
 	"testing"
 
-	"github.com/LegacyCodeHQ/clarity/depgraph"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -137,7 +137,7 @@ func TestIsTestFile(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, depgraph.IsTestFile(tc.filePath, nil))
+			assert.Equal(t, tc.want, registry.IsTestFile(tc.filePath, nil))
 		})
 	}
 }

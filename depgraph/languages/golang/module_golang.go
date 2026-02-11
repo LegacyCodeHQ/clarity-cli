@@ -3,7 +3,7 @@ package golang
 import (
 	"errors"
 
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/moduleapi"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 	graphlib "github.com/dominikbraun/graph"
 )
@@ -18,11 +18,11 @@ func (Module) Extensions() []string {
 	return []string{".go"}
 }
 
-func (Module) Maturity() langsupport.MaturityLevel {
-	return langsupport.MaturityActivelyTested
+func (Module) Maturity() moduleapi.MaturityLevel {
+	return moduleapi.MaturityActivelyTested
 }
 
-func (Module) NewResolver(ctx *langsupport.Context, contentReader vcs.ContentReader) langsupport.Resolver {
+func (Module) NewResolver(ctx *moduleapi.Context, contentReader vcs.ContentReader) moduleapi.Resolver {
 	return resolver{
 		ctx:             ctx,
 		contentReader:   contentReader,
@@ -35,7 +35,7 @@ func (Module) IsTestFile(filePath string, _ vcs.ContentReader) bool {
 }
 
 type resolver struct {
-	ctx             *langsupport.Context
+	ctx             *moduleapi.Context
 	contentReader   vcs.ContentReader
 	projectResolver *ProjectImportResolver
 }
@@ -44,12 +44,12 @@ func (r resolver) ResolveProjectImports(absPath, filePath, _ string) ([]string, 
 	return r.projectResolver.ResolveProjectImports(absPath, filePath)
 }
 
-func (r resolver) FinalizeGraph(graph langsupport.Graph) error {
+func (r resolver) FinalizeGraph(graph moduleapi.Graph) error {
 	return addGoIntraPackageDependencies(graph, r.ctx.GoFiles, r.contentReader)
 }
 
 func addGoIntraPackageDependencies(
-	graph langsupport.Graph,
+	graph moduleapi.Graph,
 	goFiles []string,
 	contentReader vcs.ContentReader,
 ) error {

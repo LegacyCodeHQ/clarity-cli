@@ -1,4 +1,4 @@
-package depgraph
+package registry
 
 import "testing"
 

@@ -1,7 +1,6 @@
 package depgraph
 
 import (
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
 	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
@@ -14,14 +13,14 @@ type DependencyResolver interface {
 }
 
 type defaultDependencyResolver struct {
-	extensionResolvers map[string]langsupport.Resolver
-	resolvers          []langsupport.Resolver
+	extensionResolvers map[string]registry.Resolver
+	resolvers          []registry.Resolver
 }
 
 // NewDefaultDependencyResolver creates the built-in language-aware dependency resolver.
 func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs.ContentReader) DependencyResolver {
 	resolver := &defaultDependencyResolver{
-		extensionResolvers: make(map[string]langsupport.Resolver),
+		extensionResolvers: make(map[string]registry.Resolver),
 	}
 
 	for _, module := range registry.Modules() {

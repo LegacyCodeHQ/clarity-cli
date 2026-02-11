@@ -12,6 +12,7 @@ import (
 
 	"github.com/LegacyCodeHQ/clarity/cmd/graph"
 	"github.com/LegacyCodeHQ/clarity/depgraph"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 	"github.com/spf13/cobra"
 )
@@ -167,7 +168,7 @@ func collectSupportedFiles(root string) ([]string, error) {
 			return nil
 		}
 
-		if depgraph.IsSupportedLanguageExtension(filepath.Ext(path)) {
+		if registry.IsSupportedLanguageExtension(filepath.Ext(path)) {
 			files = append(files, path)
 		}
 		return nil

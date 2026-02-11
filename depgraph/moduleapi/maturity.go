@@ -1,4 +1,4 @@
-package langsupport
+package moduleapi
 
 // MaturityLevel describes how complete a language's analysis support is.
 type MaturityLevel int

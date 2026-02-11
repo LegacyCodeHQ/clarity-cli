@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
-type dependencyGraphContext = langsupport.Context
+type dependencyGraphContext = registry.Context
 
 func buildDependencyGraphContext(filePaths []string, contentReader vcs.ContentReader) (*dependencyGraphContext, error) {
 	suppliedFiles, dirToFiles, javaFiles, kotlinFiles, goFiles, err := collectDependencyGraphFiles(filePaths)

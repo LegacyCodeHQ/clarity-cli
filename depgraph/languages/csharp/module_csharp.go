@@ -1,7 +1,7 @@
 package csharp
 
 import (
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/moduleapi"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
@@ -15,11 +15,11 @@ func (Module) Extensions() []string {
 	return []string{".cs"}
 }
 
-func (Module) Maturity() langsupport.MaturityLevel {
-	return langsupport.MaturityBasicTests
+func (Module) Maturity() moduleapi.MaturityLevel {
+	return moduleapi.MaturityBasicTests
 }
 
-func (Module) NewResolver(ctx *langsupport.Context, contentReader vcs.ContentReader) langsupport.Resolver {
+func (Module) NewResolver(ctx *moduleapi.Context, contentReader vcs.ContentReader) moduleapi.Resolver {
 	namespaceToFiles, namespaceToTypes, fileToNamespace, fileToScope := BuildCSharpIndices(ctx.SuppliedFiles, contentReader)
 	return resolver{
 		ctx:              ctx,
@@ -36,7 +36,7 @@ func (Module) IsTestFile(filePath string, _ vcs.ContentReader) bool {
 }
 
 type resolver struct {
-	ctx              *langsupport.Context
+	ctx              *moduleapi.Context
 	contentReader    vcs.ContentReader
 	namespaceToFiles map[string][]string
 	namespaceToTypes map[string]map[string][]string
@@ -56,6 +56,6 @@ func (r resolver) ResolveProjectImports(absPath, filePath, ext string) ([]string
 		r.contentReader)
 }
 
-func (resolver) FinalizeGraph(_ langsupport.Graph) error {
+func (resolver) FinalizeGraph(_ moduleapi.Graph) error {
 	return nil
 }

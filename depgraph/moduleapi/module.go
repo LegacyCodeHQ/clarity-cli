@@ -1,4 +1,4 @@
-package langsupport
+package moduleapi
 
 import "github.com/LegacyCodeHQ/clarity/vcs"
 

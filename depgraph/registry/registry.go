@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/c"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/cpp"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/csharp"
@@ -17,7 +16,7 @@ import (
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/typescript"
 )
 
-var modules = []langsupport.Module{
+var modules = []Module{
 	c.Module{},
 	cpp.Module{},
 	csharp.Module{},
@@ -34,12 +33,12 @@ var modules = []langsupport.Module{
 }
 
 // Modules returns supported language modules in deterministic order.
-func Modules() []langsupport.Module {
-	return append([]langsupport.Module(nil), modules...)
+func Modules() []Module {
+	return append([]Module(nil), modules...)
 }
 
 // ModuleForExtension returns the module registered for the provided extension.
-func ModuleForExtension(ext string) (langsupport.Module, bool) {
+func ModuleForExtension(ext string) (Module, bool) {
 	for _, module := range modules {
 		for _, moduleExt := range module.Extensions() {
 			if moduleExt == ext {

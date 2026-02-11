@@ -6,8 +6,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
-	"github.com/LegacyCodeHQ/clarity/depgraph"
-	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +29,7 @@ Examples:
 }
 
 func runLanguages(cmd *cobra.Command, _ []string) error {
-	languages := depgraph.SupportedLanguages()
+	languages := registry.SupportedLanguages()
 
 	if _, err := fmt.Fprintln(cmd.OutOrStdout()); err != nil {
 		return err
@@ -56,8 +55,8 @@ func runLanguages(cmd *cobra.Command, _ []string) error {
 	if _, err := fmt.Fprintln(cmd.OutOrStdout()); err != nil {
 		return err
 	}
-	legendParts := make([]string, 0, len(langsupport.MaturityLevels()))
-	for _, level := range langsupport.MaturityLevels() {
+	legendParts := make([]string, 0, len(registry.MaturityLevels()))
+	for _, level := range registry.MaturityLevels() {
 		legendParts = append(legendParts, fmt.Sprintf("%s %s", level.Symbol(), level.DisplayName()))
 	}
 	legendLine := strings.Join(legendParts, "  ")

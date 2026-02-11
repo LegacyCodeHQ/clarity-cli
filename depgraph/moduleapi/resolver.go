@@ -1,4 +1,4 @@
-package langsupport
+package moduleapi
 
 import graphlib "github.com/dominikbraun/graph"
 
