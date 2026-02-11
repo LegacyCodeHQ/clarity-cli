@@ -2,6 +2,7 @@ package depgraph
 
 import (
 	"github.com/LegacyCodeHQ/clarity/depgraph/langsupport"
+	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
@@ -23,14 +24,14 @@ func NewDefaultDependencyResolver(ctx *dependencyGraphContext, contentReader vcs
 		extensionResolvers: make(map[string]langsupport.Resolver),
 	}
 
-	for _, language := range languageRegistry {
-		moduleResolver := language.Module.NewResolver(ctx, contentReader)
+	for _, module := range registry.Modules() {
+		moduleResolver := module.NewResolver(ctx, contentReader)
 		if moduleResolver == nil {
 			continue
 		}
 
 		resolver.resolvers = append(resolver.resolvers, moduleResolver)
-		for _, ext := range language.Module.Extensions() {
+		for _, ext := range module.Extensions() {
 			resolver.extensionResolvers[ext] = moduleResolver
 		}
 	}
