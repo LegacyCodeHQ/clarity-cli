@@ -134,11 +134,3 @@ func renderSummary(delta graphDelta) string {
 	lines = append(lines, delta.findings...)
 	return strings.Join(lines, "\n")
 }
-
-func renderDelta(format string, delta graphDelta) (string, error) {
-	formatter, err := NewDiffFormatter(format)
-	if err != nil {
-		return "", err
-	}
-	return formatter.Format(delta)
-}

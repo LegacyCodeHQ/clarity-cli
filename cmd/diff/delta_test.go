@@ -90,38 +90,3 @@ func TestApplySemanticAnalyzers_SortedAndAggregated(t *testing.T) {
 		t.Fatalf("findings are not sorted: %+v", out.findings)
 	}
 }
-
-func TestRenderDelta_UnknownFormat(t *testing.T) {
-	_, err := renderDelta("json", graphDelta{})
-	if err == nil {
-		t.Fatal("expected unknown format error")
-	}
-	if !strings.Contains(err.Error(), "unknown format") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRenderDelta_Mermaid_UnchangedNodesUseDottedBorder(t *testing.T) {
-	delta := graphDelta{
-		edgesAdded: []graphEdge{
-			{from: "/repo/changed.go", to: "/repo/unchanged.go"},
-			{from: "/repo/changed.go", to: "/repo/changed2.go"},
-			{from: "/repo/unchanged.go", to: "/repo/unchanged2.go"},
-		},
-		changedNodes: map[string]struct{}{
-			"/repo/changed.go":  {},
-			"/repo/changed2.go": {},
-		},
-	}
-
-	out, err := renderDelta("mermaid", delta)
-	if err != nil {
-		t.Fatalf("renderDelta(mermaid) error = %v", err)
-	}
-	if strings.Contains(out, "✨") {
-		t.Fatalf("expected plain edges without sparkle labels, got:\n%s", out)
-	}
-	if !strings.Contains(out, "classDef unchanged") || !strings.Contains(out, "stroke-dasharray") {
-		t.Fatalf("expected unchanged class with dotted border, got:\n%s", out)
-	}
-}

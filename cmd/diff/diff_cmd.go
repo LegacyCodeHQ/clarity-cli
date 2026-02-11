@@ -208,3 +208,11 @@ func parseCommitSpec(commitSpec string) (baseRef string, targetRef string, err e
 
 	return left, right, nil
 }
+
+func renderDelta(format string, delta graphDelta) (string, error) {
+	formatter, err := NewDiffFormatter(format)
+	if err != nil {
+		return "", err
+	}
+	return formatter.Format(delta)
+}
