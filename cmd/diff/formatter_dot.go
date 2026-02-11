@@ -3,7 +3,6 @@ package diff
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -37,16 +36,4 @@ func renderDeltaDOT(delta graphDelta) string {
 
 	b.WriteString("}\n")
 	return b.String()
-}
-
-func sortedChangedNodes(changed map[string]struct{}) []string {
-	if len(changed) == 0 {
-		return nil
-	}
-	nodes := make([]string, 0, len(changed))
-	for n := range changed {
-		nodes = append(nodes, n)
-	}
-	sort.Strings(nodes)
-	return nodes
 }

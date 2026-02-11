@@ -101,7 +101,7 @@ func TestRenderDelta_UnknownFormat(t *testing.T) {
 	}
 }
 
-func TestRenderDeltaMermaid_UnchangedNodesUseDottedBorder(t *testing.T) {
+func TestRenderDelta_Mermaid_UnchangedNodesUseDottedBorder(t *testing.T) {
 	delta := graphDelta{
 		edgesAdded: []graphEdge{
 			{from: "/repo/changed.go", to: "/repo/unchanged.go"},
@@ -114,7 +114,10 @@ func TestRenderDeltaMermaid_UnchangedNodesUseDottedBorder(t *testing.T) {
 		},
 	}
 
-	out := renderDeltaMermaid(delta)
+	out, err := renderDelta("mermaid", delta)
+	if err != nil {
+		t.Fatalf("renderDelta(mermaid) error = %v", err)
+	}
 	if strings.Contains(out, "✨") {
 		t.Fatalf("expected plain edges without sparkle labels, got:\n%s", out)
 	}
