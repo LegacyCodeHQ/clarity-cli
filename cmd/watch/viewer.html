@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>clarity watch</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #header {
+      padding: 8px 16px;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    #header .title { font-weight: 600; }
+    #status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      transition: background 0.3s;
+    }
+    #status.disconnected .dot { background: #f87171; }
+    #graph-container {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #graph-container svg {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    #placeholder {
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <span class="title">clarity watch</span>
+    <span id="status">
+      <span class="dot"></span>
+      <span id="status-text">Connecting...</span>
+    </span>
+  </div>
+  <div id="graph-container">
+    <p id="placeholder">Waiting for graph data...</p>
+  </div>
+
+  <script type="module">
+    import { Graphviz } from "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-graphviz@1.6.1/dist/index.js";
+
+    const graphviz = await Graphviz.load();
+    const container = document.getElementById("graph-container");
+    const statusEl = document.getElementById("status");
+    const statusText = document.getElementById("status-text");
+
+    function renderGraph(dot) {
+      try {
+        const svg = graphviz.layout(dot, "svg", "dot");
+        container.innerHTML = svg;
+        statusText.textContent = "Connected";
+        statusEl.classList.remove("disconnected");
+      } catch (err) {
+        console.error("Graphviz render error:", err);
+        statusText.textContent = "Render error";
+      }
+    }
+
+    function connectSSE() {
+      const source = new EventSource("/events");
+
+      source.addEventListener("graph", function(event) {
+        renderGraph(event.data);
+      });
+
+      source.addEventListener("open", function() {
+        statusText.textContent = "Connected";
+        statusEl.classList.remove("disconnected");
+      });
+
+      source.addEventListener("error", function() {
+        statusText.textContent = "Reconnecting...";
+        statusEl.classList.add("disconnected");
+      });
+    }
+
+    connectSSE();
+  </script>
+</body>
+</html>

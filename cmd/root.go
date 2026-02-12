@@ -8,6 +8,7 @@ import (
 	"github.com/LegacyCodeHQ/clarity/cmd/languages"
 	setupcmd "github.com/LegacyCodeHQ/clarity/cmd/setup"
 	"github.com/LegacyCodeHQ/clarity/cmd/show"
+	watchcmd "github.com/LegacyCodeHQ/clarity/cmd/watch"
 	whycmd "github.com/LegacyCodeHQ/clarity/cmd/why"
 	"github.com/spf13/cobra"
 )
@@ -54,6 +55,7 @@ func init() {
 	rootCmd.AddCommand(setupcmd.Cmd)
 	if isDevelopmentBuild(enableDevCommands) {
 		rootCmd.AddCommand(diffcmd.Cmd)
+		rootCmd.AddCommand(watchcmd.Cmd)
 		rootCmd.AddCommand(whycmd.Cmd)
 	}
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
