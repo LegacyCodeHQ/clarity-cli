@@ -46,7 +46,7 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "show",
 		Aliases: []string{"graph"},
-		Short:   "Show a scoped file-based dependency graph.",
+		Short:   "Show a scoped file-based dependency graph",
 		Long:    `Show a scoped file-based dependency graph.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.CalledAs() == "graph" {

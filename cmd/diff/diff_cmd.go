@@ -30,7 +30,7 @@ func NewCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "diff",
-		Short: "Show dependency-graph changes between snapshots.",
+		Short: "Show dependency-graph changes between snapshots",
 		Long:  "Show dependency-graph changes between snapshots.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiff(cmd, opts)
