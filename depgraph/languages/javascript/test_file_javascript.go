@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// IsTestFile reports whether the given JavaScript/JSX path is a test file.
+// IsTestFile reports whether the given JavaScript/JSX/MJS path is a test file.
 func IsTestFile(filePath string) bool {
 	fileName := filepath.Base(filePath)
 	ext := filepath.Ext(fileName)
-	if ext != ".js" && ext != ".jsx" {
+	if ext != ".js" && ext != ".jsx" && ext != ".mjs" {
 		return false
 	}
 

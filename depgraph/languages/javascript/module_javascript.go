@@ -12,7 +12,7 @@ func (Module) Name() string {
 }
 
 func (Module) Extensions() []string {
-	return []string{".js", ".jsx"}
+	return []string{".js", ".jsx", ".mjs"}
 }
 
 func (Module) Maturity() moduleapi.MaturityLevel {
