@@ -79,10 +79,7 @@ func (b *broker) publish(dot string) {
 
 	payload, _ := b.currentPayloadLocked()
 	for ch := range b.clients {
-		select {
-		case ch <- payload:
-		default:
-		}
+		pushLatestPayload(ch, payload)
 	}
 	b.mu.Unlock()
 }
@@ -109,10 +106,7 @@ func (b *broker) reset() {
 		LatestPastID:     b.latestPastIDLocked(),
 	}
 	for ch := range b.clients {
-		select {
-		case ch <- payload:
-		default:
-		}
+		pushLatestPayload(ch, payload)
 	}
 	b.mu.Unlock()
 }
@@ -169,6 +163,24 @@ func (b *broker) latestPastIDLocked() int64 {
 		return 0
 	}
 	return lastCycle[len(lastCycle)-1].ID
+}
+
+func pushLatestPayload(ch chan graphStreamPayload, payload graphStreamPayload) {
+	select {
+	case ch <- payload:
+		return
+	default:
+	}
+
+	select {
+	case <-ch:
+	default:
+	}
+
+	select {
+	case ch <- payload:
+	default:
+	}
 }
 
 func newServer(b *broker, port int) *http.Server {

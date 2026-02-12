@@ -172,6 +172,27 @@ func TestBroker_PublishSkipsDuplicateSnapshots(t *testing.T) {
 	}
 }
 
+func TestBroker_NewPayloadOverwritesQueuedStalePayload(t *testing.T) {
+	b := newBroker()
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+
+	// Queue a stale reset payload and do not consume it yet.
+	b.reset()
+
+	// Publish a fresh working snapshot while the channel buffer is full.
+	b.publish("digraph { A -> B; }")
+
+	select {
+	case got := <-ch:
+		require.Len(t, got.WorkingSnapshots, 1)
+		assert.Equal(t, "digraph { A -> B; }", got.WorkingSnapshots[0].DOT)
+		assert.Equal(t, got.WorkingSnapshots[0].ID, got.LatestWorkingID)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for latest payload")
+	}
+}
+
 func TestBroker_ResetClearsActiveSnapshots(t *testing.T) {
 	b := newBroker()
 	ch := b.subscribe()
