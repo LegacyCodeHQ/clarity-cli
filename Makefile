@@ -1,4 +1,4 @@
-.PHONY: test test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security tools format
+.PHONY: test test-js test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security tools format
 
 # Version information (can be overridden via command line)
 # Try to get version from git tag, otherwise use "dev"
@@ -20,6 +20,7 @@ help:
 	@echo "  lint               - Run golangci-lint"
 	@echo "  vulncheck          - Run govulncheck"
 	@echo "  test               - Run all tests"
+	@echo "  test-js            - Run JavaScript unit tests"
 	@echo "  test-update-golden - Update golden test fixtures"
 	@echo "  test-coverage      - Run tests with coverage percentage"
 	@echo "  coverage           - Generate coverage profile (coverage.out)"
@@ -63,6 +64,10 @@ security: tools
 # Run all tests
 test:
 	go test ./...
+	$(MAKE) test-js
+
+test-js:
+	node --test cmd/watch/viewer_state.test.mjs
 
 # Update golden test fixtures (only packages using goldie)
 test-update-golden:
