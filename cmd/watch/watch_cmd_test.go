@@ -31,8 +31,8 @@ func TestBroker_PublishAndSubscribe(t *testing.T) {
 		require.Len(t, got.WorkingSnapshots, 1)
 		assert.Equal(t, "digraph { A -> B; }", got.WorkingSnapshots[0].DOT)
 		assert.Equal(t, got.WorkingSnapshots[0].ID, got.LatestWorkingID)
-		assert.Empty(t, got.PastSnapshots)
-		assert.Zero(t, got.LatestPastID)
+		assert.Empty(t, got.PastCollections)
+		assert.Zero(t, got.LatestPastCollectionID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for message")
 	}
@@ -50,7 +50,7 @@ func TestBroker_NewSubscriberReceivesLatest(t *testing.T) {
 		require.Len(t, got.WorkingSnapshots, 1)
 		assert.Equal(t, "digraph { X -> Y; }", got.WorkingSnapshots[0].DOT)
 		assert.Equal(t, got.WorkingSnapshots[0].ID, got.LatestWorkingID)
-		assert.Empty(t, got.PastSnapshots)
+		assert.Empty(t, got.PastCollections)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for latest graph")
 	}
@@ -178,7 +178,7 @@ func TestBroker_NewPayloadOverwritesQueuedStalePayload(t *testing.T) {
 	defer b.unsubscribe(ch)
 
 	// Queue a stale reset payload and do not consume it yet.
-	b.reset()
+	b.clearWorkingSet()
 
 	// Publish a fresh working snapshot while the channel buffer is full.
 	b.publish("digraph { A -> B; }")
@@ -193,7 +193,7 @@ func TestBroker_NewPayloadOverwritesQueuedStalePayload(t *testing.T) {
 	}
 }
 
-func TestBroker_ResetClearsActiveSnapshots(t *testing.T) {
+func TestBroker_ArchiveWorkingSetClearsActiveSnapshots(t *testing.T) {
 	b := newBroker()
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -201,24 +201,25 @@ func TestBroker_ResetClearsActiveSnapshots(t *testing.T) {
 	b.publish("digraph { A; }")
 	<-ch
 
-	b.reset()
+	b.archiveWorkingSet()
 
 	select {
 	case got := <-ch:
 		assert.Empty(t, got.WorkingSnapshots)
-		require.Len(t, got.PastSnapshots, 1)
-		assert.Equal(t, "digraph { A; }", got.PastSnapshots[0].DOT)
+		require.Len(t, got.PastCollections, 1)
+		require.Len(t, got.PastCollections[0].Snapshots, 1)
+		assert.Equal(t, "digraph { A; }", got.PastCollections[0].Snapshots[0].DOT)
 		assert.Zero(t, got.LatestWorkingID)
-		assert.Equal(t, got.PastSnapshots[0].ID, got.LatestPastID)
+		assert.Equal(t, got.PastCollections[0].ID, got.LatestPastCollectionID)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for reset payload")
+		t.Fatal("timed out waiting for archive payload")
 	}
 }
 
-func TestBroker_NewSubscriberReceivesResetState(t *testing.T) {
+func TestBroker_NewSubscriberReceivesArchivedState(t *testing.T) {
 	b := newBroker()
 	b.publish("digraph { A; }")
-	b.reset()
+	b.archiveWorkingSet()
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -226,38 +227,62 @@ func TestBroker_NewSubscriberReceivesResetState(t *testing.T) {
 	select {
 	case got := <-ch:
 		assert.Empty(t, got.WorkingSnapshots)
-		require.Len(t, got.PastSnapshots, 1)
-		assert.Equal(t, "digraph { A; }", got.PastSnapshots[0].DOT)
+		require.Len(t, got.PastCollections, 1)
+		require.Len(t, got.PastCollections[0].Snapshots, 1)
+		assert.Equal(t, "digraph { A; }", got.PastCollections[0].Snapshots[0].DOT)
 		assert.Zero(t, got.LatestWorkingID)
-		assert.Equal(t, got.PastSnapshots[0].ID, got.LatestPastID)
+		assert.Equal(t, got.PastCollections[0].ID, got.LatestPastCollectionID)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for reset payload")
+		t.Fatal("timed out waiting for archived payload")
 	}
 }
 
-func TestBroker_ResetArchivesAcrossCycles(t *testing.T) {
+func TestBroker_ArchiveWorkingSetAcrossCycles(t *testing.T) {
 	b := newBroker()
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
 	b.publish("digraph { A; }")
 	<-ch
-	b.reset()
+	b.archiveWorkingSet()
 	<-ch
 
 	b.publish("digraph { B; }")
 	<-ch
-	b.reset()
+	b.archiveWorkingSet()
 
 	select {
 	case got := <-ch:
 		assert.Empty(t, got.WorkingSnapshots)
-		require.Len(t, got.PastSnapshots, 2)
-		assert.Equal(t, "digraph { A; }", got.PastSnapshots[0].DOT)
-		assert.Equal(t, "digraph { B; }", got.PastSnapshots[1].DOT)
-		assert.Equal(t, got.PastSnapshots[1].ID, got.LatestPastID)
+		require.Len(t, got.PastCollections, 2)
+		require.Len(t, got.PastCollections[0].Snapshots, 1)
+		require.Len(t, got.PastCollections[1].Snapshots, 1)
+		assert.Equal(t, "digraph { A; }", got.PastCollections[0].Snapshots[0].DOT)
+		assert.Equal(t, "digraph { B; }", got.PastCollections[1].Snapshots[0].DOT)
+		assert.Equal(t, got.PastCollections[1].ID, got.LatestPastCollectionID)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for second reset payload")
+		t.Fatal("timed out waiting for second archived payload")
+	}
+}
+
+func TestBroker_ClearWorkingSetDoesNotArchive(t *testing.T) {
+	b := newBroker()
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+
+	b.publish("digraph { A; }")
+	<-ch
+
+	b.clearWorkingSet()
+
+	select {
+	case got := <-ch:
+		assert.Empty(t, got.WorkingSnapshots)
+		assert.Empty(t, got.PastCollections)
+		assert.Zero(t, got.LatestWorkingID)
+		assert.Zero(t, got.LatestPastCollectionID)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for clear payload")
 	}
 }
 
@@ -284,8 +309,8 @@ func TestHandleSSE_StreamsJSONPayload(t *testing.T) {
 	assert.Equal(t, "digraph { A; }", payload.WorkingSnapshots[0].DOT)
 	assert.Equal(t, "digraph { B; }", payload.WorkingSnapshots[1].DOT)
 	assert.Equal(t, payload.WorkingSnapshots[1].ID, payload.LatestWorkingID)
-	assert.Empty(t, payload.PastSnapshots)
-	assert.Zero(t, payload.LatestPastID)
+	assert.Empty(t, payload.PastCollections)
+	assert.Zero(t, payload.LatestPastCollectionID)
 }
 
 func decodeSSEPayload(body string, target any) error {
@@ -421,6 +446,12 @@ func TestParseExtensions_CaseInsensitive(t *testing.T) {
 	assert.True(t, exts[".py"])
 }
 
+func TestExtractHEADSignature(t *testing.T) {
+	assert.Equal(t, "abc123", extractHEADSignature("abc123\nM main.go"))
+	assert.Equal(t, "abc123", extractHEADSignature("abc123"))
+	assert.Equal(t, "", extractHEADSignature(""))
+}
+
 func TestNewCommand_DefaultPort(t *testing.T) {
 	cmd := NewCommand()
 	port, err := cmd.Flags().GetInt("port")
@@ -442,7 +473,7 @@ func TestBuildDOTGraph_IncludesFileStats(t *testing.T) {
 	assert.Contains(t, dot, "main.go")
 }
 
-func TestPublishCurrentGraph_NoUncommittedChangesResetsSnapshots(t *testing.T) {
+func TestPublishCurrentGraph_NoUncommittedChangesClearsWorkingSnapshots(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
@@ -455,11 +486,11 @@ func TestPublishCurrentGraph_NoUncommittedChangesResetsSnapshots(t *testing.T) {
 	select {
 	case got := <-ch:
 		assert.Empty(t, got.WorkingSnapshots)
-		assert.Empty(t, got.PastSnapshots)
+		assert.Empty(t, got.PastCollections)
 		assert.Zero(t, got.LatestWorkingID)
-		assert.Zero(t, got.LatestPastID)
+		assert.Zero(t, got.LatestPastCollectionID)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for reset publish")
+		t.Fatal("timed out waiting for clear publish")
 	}
 }
 

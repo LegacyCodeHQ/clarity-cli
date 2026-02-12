@@ -11,9 +11,10 @@ const metaEl = document.getElementById("timeline-meta");
 const sourceEl = document.getElementById("snapshot-source");
 
 let workingSnapshots = [];
-let pastSnapshots = [];
-let manualMode = false;
-let selectedSnapshotID = null;
+let pastCollections = [];
+let selectedCollectionID = null;
+let selectedCollectionSnapshotIndex = 0;
+let liveSnapshotIndex = null;
 
 function renderGraph(dot) {
   try {
@@ -28,7 +29,7 @@ function renderGraph(dot) {
 }
 
 function renderWaitingState() {
-  container.innerHTML = '<p id="placeholder">No snapshots yet. Make file changes to build the session timeline.</p>';
+  container.innerHTML = '<p id="placeholder">No uncommitted changes. Waiting for file changes...</p>';
 }
 
 function formatSnapshotMeta(snapshot, index, total) {
@@ -36,140 +37,205 @@ function formatSnapshotMeta(snapshot, index, total) {
   return `#${index + 1}/${total} | id ${snapshot.id} | ${time.toLocaleTimeString()}`;
 }
 
-function getAllSessionSnapshots() {
-  return [...pastSnapshots, ...workingSnapshots];
-}
-
-function getHistoricalSnapshots(allSnapshots) {
-  if (workingSnapshots.length === 0) {
-    return allSnapshots;
+function getSelectedCollection() {
+  if (selectedCollectionID === null) {
+    return null;
   }
-  const latestWorking = workingSnapshots[workingSnapshots.length - 1];
-  return allSnapshots.filter((snapshot) => snapshot.id !== latestWorking.id);
+  return pastCollections.find((collection) => collection.id === selectedCollectionID) || null;
 }
 
-function syncSnapshotSelector(allSnapshots, selectedSnapshot) {
-  const selectedValue = selectedSnapshot ? `snapshot:${selectedSnapshot.id}` : "live";
+function syncSourceSelector() {
+  const previousValue = sourceEl.value;
   sourceEl.innerHTML = "";
 
   const liveOption = document.createElement("option");
   liveOption.value = "live";
-  liveOption.textContent = "Live view";
+  liveOption.textContent = "Current working directory (live)";
   sourceEl.appendChild(liveOption);
 
-  const historical = getHistoricalSnapshots(allSnapshots);
-  historical.forEach((snapshot) => {
+  const orderedCollections = [...pastCollections].reverse();
+  orderedCollections.forEach((collection, index) => {
     const option = document.createElement("option");
-    option.value = `snapshot:${snapshot.id}`;
-    const time = new Date(snapshot.timestamp).toLocaleTimeString();
-    option.textContent = `Snapshot ${snapshot.id} (${time})`;
+    option.value = `collection:${collection.id}`;
+    const time = new Date(collection.timestamp).toLocaleTimeString();
+    const number = pastCollections.length - index;
+    option.textContent = `Collection ${number} (${collection.snapshots.length} snapshots, ${time})`;
     sourceEl.appendChild(option);
   });
 
-  sourceEl.value = sourceEl.querySelector(`option[value="${selectedValue}"]`) ? selectedValue : "live";
+  if (selectedCollectionID === null) {
+    sourceEl.value = "live";
+    return;
+  }
+
+  const wantedValue = `collection:${selectedCollectionID}`;
+  const wantedOption = sourceEl.querySelector(`option[value="${wantedValue}"]`);
+  if (wantedOption) {
+    sourceEl.value = wantedValue;
+    return;
+  }
+
+  sourceEl.value = previousValue === "" ? "live" : "live";
 }
 
-function syncTimelineUI(allSnapshots, selectedIndex) {
-  const total = allSnapshots.length;
+function syncLiveUI() {
+  const total = workingSnapshots.length;
+  const latestIndex = total > 0 ? total - 1 : 0;
+  if (liveSnapshotIndex !== null) {
+    liveSnapshotIndex = Math.max(0, Math.min(liveSnapshotIndex, latestIndex));
+    if (liveSnapshotIndex === latestIndex) {
+      liveSnapshotIndex = null;
+    }
+  }
+
+  const selectedIndex = liveSnapshotIndex === null ? latestIndex : liveSnapshotIndex;
+  modeEl.textContent = liveSnapshotIndex === null ? "Working directory (live)" : "Working directory snapshot";
   sliderEl.disabled = total <= 1;
   sliderEl.max = total > 0 ? String(total - 1) : "0";
+  sliderEl.value = total > 0 ? String(selectedIndex) : "0";
+  liveBtnEl.disabled = total === 0 || liveSnapshotIndex === null;
+
   if (total === 0) {
-    sliderEl.value = "0";
-  } else {
-    sliderEl.value = String(selectedIndex);
+    metaEl.textContent = "0 working snapshots";
+    return;
   }
 
-  const snapshot = allSnapshots[selectedIndex];
-  modeEl.textContent = manualMode ? "Session snapshot" : "Live view";
-  liveBtnEl.disabled = !manualMode || total === 0;
-  syncSnapshotSelector(allSnapshots, manualMode ? snapshot : null);
-
-  if (snapshot) {
-    metaEl.textContent = `${total} snapshots | ${formatSnapshotMeta(snapshot, selectedIndex, total)}`;
-  } else {
-    metaEl.textContent = "0 snapshots";
-  }
+  metaEl.textContent = `${total} working snapshots | ${formatSnapshotMeta(workingSnapshots[selectedIndex], selectedIndex, total)}`;
 }
 
-function renderSelectedSnapshot() {
-  const allSnapshots = getAllSessionSnapshots();
-  if (allSnapshots.length === 0) {
-    selectedSnapshotID = null;
-    manualMode = false;
-    syncTimelineUI(allSnapshots, 0);
+function syncCollectionUI(collection) {
+  const snapshots = collection.snapshots || [];
+  const total = snapshots.length;
+  if (total === 0) {
+    sliderEl.disabled = true;
+    sliderEl.max = "0";
+    sliderEl.value = "0";
+    modeEl.textContent = "Snapshot collection";
+    liveBtnEl.disabled = false;
+    metaEl.textContent = "Collection is empty";
+    return;
+  }
+
+  selectedCollectionSnapshotIndex = Math.max(0, Math.min(selectedCollectionSnapshotIndex, total - 1));
+  sliderEl.disabled = total <= 1;
+  sliderEl.max = String(total - 1);
+  sliderEl.value = String(selectedCollectionSnapshotIndex);
+  modeEl.textContent = "Snapshot collection";
+  liveBtnEl.disabled = false;
+  metaEl.textContent = `${total} snapshots | ${formatSnapshotMeta(snapshots[selectedCollectionSnapshotIndex], selectedCollectionSnapshotIndex, total)}`;
+}
+
+function renderSelection() {
+  syncSourceSelector();
+
+  if (selectedCollectionID === null) {
+    syncLiveUI();
+    if (workingSnapshots.length === 0) {
+      renderWaitingState();
+      return;
+    }
+    const latestIndex = workingSnapshots.length - 1;
+    const selectedIndex = liveSnapshotIndex === null
+      ? latestIndex
+      : Math.max(0, Math.min(liveSnapshotIndex, latestIndex));
+    renderGraph(workingSnapshots[selectedIndex].dot);
+    return;
+  }
+
+  const selectedCollection = getSelectedCollection();
+  if (!selectedCollection) {
+    selectedCollectionID = null;
+    selectedCollectionSnapshotIndex = 0;
+    renderSelection();
+    return;
+  }
+
+  syncCollectionUI(selectedCollection);
+  if ((selectedCollection.snapshots || []).length === 0) {
     renderWaitingState();
     return;
   }
 
-  let idx = allSnapshots.length - 1;
-  if (manualMode && selectedSnapshotID !== null) {
-    const selectedIdx = allSnapshots.findIndex((snapshot) => snapshot.id === selectedSnapshotID);
-    if (selectedIdx >= 0) {
-      idx = selectedIdx;
-    } else {
-      manualMode = false;
-      selectedSnapshotID = null;
-    }
-  }
-
-  const snapshot = allSnapshots[idx];
-  if (!snapshot) {
-    return;
-  }
-  renderGraph(snapshot.dot);
-  syncTimelineUI(allSnapshots, idx);
+  renderGraph(selectedCollection.snapshots[selectedCollectionSnapshotIndex].dot);
 }
 
 function mergePayload(payload) {
   workingSnapshots = payload.workingSnapshots || [];
-  pastSnapshots = payload.pastSnapshots || [];
-  renderSelectedSnapshot();
+  pastCollections = payload.pastCollections || [];
+
+  if (workingSnapshots.length === 0) {
+    liveSnapshotIndex = null;
+  }
+
+  if (selectedCollectionID !== null && !getSelectedCollection()) {
+    selectedCollectionID = null;
+    selectedCollectionSnapshotIndex = 0;
+  }
+
+  renderSelection();
 }
 
 sliderEl.addEventListener("input", function() {
-  const allSnapshots = getAllSessionSnapshots();
-  if (allSnapshots.length === 0) {
+  if (selectedCollectionID === null) {
+    if (workingSnapshots.length === 0) {
+      return;
+    }
+    const idx = Math.max(0, Math.min(Number(sliderEl.value || "0"), workingSnapshots.length - 1));
+    const latestIndex = workingSnapshots.length - 1;
+    liveSnapshotIndex = idx === latestIndex ? null : idx;
+    renderSelection();
     return;
   }
-  const idx = Math.min(Number(sliderEl.value || "0"), allSnapshots.length - 1);
-  selectedSnapshotID = allSnapshots[idx].id;
-  manualMode = true;
-  renderSelectedSnapshot();
+
+  const collection = getSelectedCollection();
+  if (!collection || (collection.snapshots || []).length === 0) {
+    return;
+  }
+
+  selectedCollectionSnapshotIndex = Math.max(
+    0,
+    Math.min(Number(sliderEl.value || "0"), collection.snapshots.length - 1),
+  );
+  renderSelection();
 });
 
 liveBtnEl.addEventListener("click", function() {
-  manualMode = false;
-  selectedSnapshotID = null;
-  renderSelectedSnapshot();
+  liveSnapshotIndex = null;
+  selectedCollectionID = null;
+  selectedCollectionSnapshotIndex = 0;
+  renderSelection();
 });
 
 sourceEl.addEventListener("change", function(event) {
   const selected = event.target.value;
   if (selected === "live") {
-    manualMode = false;
-    selectedSnapshotID = null;
-    renderSelectedSnapshot();
+    liveSnapshotIndex = null;
+    selectedCollectionID = null;
+    selectedCollectionSnapshotIndex = 0;
+    renderSelection();
     return;
   }
 
-  if (!selected.startsWith("snapshot:")) {
-    manualMode = false;
-    selectedSnapshotID = null;
-    renderSelectedSnapshot();
+  if (!selected.startsWith("collection:")) {
+    liveSnapshotIndex = null;
+    selectedCollectionID = null;
+    selectedCollectionSnapshotIndex = 0;
+    renderSelection();
     return;
   }
 
-  const id = Number(selected.split(":")[1]);
-  if (!Number.isFinite(id)) {
-    manualMode = false;
-    selectedSnapshotID = null;
-    renderSelectedSnapshot();
+  const selectedID = Number(selected.split(":")[1]);
+  if (!Number.isFinite(selectedID)) {
+    liveSnapshotIndex = null;
+    selectedCollectionID = null;
+    selectedCollectionSnapshotIndex = 0;
+    renderSelection();
     return;
   }
 
-  manualMode = true;
-  selectedSnapshotID = id;
-  renderSelectedSnapshot();
+  selectedCollectionID = selectedID;
+  selectedCollectionSnapshotIndex = 0;
+  renderSelection();
 });
 
 function connectSSE() {

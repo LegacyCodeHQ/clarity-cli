@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/LegacyCodeHQ/clarity/depgraph/registry"
@@ -40,6 +41,7 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 
 	var debounceTimer *time.Timer
 	lastGitStateSig, err := git.GetRepositoryStateSignature(repoPath)
+	lastHeadSig := extractHEADSignature(lastGitStateSig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "git state read error: %v\n", err)
 	}
@@ -90,7 +92,13 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 				continue
 			}
 
+			headSig := extractHEADSignature(stateSig)
+			headChanged := headSig != "" && headSig != lastHeadSig
 			lastGitStateSig = stateSig
+			lastHeadSig = headSig
+			if headChanged {
+				b.archiveWorkingSet()
+			}
 			publishCurrentGraph(repoPath, opts, b)
 		}
 	}
@@ -99,7 +107,7 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 func publishCurrentGraph(repoPath string, opts *watchOptions, b *broker) {
 	dot, err := buildDOTGraph(repoPath, opts)
 	if errors.Is(err, errNoUncommittedChanges) {
-		b.reset()
+		b.clearWorkingSet()
 		return
 	}
 	if err != nil {
@@ -131,6 +139,17 @@ func addWatchDirs(watcher *fsnotify.Watcher, root string) error {
 		}
 		return nil
 	})
+}
+
+func extractHEADSignature(repositoryStateSignature string) string {
+	if repositoryStateSignature == "" {
+		return ""
+	}
+	headLine, _, found := strings.Cut(repositoryStateSignature, "\n")
+	if !found {
+		return strings.TrimSpace(repositoryStateSignature)
+	}
+	return strings.TrimSpace(headLine)
 }
 
 func addIfDirectory(watcher *fsnotify.Watcher, path string) {

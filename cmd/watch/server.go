@@ -18,10 +18,16 @@ type graphSnapshot struct {
 }
 
 type graphStreamPayload struct {
-	WorkingSnapshots []graphSnapshot `json:"workingSnapshots"`
-	PastSnapshots    []graphSnapshot `json:"pastSnapshots"`
-	LatestWorkingID  int64           `json:"latestWorkingId"`
-	LatestPastID     int64           `json:"latestPastId"`
+	WorkingSnapshots       []graphSnapshot      `json:"workingSnapshots"`
+	PastCollections        []snapshotCollection `json:"pastCollections"`
+	LatestWorkingID        int64                `json:"latestWorkingId"`
+	LatestPastCollectionID int64                `json:"latestPastCollectionId"`
+}
+
+type snapshotCollection struct {
+	ID        int64           `json:"id"`
+	Timestamp time.Time       `json:"timestamp"`
+	Snapshots []graphSnapshot `json:"snapshots"`
 }
 
 // broker manages SSE client connections and broadcasts graph snapshots.
@@ -29,8 +35,9 @@ type broker struct {
 	mu             sync.Mutex
 	clients        map[chan graphStreamPayload]struct{}
 	history        []graphSnapshot
-	archivedCycles [][]graphSnapshot
+	archivedCycles []snapshotCollection
 	nextID         int64
+	nextCycleID    int64
 	hasState       bool
 }
 
@@ -84,14 +91,30 @@ func (b *broker) publish(dot string) {
 	b.mu.Unlock()
 }
 
-func (b *broker) reset() {
+func (b *broker) archiveWorkingSet() {
 	b.mu.Lock()
 	if len(b.history) > 0 {
-		archived := make([]graphSnapshot, len(b.history))
-		copy(archived, b.history)
-		b.archivedCycles = append(b.archivedCycles, archived)
+		archivedSnapshots := make([]graphSnapshot, len(b.history))
+		copy(archivedSnapshots, b.history)
+		b.nextCycleID++
+		b.archivedCycles = append(b.archivedCycles, snapshotCollection{
+			ID:        b.nextCycleID,
+			Timestamp: time.Now().UTC(),
+			Snapshots: archivedSnapshots,
+		})
 	}
 
+	b.history = nil
+	b.hasState = true
+	payload, _ := b.currentPayloadLocked()
+	for ch := range b.clients {
+		pushLatestPayload(ch, payload)
+	}
+	b.mu.Unlock()
+}
+
+func (b *broker) clearWorkingSet() {
+	b.mu.Lock()
 	if len(b.history) == 0 && b.hasState {
 		b.mu.Unlock()
 		return
@@ -99,12 +122,7 @@ func (b *broker) reset() {
 
 	b.history = nil
 	b.hasState = true
-	payload := graphStreamPayload{
-		WorkingSnapshots: []graphSnapshot{},
-		PastSnapshots:    b.flattenPastSnapshotsLocked(),
-		LatestWorkingID:  0,
-		LatestPastID:     b.latestPastIDLocked(),
-	}
+	payload, _ := b.currentPayloadLocked()
 	for ch := range b.clients {
 		pushLatestPayload(ch, payload)
 	}
@@ -112,15 +130,15 @@ func (b *broker) reset() {
 }
 
 func (b *broker) currentPayloadLocked() (graphStreamPayload, bool) {
-	pastSnapshots := b.flattenPastSnapshotsLocked()
-	latestPastID := b.latestPastIDLocked()
+	pastCollections := b.copyArchivedCyclesLocked()
+	latestPastCollectionID := b.latestPastCollectionIDLocked()
 	if len(b.history) == 0 {
 		if b.hasState {
 			return graphStreamPayload{
-				WorkingSnapshots: []graphSnapshot{},
-				PastSnapshots:    pastSnapshots,
-				LatestWorkingID:  0,
-				LatestPastID:     latestPastID,
+				WorkingSnapshots:       []graphSnapshot{},
+				PastCollections:        pastCollections,
+				LatestWorkingID:        0,
+				LatestPastCollectionID: latestPastCollectionID,
 			}, true
 		}
 		return graphStreamPayload{}, false
@@ -130,39 +148,36 @@ func (b *broker) currentPayloadLocked() (graphStreamPayload, bool) {
 	copy(snapshots, b.history)
 
 	return graphStreamPayload{
-		WorkingSnapshots: snapshots,
-		PastSnapshots:    pastSnapshots,
-		LatestWorkingID:  b.history[len(b.history)-1].ID,
-		LatestPastID:     latestPastID,
+		WorkingSnapshots:       snapshots,
+		PastCollections:        pastCollections,
+		LatestWorkingID:        b.history[len(b.history)-1].ID,
+		LatestPastCollectionID: latestPastCollectionID,
 	}, true
 }
 
-func (b *broker) flattenPastSnapshotsLocked() []graphSnapshot {
+func (b *broker) copyArchivedCyclesLocked() []snapshotCollection {
 	if len(b.archivedCycles) == 0 {
-		return []graphSnapshot{}
+		return []snapshotCollection{}
 	}
 
-	total := 0
-	for _, cycle := range b.archivedCycles {
-		total += len(cycle)
+	copied := make([]snapshotCollection, len(b.archivedCycles))
+	for i, cycle := range b.archivedCycles {
+		snapshots := make([]graphSnapshot, len(cycle.Snapshots))
+		copy(snapshots, cycle.Snapshots)
+		copied[i] = snapshotCollection{
+			ID:        cycle.ID,
+			Timestamp: cycle.Timestamp,
+			Snapshots: snapshots,
+		}
 	}
-
-	flattened := make([]graphSnapshot, 0, total)
-	for _, cycle := range b.archivedCycles {
-		flattened = append(flattened, cycle...)
-	}
-	return flattened
+	return copied
 }
 
-func (b *broker) latestPastIDLocked() int64 {
+func (b *broker) latestPastCollectionIDLocked() int64 {
 	if len(b.archivedCycles) == 0 {
 		return 0
 	}
-	lastCycle := b.archivedCycles[len(b.archivedCycles)-1]
-	if len(lastCycle) == 0 {
-		return 0
-	}
-	return lastCycle[len(lastCycle)-1].ID
+	return b.archivedCycles[len(b.archivedCycles)-1].ID
 }
 
 func pushLatestPayload(ch chan graphStreamPayload, payload graphStreamPayload) {
