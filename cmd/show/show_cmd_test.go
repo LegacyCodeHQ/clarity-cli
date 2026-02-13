@@ -249,7 +249,6 @@ func TestGraphInput_WithJSONFormat_ReturnsError(t *testing.T) {
 	}
 }
 
-
 func TestGraphInput_Exclude_RemovesSpecificFile(t *testing.T) {
 	repoDir := t.TempDir()
 	goFile := filepath.Join(repoDir, "main.go")

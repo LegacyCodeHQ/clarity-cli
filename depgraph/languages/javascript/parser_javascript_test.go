@@ -128,7 +128,7 @@ func TestResolveJavaScriptImportPath(t *testing.T) {
 
 func TestResolveJavaScriptImportPath_MJS(t *testing.T) {
 	suppliedFiles := map[string]bool{
-		"/project/src/viewer_state.mjs": true,
+		"/project/src/viewer_state.mjs":  true,
 		"/project/src/feature/index.mjs": true,
 	}
 
@@ -143,7 +143,7 @@ func TestResolveJavaScriptImportPath_MJS(t *testing.T) {
 
 func TestResolveJavaScriptImportPath_CJS(t *testing.T) {
 	suppliedFiles := map[string]bool{
-		"/project/src/legacy_state.cjs":  true,
+		"/project/src/legacy_state.cjs": true,
 		"/project/src/legacy/index.cjs": true,
 	}
 
