@@ -1,4 +1,4 @@
-.PHONY: test test-js test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security tools format
+.PHONY: test test-js test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security housekeeping tools format
 
 # Version information (can be overridden via command line)
 # Try to get version from git tag, otherwise use "dev"
@@ -19,6 +19,7 @@ help:
 	@echo "  format             - Run gofmt -s on all Go files"
 	@echo "  lint               - Run golangci-lint"
 	@echo "  vulncheck          - Run govulncheck"
+	@echo "  housekeeping       - Run go mod tidy"
 	@echo "  test               - Run all tests"
 	@echo "  test-js            - Run JavaScript unit tests"
 	@echo "  test-update-golden - Update golden test fixtures"
@@ -60,6 +61,10 @@ lint: tools
 # Run govulncheck
 security: tools
 	$(TOOLS_BIN)/govulncheck ./...
+
+# Normalize module dependencies
+housekeeping:
+	go mod tidy
 
 # Run all tests
 test:
