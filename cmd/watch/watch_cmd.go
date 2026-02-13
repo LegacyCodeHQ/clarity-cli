@@ -75,7 +75,7 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 	defer ln.Close()
 
 	b := newBroker()
-	srv := newServer(b, actualPort)
+	srv := newServer(b, actualPort, repoPath)
 
 	go func() {
 		if serveErr := srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {

@@ -1,15 +1,22 @@
 package watch
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
 const maxSnapshots = 250
+
+const watchPageTitleSuffix = "clarity watch"
+
+var indexTemplate = template.Must(template.New("watch-viewer").Parse(indexHTML))
 
 // broker manages SSE client connections and broadcasts graph snapshots.
 type broker struct {
@@ -179,9 +186,9 @@ func pushLatestPayload(ch chan graphStreamPayload, payload graphStreamPayload) {
 	}
 }
 
-func newServer(b *broker, port int) *http.Server {
+func newServer(b *broker, port int, repoPath string) *http.Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc(routeIndex, handleIndex)
+	mux.HandleFunc(routeIndex, handleIndex(buildWatchPageTitle(repoPath)))
 	mux.HandleFunc(routeViewerJS, handleViewerJS)
 	mux.HandleFunc(routeViewerStateJS, handleViewerStateJS)
 	mux.HandleFunc(routeViewerProtoJS, handleViewerProtocolJS)
@@ -193,10 +200,33 @@ func newServer(b *broker, port int) *http.Server {
 	}
 }
 
-func handleIndex(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := w.Write([]byte(indexHTML)); err != nil {
-		http.Error(w, "failed to render page", http.StatusInternalServerError)
+func buildWatchPageTitle(repoPath string) string {
+	repoName := strings.TrimSpace(filepath.Base(filepath.Clean(repoPath)))
+	if repoName == "" || repoName == "." || repoName == string(filepath.Separator) {
+		return watchPageTitleSuffix
+	}
+
+	return fmt.Sprintf("%s • %s", repoName, watchPageTitleSuffix)
+}
+
+func handleIndex(pageTitle string) http.HandlerFunc {
+	view := struct {
+		PageTitle string
+	}{
+		PageTitle: pageTitle,
+	}
+
+	return func(w http.ResponseWriter, _ *http.Request) {
+		var rendered bytes.Buffer
+		if err := indexTemplate.Execute(&rendered, view); err != nil {
+			http.Error(w, "failed to render page", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, err := w.Write(rendered.Bytes()); err != nil {
+			http.Error(w, "failed to render page", http.StatusInternalServerError)
+		}
 	}
 }
 

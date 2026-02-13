@@ -86,12 +86,18 @@ func TestHandleIndex_ServesHTML(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 
-	handleIndex(w, req)
+	handleIndex("clarity • clarity watch")(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
-	assert.Contains(t, w.Body.String(), "clarity watch")
+	assert.Contains(t, w.Body.String(), "clarity • clarity watch")
 	assert.Contains(t, w.Body.String(), `src="/viewer.js"`)
+}
+
+func TestBuildWatchPageTitle(t *testing.T) {
+	assert.Equal(t, "clarity • clarity watch", buildWatchPageTitle("/tmp/clarity"))
+	assert.Equal(t, "clarity watch", buildWatchPageTitle("/"))
+	assert.Equal(t, "clarity watch", buildWatchPageTitle(""))
 }
 
 func TestHandleViewerJS_ServesJavaScript(t *testing.T) {
