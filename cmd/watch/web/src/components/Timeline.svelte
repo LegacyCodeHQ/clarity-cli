@@ -12,23 +12,25 @@
   }
 </script>
 
-<div class="px-4 py-1.5 bg-card border-t border-border flex items-center gap-3 text-xs">
-  <span class="text-muted-foreground w-16">{$viewModel.timeline.modeText}</span>
+<div class="px-4 py-2.5 bg-card border-t border-border flex items-center gap-4">
+  <span class="text-xs font-medium text-muted-foreground w-16">{$viewModel.timeline.modeText}</span>
   <input
     type="range"
-    class="flex-1 min-w-[120px] accent-primary h-1 cursor-pointer"
+    class="timeline-slider flex-1 min-w-[120px] cursor-pointer"
     min="0"
     max={$viewModel.timeline.sliderMax}
     value={$viewModel.timeline.sliderValue}
     disabled={$viewModel.timeline.sliderDisabled}
     oninput={handleSliderInput}
   />
-  <button
-    class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+  <Button
+    variant="ghost"
+    size="sm"
     disabled={$viewModel.timeline.liveButtonDisabled}
     onclick={handleJumpToLatest}
+    class="text-xs"
   >
-    Jump to latest
-  </button>
-  <span class="min-w-[100px] text-right text-muted-foreground">{$viewModel.timeline.metaText}</span>
+    Live
+  </Button>
+  <span class="min-w-[100px] text-right text-xs text-muted-foreground">{$viewModel.timeline.metaText}</span>
 </div>
