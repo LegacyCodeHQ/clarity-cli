@@ -1,4 +1,4 @@
-.PHONY: test test-js test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security housekeeping tools format install-web build-web test-web clean-web
+.PHONY: test test-update-golden test-coverage coverage coverage-html clean help build-dev release-check lint security housekeeping tools format install-web build-web test-web clean-web
 
 # Version information (can be overridden via command line)
 # Try to get version from git tag, otherwise use "dev"
@@ -21,7 +21,6 @@ help:
 	@echo "  vulncheck          - Run govulncheck"
 	@echo "  housekeeping       - Run go mod tidy"
 	@echo "  test               - Run all tests (Go + frontend)"
-	@echo "  test-js            - Run JavaScript unit tests (legacy)"
 	@echo "  test-web           - Run frontend tests (Vitest)"
 	@echo "  test-update-golden - Update golden test fixtures"
 	@echo "  test-coverage      - Run tests with coverage percentage"
@@ -73,10 +72,6 @@ housekeeping:
 test:
 	go test ./...
 	$(MAKE) test-web
-
-# Legacy JS tests (will be removed after migration)
-test-js:
-	node --test cmd/watch/viewer_state.test.mjs cmd/watch/viewer_protocol.test.mjs
 
 # Frontend tests using Vitest
 test-web:
