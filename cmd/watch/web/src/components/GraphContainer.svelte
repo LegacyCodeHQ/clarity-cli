@@ -41,19 +41,19 @@
   });
 </script>
 
-<div class="flex-1 overflow-auto p-4 bg-background">
-  <Card class="h-full flex items-center justify-center bg-white [&_svg]:max-w-full [&_svg]:max-h-full">
-    <div bind:this={container} class="w-full h-full flex items-center justify-center">
+<div class="flex-1 overflow-auto bg-background">
+  <div class="h-full flex items-center justify-center bg-white [&_svg]:max-w-full [&_svg]:max-h-full">
+    <div bind:this={container} class="w-full h-full flex items-center justify-center p-8">
       {#if !graphvizReady}
-        <div class="flex flex-col items-center gap-4">
-          <Skeleton class="h-32 w-64" />
-          <p class="text-muted-foreground text-sm">Loading Graphviz...</p>
+        <div class="flex flex-col items-center gap-3">
+          <Skeleton class="h-24 w-48" />
+          <p class="text-muted-foreground text-xs">Loading Graphviz...</p>
         </div>
       {:else if renderError}
-        <p class="text-destructive text-sm">{renderError}</p>
+        <p class="text-destructive text-xs">{renderError}</p>
       {:else if !$viewModel.renderDot}
-        <p class="text-muted-foreground text-sm">No uncommitted changes. Waiting for file changes...</p>
+        <p class="text-muted-foreground text-xs">No uncommitted changes. Waiting for file changes...</p>
       {/if}
     </div>
-  </Card>
+  </div>
 </div>
