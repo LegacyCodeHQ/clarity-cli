@@ -1,6 +1,6 @@
 # Clarity
 
-[![Built with Clarity](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FLegacyCodeHQ%2Fclarity%2Frefs%2Fheads%2Fmain%2Fbadges%2Fshields.io.json)](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FLegacyCodeHQ%2Fclarity%2Frefs%2Fheads%2Fmain%2Fbadges%2Fshields.io.json)
+[![Built with Clarity](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FLegacyCodeHQ%2Fclarity%2Frefs%2Fheads%2Fmain%2Fbadges%2Fshields.io.json)](https://github.com/LegacyCodeHQ/clarity)
 [![License](https://img.shields.io/github/license/LegacyCodeHQ/clarity)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/LegacyCodeHQ/clarity)](https://github.com/LegacyCodeHQ/clarity/releases)
 [![npm version](https://img.shields.io/npm/v/@legacycodehq/clarity)](https://www.npmjs.com/package/@legacycodehq/clarity)
