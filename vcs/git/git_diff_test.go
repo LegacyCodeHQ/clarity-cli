@@ -176,6 +176,38 @@ func TestGetUncommittedDartFiles_InvalidPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not exist")
 }
 
+func TestGetUncommittedFiles_RenamedFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Create files and commit them
+	createFile(t, tmpDir, "app.ts", "const app = 'hello';\n")
+	createFile(t, tmpDir, "preload.ts", "const preload = true;\n")
+	gitAdd(t, tmpDir, "app.ts")
+	gitAdd(t, tmpDir, "preload.ts")
+	gitCommit(t, tmpDir, "Initial commit")
+
+	// Create subdirectory and rename files using git mv
+	srcDir := filepath.Join(tmpDir, "src")
+	err := os.Mkdir(srcDir, 0755)
+	require.NoError(t, err)
+
+	cmd := exec.Command("git", "mv", "app.ts", "src/app.ts")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	cmd = exec.Command("git", "mv", "preload.ts", "src/preload.ts")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	// Get uncommitted files
+	files, err := GetUncommittedFiles(tmpDir)
+
+	require.NoError(t, err)
+	g := testhelpers.TextGoldie(t)
+	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
+}
+
 // Tests for GetCommitDartFiles
 
 func TestGetCommitDartFiles_SingleCommit(t *testing.T) {
@@ -231,6 +263,46 @@ func TestGetCommitDartFiles_IncludesAllFiles(t *testing.T) {
 	commitID := gitCommitAndGetSHA(t, tmpDir, "Add mixed files")
 
 	// Get files from commit
+	files, err := GetCommitDartFiles(tmpDir, commitID)
+
+	require.NoError(t, err)
+	g := testhelpers.TextGoldie(t)
+	g.Assert(t, t.Name(), []byte(normalizeFilePaths(tmpDir, files)))
+}
+
+func TestGetCommitDartFiles_RenamedFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupGitRepo(t, tmpDir)
+
+	// Create files and commit them
+	createFile(t, tmpDir, "app.ts", "const app = 'hello';\n")
+	createFile(t, tmpDir, "preload.ts", "const preload = true;\n")
+	createFile(t, tmpDir, "config.ts", "const port = 3000;\n")
+	gitAdd(t, tmpDir, "app.ts")
+	gitAdd(t, tmpDir, "preload.ts")
+	gitAdd(t, tmpDir, "config.ts")
+	gitCommit(t, tmpDir, "Initial commit")
+
+	// Move files into a subdirectory (pure renames) and edit one file
+	srcDir := filepath.Join(tmpDir, "src")
+	err := os.Mkdir(srcDir, 0755)
+	require.NoError(t, err)
+
+	cmd := exec.Command("git", "mv", "app.ts", "src/app.ts")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	cmd = exec.Command("git", "mv", "preload.ts", "src/preload.ts")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	// Modify config.ts (the only file with content changes)
+	createFile(t, tmpDir, "config.ts", "const port = 8080;\n")
+	gitAdd(t, tmpDir, "config.ts")
+
+	commitID := gitCommitAndGetSHA(t, tmpDir, "Move files and edit config")
+
+	// Get files from commit — should include all 3: the 2 renames + 1 edit
 	files, err := GetCommitDartFiles(tmpDir, commitID)
 
 	require.NoError(t, err)

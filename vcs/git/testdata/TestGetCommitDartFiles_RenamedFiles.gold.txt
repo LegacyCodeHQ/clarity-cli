@@ -1,0 +1,3 @@
+$REPO/config.ts
+$REPO/src/app.ts
+$REPO/src/preload.ts
