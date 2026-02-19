@@ -144,3 +144,5 @@ In CLI workflows, agents are configured to open a generated visualization URL in
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+Copyright © 2026-present, Legacy Code Headquarters (OPC) Private Limited. All rights reserved.
