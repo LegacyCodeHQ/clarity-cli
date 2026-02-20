@@ -37,9 +37,6 @@ Inherited by all subcommands. Extracted from `cmd/root.go`.
 
 Show dependency-graph changes between snapshots.
 
-
-
-
 ```
 clarity diff [OPTIONS]
 ```
@@ -61,9 +58,6 @@ List all supported programming languages and their mapped file extensions.
 Examples:
   clarity languages
 
-
-
-
 ```
 clarity languages [OPTIONS]
 ```
@@ -78,9 +72,6 @@ clarity languages [OPTIONS]
 
 Initialize AGENTS.md with instructions for AI agents to use clarity.
 
-
-
-
 ```
 clarity setup [OPTIONS]
 ```
@@ -94,9 +85,6 @@ clarity setup [OPTIONS]
 ## `clarity show`
 
 Show a scoped file-based dependency graph.
-
-
-
 
 ```
 clarity show [OPTIONS]
@@ -124,9 +112,6 @@ clarity show [OPTIONS]
 
 Watch a project directory for file changes, rebuild the dependency graph, and serve a live-updating visualization at localhost.
 
-
-
-
 ```
 clarity watch [OPTIONS]
 ```
@@ -147,9 +132,7 @@ clarity watch [OPTIONS]
 
 Show immediate dependency edge(s) between two files, including referenced members when available.
 
-
 Args: `cobra.ExactArgs(2)`
-
 
 ```
 clarity why <from> <to> [OPTIONS]
@@ -162,4 +145,3 @@ clarity why <from> <to> [OPTIONS]
 | `--allow-outside-repo` | | bool | `false` | Allow input paths outside the repo root |
 
 ---
-
