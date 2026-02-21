@@ -28,7 +28,11 @@ func (f mermaidFormatter) Format(g depgraph.FileDependencyGraph, opts RenderOpti
 		sb.WriteString("---\n")
 	}
 
-	sb.WriteString("flowchart LR\n")
+	dir := opts.Direction
+	if dir == "" {
+		dir = DefaultDirection
+	}
+	sb.WriteString(fmt.Sprintf("flowchart %s\n", dir.String()))
 
 	cycleNodes := make(map[string]bool)
 	if len(g.Meta.Cycles) > 0 {

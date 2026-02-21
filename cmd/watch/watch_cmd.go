@@ -11,17 +11,9 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/LegacyCodeHQ/clarity/cmd/show/formatters"
 	"github.com/spf13/cobra"
 )
-
-type watchOptions struct {
-	repoPath   string
-	port       int
-	includeExt string
-	excludeExt string
-	includes   []string
-	excludes   []string
-}
 
 const maxPortBindAttempts = 20
 
@@ -30,9 +22,7 @@ var Cmd = NewCommand()
 
 // NewCommand returns a new watch command instance.
 func NewCommand() *cobra.Command {
-	opts := &watchOptions{
-		port: 4900,
-	}
+	opts := defaultWatchOptions()
 
 	cmd := &cobra.Command{
 		Use:   "watch",
@@ -49,6 +39,13 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringSliceVar(&opts.excludes, "exclude", nil, "Exclude specific files and/or directories (comma-separated)")
 	cmd.Flags().StringVar(&opts.includeExt, "include-ext", "", "Include only files with these extensions (comma-separated, e.g. .go,.java)")
 	cmd.Flags().StringVar(&opts.excludeExt, "exclude-ext", "", "Exclude files with these extensions (comma-separated, e.g. .go,.java)")
+	cmd.Flags().StringVarP(
+		&opts.direction,
+		"direction",
+		"d",
+		opts.direction,
+		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()),
+	)
 
 	return cmd
 }
@@ -64,6 +61,12 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 		return fmt.Errorf("failed to resolve repo path: %w", err)
 	}
 	repoPath = absRepoPath
+
+	if direction, ok := formatters.ParseDirection(opts.direction); !ok {
+		return fmt.Errorf("unknown direction: %s (valid options: %s)", opts.direction, formatters.SupportedDirections())
+	} else {
+		opts.direction = direction.StringLower()
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

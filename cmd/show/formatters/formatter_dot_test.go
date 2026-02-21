@@ -34,6 +34,73 @@ func TestDependencyGraph_ToDOT(t *testing.T) {
 	g.Assert(t, t.Name(), []byte(output))
 }
 
+func TestDependencyGraph_ToDOT_CustomDirection(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/main.dart": {"/project/utils.dart"},
+	}, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionTB})
+	require.NoError(t, err)
+	require.Contains(t, output, "rankdir=TB;")
+}
+
+func TestDependencyGraph_ToDOT_DirectionLR(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionLR})
+	require.NoError(t, err)
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestDependencyGraph_ToDOT_DirectionRL(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionRL})
+	require.NoError(t, err)
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestDependencyGraph_ToDOT_DirectionTB(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionTB})
+	require.NoError(t, err)
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestDependencyGraph_ToDOT_DirectionBT(t *testing.T) {
+	graph := testFileGraph(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionBT})
+	require.NoError(t, err)
+
+	g := testhelpers.DotGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
 func TestDependencyGraph_ToDOT_NewFilesUseSeedlingLabel(t *testing.T) {
 	graph := testFileGraph(t, map[string][]string{
 		"/project/new_file.dart":       {},

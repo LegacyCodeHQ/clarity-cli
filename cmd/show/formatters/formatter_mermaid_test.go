@@ -34,6 +34,73 @@ func TestMermaidFormatter_BasicFlowchart(t *testing.T) {
 	g.Assert(t, t.Name(), []byte(output))
 }
 
+func TestMermaidFormatter_CustomDirection(t *testing.T) {
+	graph := testFileGraphMermaid(t, map[string][]string{
+		"/project/main.dart": {"/project/utils.dart"},
+	}, nil)
+
+	formatter := mermaidFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionBT})
+	require.NoError(t, err)
+	require.Contains(t, output, "flowchart BT")
+}
+
+func TestMermaidFormatter_DirectionLR(t *testing.T) {
+	graph := testFileGraphMermaid(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := mermaidFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionLR})
+	require.NoError(t, err)
+
+	g := testhelpers.MermaidGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestMermaidFormatter_DirectionRL(t *testing.T) {
+	graph := testFileGraphMermaid(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := mermaidFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionRL})
+	require.NoError(t, err)
+
+	g := testhelpers.MermaidGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestMermaidFormatter_DirectionTB(t *testing.T) {
+	graph := testFileGraphMermaid(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := mermaidFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionTB})
+	require.NoError(t, err)
+
+	g := testhelpers.MermaidGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
+func TestMermaidFormatter_DirectionBT(t *testing.T) {
+	graph := testFileGraphMermaid(t, map[string][]string{
+		"/project/main.dart":  {"/project/utils.dart"},
+		"/project/utils.dart": {},
+	}, nil)
+
+	formatter := mermaidFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{Direction: DirectionBT})
+	require.NoError(t, err)
+
+	g := testhelpers.MermaidGoldie(t)
+	g.Assert(t, t.Name(), []byte(output))
+}
+
 func TestMermaidFormatter_WithLabel(t *testing.T) {
 	graph := testFileGraphMermaid(t, map[string][]string{
 		"/project/main.dart": {},

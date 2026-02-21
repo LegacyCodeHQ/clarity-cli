@@ -22,6 +22,7 @@ type graphOptions struct {
 	repoPath     string
 	commitID     string
 	generateURL  bool
+	direction    string
 	allowOutside bool
 	includeExt   string
 	includeExts  []string
@@ -41,6 +42,7 @@ var Cmd = NewCommand()
 func NewCommand() *cobra.Command {
 	opts := &graphOptions{
 		outputFormat: formatters.OutputFormatDOT.String(),
+		direction:    formatters.DefaultDirection.StringLower(),
 		depthLevel:   1,
 	}
 
@@ -68,6 +70,13 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.commitID, "commit", "c", "", "Git commit or range to analyze (e.g., f0459ec, HEAD~3, f0459ec...be3d11a)")
 	// Add URL flag
 	cmd.Flags().BoolVarP(&opts.generateURL, "url", "u", false, "Generate visualization URL (supported formats: dot, mermaid)")
+	cmd.Flags().StringVarP(
+		&opts.direction,
+		"direction",
+		"d",
+		opts.direction,
+		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()),
+	)
 	// Add input flag for explicit files/directories
 	cmd.Flags().StringSliceVarP(&opts.includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
 	// Add exclude flag for removing explicit files/directories from graph inputs
@@ -161,8 +170,10 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		return err
 	}
 
+	direction, _ := formatters.ParseDirection(opts.direction)
 	renderOpts := formatters.RenderOptions{
-		Label: label,
+		Label:     label,
+		Direction: direction,
 	}
 
 	output, err := formatter.Format(fileGraph, renderOpts)
@@ -174,6 +185,12 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 }
 
 func validateGraphOptions(opts *graphOptions) error {
+	direction, ok := formatters.ParseDirection(opts.direction)
+	if !ok {
+		return fmt.Errorf("unknown direction: %s (valid options: %s)", opts.direction, formatters.SupportedDirections())
+	}
+	opts.direction = direction.StringLower()
+
 	if opts.includeExt != "" {
 		includeExts, err := normalizeExtensions("--include-ext", opts.includeExt)
 		if err != nil {

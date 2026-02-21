@@ -52,7 +52,13 @@ func buildDOTGraph(repoPath string, opts *watchOptions) (string, error) {
 		return "", err
 	}
 
-	renderOpts := formatters.RenderOptions{}
+	direction, ok := formatters.ParseDirection(opts.direction)
+	if !ok {
+		direction = formatters.DefaultDirection
+	}
+	renderOpts := formatters.RenderOptions{
+		Direction: direction,
+	}
 
 	return formatter.Format(fileGraph, renderOpts)
 }

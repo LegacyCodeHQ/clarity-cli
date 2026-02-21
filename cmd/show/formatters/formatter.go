@@ -42,4 +42,6 @@ func NewFormatter(format string) (Formatter, error) {
 type RenderOptions struct {
 	// Label is an optional title or label for the graph output.
 	Label string
+	// Direction is the layout direction for the graph.
+	Direction GraphDirection
 }

@@ -19,7 +19,11 @@ func (f dotFormatter) Format(g depgraph.FileDependencyGraph, opts RenderOptions)
 
 	var sb strings.Builder
 	sb.WriteString("digraph dependencies {\n")
-	sb.WriteString("  rankdir=LR;\n")
+	dir := opts.Direction
+	if dir == "" {
+		dir = DefaultDirection
+	}
+	sb.WriteString(fmt.Sprintf("  rankdir=%s;\n", dir.String()))
 	sb.WriteString("  node [shape=box];\n")
 
 	// Add label if provided
