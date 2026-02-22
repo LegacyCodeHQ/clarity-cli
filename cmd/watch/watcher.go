@@ -21,6 +21,7 @@ const gitStatePollInterval = 500 * time.Millisecond
 var skippedDirs = map[string]bool{
 	".git":         true,
 	"node_modules": true,
+	"target":       true,
 	".dart_tool":   true,
 	"build":        true,
 	"__pycache__":  true,
@@ -41,6 +42,7 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 	}
 
 	var debounceTimer *time.Timer
+	var debounceC <-chan time.Time
 	lastGitStateSig, err := git.GetRepositoryStateSignature(repoPath)
 	lastHeadSig := extractHEADSignature(lastGitStateSig)
 	if err != nil {
@@ -53,7 +55,7 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 		select {
 		case <-ctx.Done():
 			if debounceTimer != nil {
-				debounceTimer.Stop()
+				stopAndDrainTimer(debounceTimer)
 			}
 			return nil
 
@@ -66,12 +68,13 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 				continue
 			}
 
-			if debounceTimer != nil {
-				debounceTimer.Stop()
+			if debounceTimer == nil {
+				debounceTimer = time.NewTimer(debounceInterval)
+				debounceC = debounceTimer.C
+			} else {
+				stopAndDrainTimer(debounceTimer)
+				debounceTimer.Reset(debounceInterval)
 			}
-			debounceTimer = time.AfterFunc(debounceInterval, func() {
-				publishCurrentGraph(repoPath, opts, b)
-			})
 
 			if event.Has(fsnotify.Create) {
 				addIfDirectory(watcher, event.Name)
@@ -101,6 +104,22 @@ func watchAndRebuild(ctx context.Context, repoPath string, opts *watchOptions, b
 				b.archiveWorkingSet()
 			}
 			publishCurrentGraph(repoPath, opts, b)
+
+		case <-debounceC:
+			publishCurrentGraph(repoPath, opts, b)
+			debounceC = nil
+		}
+	}
+}
+
+func stopAndDrainTimer(timer *time.Timer) {
+	if timer == nil {
+		return
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
 		}
 	}
 }
