@@ -715,7 +715,22 @@ func TestGraphFile_InvalidScope_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestRepoLabelName_UsesRootDirectoryName(t *testing.T) {
+func TestRepoLabelName_UsesGoModuleNameWhenPresent(t *testing.T) {
+	repoDir := filepath.Join(t.TempDir(), "clarity-cli")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "go.mod"), []byte("module github.com/LegacyCodeHQ/clarity\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	got := repoLabelName(repoDir)
+	if got != "clarity" {
+		t.Fatalf("repoLabelName() = %q, want %q", got, "clarity")
+	}
+}
+
+func TestRepoLabelName_FallsBackToRootDirectoryName(t *testing.T) {
 	repoDir := filepath.Join(t.TempDir(), "my-service")
 	if err := os.MkdirAll(repoDir, 0o755); err != nil {
 		t.Fatalf("os.MkdirAll() error = %v", err)
@@ -727,11 +742,14 @@ func TestRepoLabelName_UsesRootDirectoryName(t *testing.T) {
 	}
 }
 
-func TestBuildGraphLabel_UsesRepoDirectoryNamePrefix(t *testing.T) {
+func TestBuildGraphLabel_UsesGoModuleNamePrefix(t *testing.T) {
 	baseDir := t.TempDir()
-	repoDir := filepath.Join(baseDir, "my-service")
+	repoDir := filepath.Join(baseDir, "clarity-cli")
 	if err := os.MkdirAll(repoDir, 0o755); err != nil {
 		t.Fatalf("os.MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "go.mod"), []byte("module github.com/acme/clarity\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 	gitInitRepo(t, repoDir)
 
@@ -744,8 +762,8 @@ func TestBuildGraphLabel_UsesRepoDirectoryNamePrefix(t *testing.T) {
 
 	label := buildGraphLabel(&graphOptions{repoPath: repoDir}, formatters.OutputFormatMermaid, "", "", false, []string{filePath})
 
-	if !strings.HasPrefix(label, "my-service • ") {
-		t.Fatalf("buildGraphLabel() = %q, want prefix %q", label, "my-service • ")
+	if !strings.HasPrefix(label, "clarity • ") {
+		t.Fatalf("buildGraphLabel() = %q, want prefix %q", label, "clarity • ")
 	}
 	if !strings.Contains(label, " • 1 file") {
 		t.Fatalf("buildGraphLabel() = %q, want file count suffix", label)

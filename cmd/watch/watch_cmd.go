@@ -45,8 +45,7 @@ func NewCommand() *cobra.Command {
 		"direction",
 		"d",
 		opts.direction,
-		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()),
-	)
+		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()))
 
 	return cmd
 }

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -40,6 +41,8 @@ type graphOptions struct {
 const (
 	scopeDownstream = "downstream"
 )
+
+var moduleMajorSuffix = regexp.MustCompile(`^v[0-9]+$`)
 
 // Cmd represents the graph command
 var Cmd = NewCommand()
@@ -82,8 +85,7 @@ func NewCommand() *cobra.Command {
 		"direction",
 		"d",
 		opts.direction,
-		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()),
-	)
+		fmt.Sprintf("Graph direction (%s)", formatters.SupportedDirections()))
 	// Add input flag for explicit files/directories
 	cmd.Flags().StringSliceVarP(&opts.includes, "input", "i", nil, "Build graph from specific files and/or directories (comma-separated)")
 	// Add exclude flag for removing explicit files/directories from graph inputs
@@ -603,11 +605,54 @@ func buildGraphLabel(opts *graphOptions, format formatters.OutputFormat, fromCom
 }
 
 func repoLabelName(repoPath string) string {
+	if moduleName := goModuleLabelName(repoPath); moduleName != "" {
+		return moduleName
+	}
+
 	name := filepath.Base(filepath.Clean(repoPath))
 	if name == "." || name == string(filepath.Separator) || name == "" {
 		return "repo"
 	}
 	return name
+}
+
+func goModuleLabelName(repoPath string) string {
+	content, err := os.ReadFile(filepath.Join(repoPath, "go.mod"))
+	if err != nil {
+		return ""
+	}
+
+	for _, line := range strings.Split(string(content), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "module ") {
+			continue
+		}
+
+		modulePath := strings.TrimSpace(strings.TrimPrefix(trimmed, "module "))
+		modulePath = strings.Trim(modulePath, "\"")
+		return modulePathLabel(modulePath)
+	}
+
+	return ""
+}
+
+func modulePathLabel(modulePath string) string {
+	modulePath = strings.TrimSpace(modulePath)
+	if modulePath == "" {
+		return ""
+	}
+
+	parts := strings.Split(modulePath, "/")
+	last := parts[len(parts)-1]
+	if last == "" {
+		return ""
+	}
+
+	if moduleMajorSuffix.MatchString(last) && len(parts) > 1 {
+		last = parts[len(parts)-2]
+	}
+
+	return last
 }
 
 func emitOutput(cmd *cobra.Command, opts *graphOptions, format formatters.OutputFormat, formatter formatters.Formatter, output string) error {
@@ -794,8 +839,7 @@ func emitUnsupportedFileWarning(filePaths []string) {
 
 	slog.Debug("dependency extraction is unsupported for some files; rendering standalone nodes without dependency edges",
 		"unsupported_file_count", unsupportedCount,
-		"unsupported_extensions", unsupportedExts,
-	)
+		"unsupported_extensions", unsupportedExts)
 }
 
 // resolveAndValidatePaths resolves file paths to absolute paths and validates they exist in the graph.
