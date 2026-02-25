@@ -1,6 +1,6 @@
 # Clarity: Common and Unique Flags Between `watch` and `show`
 
-This document is generated from Lens output of the command files:
+This document is generated from Compass output of the command files:
 - `cmd/show/show_cmd.go`
 - `cmd/watch/watch_cmd.go`
 
