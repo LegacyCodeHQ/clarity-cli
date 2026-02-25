@@ -22,9 +22,6 @@ dist/
 cmd/watch/web/node_modules/
 cmd/watch/dist/
 
-# Beads
-.beads/bd.*
-
 # macOS
 .DS_Store
 

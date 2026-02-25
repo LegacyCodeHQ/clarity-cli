@@ -1,21 +1,9 @@
 # Agent Instructions
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
-
 ## Committing Changes
 
 - Do **not** commit changes unless the user explicitly asks for a commit.
 - This applies even at session completion.
-
-## Quick Reference
-
-```bash
-bd ready                             # Find available work
-bd show <id>                         # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>                        # Complete work
-bd sync                              # Sync with git
-```
 
 ## Session Completion
 
@@ -23,17 +11,12 @@ bd sync                              # Sync with git
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds:
+1. **Run quality gates** (if code changed) - Tests, linters, builds:
    ```bash
    make lint
    make test
    ```
-3. **Update issue status** - Close finished work, update in-progress items
-   ```bash
-   bd sync
-   ```
-4. **Hand off** - Provide context for next session
+2. **Hand off** - Provide context for next session
 
 ## Commit Guidelines
 
