@@ -36,10 +36,11 @@ const worktreeReconcileInterval = 2 * time.Second
 // id "primary" so it's the default tab. In primary mode (cwd is the primary
 // worktree), additional descriptors follow for each linked worktree.
 func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
-	isPrimary, err := git.IsPrimaryWorktree(cwd)
+	kind, err := git.WorktreeKindFor(cwd)
 	if err != nil {
 		return nil, "", err
 	}
+	isPrimary := kind == git.WorktreeKindMain
 
 	cwdAbs, err := filepath.Abs(cwd)
 	if err != nil {
@@ -69,7 +70,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 		Active:    true,
 	}}
 	for _, w := range worktrees {
-		if w.IsPrimary {
+		if w.Kind == git.WorktreeKindMain {
 			continue
 		}
 		if !pathExists(w.Path) {
@@ -92,7 +93,7 @@ func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
 
 func primaryBranch(worktrees []git.Worktree) string {
 	for _, w := range worktrees {
-		if w.IsPrimary {
+		if w.Kind == git.WorktreeKindMain {
 			return w.Branch
 		}
 	}
@@ -310,7 +311,7 @@ func (s *supervisor) reconcileWorktrees(ctx context.Context) {
 
 	seen := make(map[string]bool)
 	for _, w := range worktrees {
-		if w.IsPrimary || !pathExists(w.Path) {
+		if w.Kind == git.WorktreeKindMain || !pathExists(w.Path) {
 			continue
 		}
 		desc := descriptorForLinked(w)

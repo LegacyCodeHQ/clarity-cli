@@ -219,8 +219,8 @@ func isLinkedWorktreeTeardownSnapshot(worktreePath string) bool {
 		return false
 	}
 
-	isPrimary, err := git.IsPrimaryWorktree(worktreePath)
-	if err != nil || isPrimary {
+	kind, err := git.WorktreeKindFor(worktreePath)
+	if err != nil || kind == git.WorktreeKindMain {
 		return false
 	}
 

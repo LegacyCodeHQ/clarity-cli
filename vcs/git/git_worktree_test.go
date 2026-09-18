@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetCommonDir_Primary(t *testing.T) {
+func TestGetCommonDir_Main(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)
 	seedInitialCommit(t, repo)
@@ -31,16 +31,16 @@ func TestGetCommonDir_LinkedWorktree(t *testing.T) {
 	wt := filepath.Join(wtParent, "linked")
 	gitWorktreeAdd(t, repo, wt, "feat/linked")
 
-	commonFromPrimary, err := GetCommonDir(repo)
+	commonFromMain, err := GetCommonDir(repo)
 	require.NoError(t, err)
 	commonFromLinked, err := GetCommonDir(wt)
 	require.NoError(t, err)
 
-	assert.Equal(t, resolveSymlinks(commonFromPrimary), resolveSymlinks(commonFromLinked),
-		"common dir must be identical for primary and linked worktrees")
+	assert.Equal(t, resolveSymlinks(commonFromMain), resolveSymlinks(commonFromLinked),
+		"common dir must be identical for the main worktree and linked worktrees")
 }
 
-func TestGetGitDir_PrimaryEqualsCommon(t *testing.T) {
+func TestGetGitDir_MainEqualsCommon(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)
 	seedInitialCommit(t, repo)
@@ -72,7 +72,7 @@ func TestGetGitDir_LinkedDiffersFromCommon(t *testing.T) {
 		"linked gitdir should live under <common>/worktrees/<name>; got %q", gitDir)
 }
 
-func TestIsPrimaryWorktree(t *testing.T) {
+func TestWorktreeKindFor(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)
 	seedInitialCommit(t, repo)
@@ -80,16 +80,16 @@ func TestIsPrimaryWorktree(t *testing.T) {
 	wt := filepath.Join(t.TempDir(), "linked")
 	gitWorktreeAdd(t, repo, wt, "feat/linked")
 
-	primary, err := IsPrimaryWorktree(repo)
+	main, err := WorktreeKindFor(repo)
 	require.NoError(t, err)
-	assert.True(t, primary, "primary worktree must report IsPrimaryWorktree=true")
+	assert.Equal(t, WorktreeKindMain, main, "the main worktree must report WorktreeKindMain")
 
-	linked, err := IsPrimaryWorktree(wt)
+	linked, err := WorktreeKindFor(wt)
 	require.NoError(t, err)
-	assert.False(t, linked, "linked worktree must report IsPrimaryWorktree=false")
+	assert.Equal(t, WorktreeKindLinked, linked, "a linked worktree must report WorktreeKindLinked")
 }
 
-func TestListWorktrees_PrimaryOnly(t *testing.T) {
+func TestListWorktrees_MainOnly(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)
 	seedInitialCommit(t, repo)
@@ -98,12 +98,12 @@ func TestListWorktrees_PrimaryOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, wts, 1)
 
-	assert.True(t, wts[0].IsPrimary)
+	assert.Equal(t, WorktreeKindMain, wts[0].Kind)
 	assert.Equal(t, resolveSymlinks(repo), resolveSymlinks(wts[0].Path))
 	assert.NotEmpty(t, wts[0].Head)
 }
 
-func TestListWorktrees_PrimaryAndLinked(t *testing.T) {
+func TestListWorktrees_MainAndLinked(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)
 	seedInitialCommit(t, repo)
@@ -120,13 +120,13 @@ func TestListWorktrees_PrimaryAndLinked(t *testing.T) {
 		byPath[resolveSymlinks(w.Path)] = w
 	}
 
-	primary, ok := byPath[resolveSymlinks(repo)]
-	require.True(t, ok, "primary worktree should appear in list")
-	assert.True(t, primary.IsPrimary)
+	main, ok := byPath[resolveSymlinks(repo)]
+	require.True(t, ok, "the main worktree should appear in list")
+	assert.Equal(t, WorktreeKindMain, main.Kind)
 
 	linked, ok := byPath[resolveSymlinks(wt)]
 	require.True(t, ok, "linked worktree should appear in list")
-	assert.False(t, linked.IsPrimary)
+	assert.Equal(t, WorktreeKindLinked, linked.Kind)
 	assert.Equal(t, "refs/heads/feat/linked", linked.Branch)
 }
 
