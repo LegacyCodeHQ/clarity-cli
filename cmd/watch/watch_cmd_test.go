@@ -1028,7 +1028,7 @@ func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.
 	runGit(t, primary, "worktree", "add", "-b", "teardown-test", linked)
 
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{
+	b.registerWorktree(protocol.WorktreeDescriptor{
 		ID:        "wt-teardown",
 		Path:      linked,
 		Label:     "linked",
@@ -1068,7 +1068,7 @@ func TestPublishCurrentGraph_RemovedLinkedWorktreeFinishesWithoutError(t *testin
 	runGit(t, primary, "worktree", "add", "-b", "removed-teardown-test", linked)
 
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{
+	b.registerWorktree(protocol.WorktreeDescriptor{
 		ID:        "wt-removed",
 		Path:      linked,
 		Label:     "linked",
@@ -1319,7 +1319,7 @@ func waitForSnapshotID(t *testing.T, b *broker, want int64, timeout time.Duratio
 func latestSnapshot(b *broker) (string, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := b.repoStates[primaryWorktreeID]
+	s := b.worktreeStates[primaryWorktreeID]
 	if s == nil || len(s.history) == 0 {
 		return "", false
 	}

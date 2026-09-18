@@ -85,7 +85,7 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		return len(b.repos) == 1
+		return len(b.worktrees) == 1
 	}, 2*time.Second, 20*time.Millisecond, "primary tab should register on startup")
 
 	// Add a worktree from outside the supervisor and expect it to appear as a tab.
@@ -95,13 +95,13 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		return len(b.repos) == 2
+		return len(b.worktrees) == 2
 	}, 3*time.Second, 50*time.Millisecond, "supervisor should add a tab for the new worktree")
 
 	b.mu.Lock()
-	gotIDs := []string{b.repos[0].ID, b.repos[1].ID}
-	linkedID := b.repos[1].ID
-	bothActive := b.repos[0].Active && b.repos[1].Active
+	gotIDs := []string{b.worktrees[0].ID, b.worktrees[1].ID}
+	linkedID := b.worktrees[1].ID
+	bothActive := b.worktrees[0].Active && b.worktrees[1].Active
 	b.mu.Unlock()
 	assert.Contains(t, gotIDs, primaryWorktreeID)
 	assert.NotEqual(t, primaryWorktreeID, gotIDs[1], "second tab should be the linked worktree, not another primary")
@@ -113,11 +113,11 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		if len(b.repos) != 2 {
+		if len(b.worktrees) != 2 {
 			return false
 		}
-		idx, ok := b.repoIndex[linkedID]
-		return ok && !b.repos[idx].Active
+		idx, ok := b.worktreeIndex[linkedID]
+		return ok && !b.worktrees[idx].Active
 	}, 3*time.Second, 50*time.Millisecond, "removed worktree should remain as an inactive tab")
 
 	cancel()
@@ -160,7 +160,7 @@ func TestSupervisor_ReconcileDiscoversWorktreeWithoutFsnotify(t *testing.T) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		n := 0
-		for _, r := range b.repos {
+		for _, r := range b.worktrees {
 			if r.Label == "reconciled" && r.Active {
 				n++
 			}
@@ -205,7 +205,7 @@ func TestSupervisor_SkipsStaleInitialWorktreeAndDetectsLaterAdds(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		return len(b.repos) > 0 && b.repos[0].ID == primaryWorktreeID
+		return len(b.worktrees) > 0 && b.worktrees[0].ID == primaryWorktreeID
 	}, 2*time.Second, 20*time.Millisecond, "primary tab should register on startup")
 
 	live := filepath.Join(t.TempDir(), "live-after-stale")
@@ -214,11 +214,11 @@ func TestSupervisor_SkipsStaleInitialWorktreeAndDetectsLaterAdds(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		if len(b.repos) != 2 {
+		if len(b.worktrees) != 2 {
 			return false
 		}
 		hasLive := false
-		for _, repo := range b.repos {
+		for _, repo := range b.worktrees {
 			if repo.Label == "stale" {
 				return false
 			}
@@ -268,8 +268,8 @@ func TestSupervisor_VanishedWorktreeSelfFinishes(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		idx, ok := b.repoIndex[desc.ID]
-		return ok && b.repos[idx].Active
+		idx, ok := b.worktreeIndex[desc.ID]
+		return ok && b.worktrees[idx].Active
 	}, 2*time.Second, 20*time.Millisecond, "worktree tab should register active")
 
 	// Delete the working tree out from under the watcher without telling the
@@ -279,8 +279,8 @@ func TestSupervisor_VanishedWorktreeSelfFinishes(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		idx, ok := b.repoIndex[desc.ID]
-		return ok && !b.repos[idx].Active
+		idx, ok := b.worktreeIndex[desc.ID]
+		return ok && !b.worktrees[idx].Active
 	}, 5*time.Second, 100*time.Millisecond, "watcher should self-finish when its worktree vanishes")
 }
 

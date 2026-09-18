@@ -116,7 +116,7 @@ func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOp
 			// dead path and flip the tab to a finished, closable record. This is
 			// independent of the meta-watcher, which is the primary trigger.
 			if !pathExists(repoPath) {
-				b.markRepoFinished(repoID)
+				b.markWorktreeFinished(repoID)
 				return nil
 			}
 			stateSig, err := git.GetRepositoryStateSignature(repoPath)
@@ -181,7 +181,7 @@ func publishCurrentGraph(repoID, repoPath string, opts *watchOptions, b *broker,
 		return
 	}
 	if isLinkedWorktreeTeardownSnapshot(repoPath) {
-		b.markRepoFinished(repoID)
+		b.markWorktreeFinished(repoID)
 		return
 	}
 
@@ -210,7 +210,7 @@ func finishRepoIfRemoved(repoID, repoPath string, b *broker) bool {
 	if pathExists(repoPath) {
 		return false
 	}
-	b.markRepoFinished(repoID)
+	b.markWorktreeFinished(repoID)
 	return true
 }
 

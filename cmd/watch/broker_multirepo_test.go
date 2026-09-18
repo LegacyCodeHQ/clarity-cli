@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBroker_RegisterRepo_EmitsTabsToSubscribers(t *testing.T) {
+func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 	b := newBroker()
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.registerRepo(protocol.WorktreeDescriptor{
+	b.registerWorktree(protocol.WorktreeDescriptor{
 		ID:        "primary",
 		Path:      "/repo",
 		Label:     "clarity-cli",
@@ -31,10 +31,10 @@ func TestBroker_RegisterRepo_EmitsTabsToSubscribers(t *testing.T) {
 	}
 }
 
-func TestBroker_PublishToMultipleRepos_FlatPayloadTaggedByRepoID(t *testing.T) {
+func TestBroker_PublishToMultipleWorktrees_FlatPayloadTaggedByWorktreeID(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", IsPrimary: true})
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", IsPrimary: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", IsPrimary: false})
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -70,9 +70,9 @@ done:
 	}
 }
 
-func TestBroker_MarksSessionStartOncePerRepo(t *testing.T) {
+func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
 
 	// The first snapshot recorded for a repo is the session start: it captures
 	// whatever already existed in the working tree when the watcher attached.
@@ -104,10 +104,10 @@ func TestBroker_MarksSessionStartOncePerRepo(t *testing.T) {
 	assert.True(t, got2.PastCollections[0].Snapshots[0].SessionStart, "archived first snapshot retains session start")
 }
 
-func TestBroker_ArchiveOnlyAffectsThatRepo(t *testing.T) {
+func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
 
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
@@ -129,14 +129,14 @@ func TestBroker_ArchiveOnlyAffectsThatRepo(t *testing.T) {
 	}
 }
 
-func TestBroker_UnregisterRepo_DropsTabAndHistory(t *testing.T) {
+func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
-	b.unregisterRepo("wt-aaaaaaaa")
+	b.unregisterWorktree("wt-aaaaaaaa")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -152,17 +152,17 @@ func TestBroker_UnregisterRepo_DropsTabAndHistory(t *testing.T) {
 	}
 }
 
-// markRepoFinished is the removal path for a worktree whose git working tree
+// markWorktreeFinished is the removal path for a worktree whose git working tree
 // was deleted: the tab must stay visible, but its final working snapshots are
 // no longer live and should be exposed as an archived collection.
-func TestBroker_MarkRepoFinished_ArchivesFinalWorkingSet(t *testing.T) {
+func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
-	b.markRepoFinished("wt-aaaaaaaa")
+	b.markWorktreeFinished("wt-aaaaaaaa")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -184,21 +184,21 @@ func TestBroker_MarkRepoFinished_ArchivesFinalWorkingSet(t *testing.T) {
 		require.Len(t, got.PastCollections[0].Snapshots, 1)
 		assert.Equal(t, "digraph w {}", got.PastCollections[0].Snapshots[0].DOT)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for payload after markRepoFinished")
+		t.Fatal("timed out waiting for payload after markWorktreeFinished")
 	}
 }
 
-// closeRepo is the user-initiated teardown of a finished tab: only inactive
+// closeWorktree is the user-initiated teardown of a finished tab: only inactive
 // worktrees can be closed, and closing drops the tab and its history.
-func TestBroker_CloseRepo_RemovesFinishedTab(t *testing.T) {
+func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
-	b.markRepoFinished("wt-aaaaaaaa")
+	b.markWorktreeFinished("wt-aaaaaaaa")
 
-	assert.Equal(t, closeOK, b.closeRepo("wt-aaaaaaaa"), "closing a finished worktree should succeed")
+	assert.Equal(t, closeOK, b.closeWorktree("wt-aaaaaaaa"), "closing a finished worktree should succeed")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -210,18 +210,18 @@ func TestBroker_CloseRepo_RemovesFinishedTab(t *testing.T) {
 		require.Len(t, got.WorkingSnapshots, 1)
 		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for payload after closeRepo")
+		t.Fatal("timed out waiting for payload after closeWorktree")
 	}
 }
 
-// An active worktree's tab is pinned: closeRepo must refuse it so the UI can't
+// An active worktree's tab is pinned: closeWorktree must refuse it so the UI can't
 // tear down a tab that's still being watched.
-func TestBroker_CloseRepo_RefusesActiveRepo(t *testing.T) {
+func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 	b.publish("primary", "digraph p {}")
 
-	assert.Equal(t, closeActive, b.closeRepo("primary"), "closing an active worktree should be refused")
+	assert.Equal(t, closeActive, b.closeWorktree("primary"), "closing an active worktree should be refused")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -235,9 +235,9 @@ func TestBroker_CloseRepo_RefusesActiveRepo(t *testing.T) {
 	}
 }
 
-func TestBroker_CloseRepo_UnknownRepoReturnsFalse(t *testing.T) {
+func TestBroker_CloseWorktree_UnknownWorktreeReturnsFalse(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 
-	assert.Equal(t, closeNotFound, b.closeRepo("wt-missing"), "closing an unknown worktree should report not found")
+	assert.Equal(t, closeNotFound, b.closeWorktree("wt-missing"), "closing an unknown worktree should report not found")
 }

@@ -188,7 +188,7 @@ func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.Worktree
 	if !pathExists(desc.Path) {
 		return
 	}
-	s.b.registerRepo(desc)
+	s.b.registerWorktree(desc)
 	wctx, cancel := context.WithCancel(parent)
 	s.mu.Lock()
 	s.watchers[desc.ID] = cancel
@@ -213,7 +213,7 @@ func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.Worktree
 // finishWatcher stops monitoring a worktree whose git working tree was removed
 // but keeps its tab: the file watcher is cancelled while the broker flips the
 // tab to inactive and preserves its snapshot history. The tab survives as a
-// frozen, read-only record until the user closes it (see broker.closeRepo).
+// frozen, read-only record until the user closes it (see broker.closeWorktree).
 func (s *supervisor) finishWatcher(repoID string) {
 	s.mu.Lock()
 	cancel, ok := s.watchers[repoID]
@@ -222,7 +222,7 @@ func (s *supervisor) finishWatcher(repoID string) {
 	if ok {
 		cancel()
 	}
-	s.b.markRepoFinished(repoID)
+	s.b.markWorktreeFinished(repoID)
 }
 
 func (s *supervisor) shutdown() {
