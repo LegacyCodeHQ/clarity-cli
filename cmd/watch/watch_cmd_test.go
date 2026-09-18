@@ -1028,7 +1028,7 @@ func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.
 	runGit(t, primary, "worktree", "add", "-b", "teardown-test", linked)
 
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{
+	b.registerRepo(protocol.WorktreeDescriptor{
 		ID:        "wt-teardown",
 		Path:      linked,
 		Label:     "linked",
@@ -1047,8 +1047,8 @@ func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.
 	payload, ok := b.currentPayloadLocked()
 	b.mu.Unlock()
 	require.True(t, ok)
-	require.Len(t, payload.Repos, 1)
-	assert.False(t, payload.Repos[0].Active, "linked worktree teardown should finish the repo")
+	require.Len(t, payload.Worktrees, 1)
+	assert.False(t, payload.Worktrees[0].Active, "linked worktree teardown should finish the repo")
 	assert.Empty(t, payload.WorkingSnapshots, "teardown must not publish a deleted-file working snapshot")
 	require.Len(t, payload.PastCollections, 1)
 	require.Len(t, payload.PastCollections[0].Snapshots, 1)
@@ -1068,7 +1068,7 @@ func TestPublishCurrentGraph_RemovedLinkedWorktreeFinishesWithoutError(t *testin
 	runGit(t, primary, "worktree", "add", "-b", "removed-teardown-test", linked)
 
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{
+	b.registerRepo(protocol.WorktreeDescriptor{
 		ID:        "wt-removed",
 		Path:      linked,
 		Label:     "linked",
@@ -1089,8 +1089,8 @@ func TestPublishCurrentGraph_RemovedLinkedWorktreeFinishesWithoutError(t *testin
 	payload, ok := b.currentPayloadLocked()
 	b.mu.Unlock()
 	require.True(t, ok)
-	require.Len(t, payload.Repos, 1)
-	assert.False(t, payload.Repos[0].Active, "removed linked worktree should finish the repo")
+	require.Len(t, payload.Worktrees, 1)
+	assert.False(t, payload.Worktrees[0].Active, "removed linked worktree should finish the repo")
 	assert.Empty(t, payload.WorkingSnapshots, "teardown must not publish a working snapshot")
 	require.Len(t, payload.PastCollections, 1)
 	require.Len(t, payload.PastCollections[0].Snapshots, 1)

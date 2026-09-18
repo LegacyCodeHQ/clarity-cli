@@ -35,7 +35,7 @@ const worktreeReconcileInterval = 2 * time.Second
 // starts in `cwd`. The first entry is always the cwd-tree, given the literal
 // id "primary" so it's the default tab. In primary mode (cwd is the primary
 // worktree), additional descriptors follow for each linked worktree.
-func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
+func planInitialRepos(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
 	isPrimary, err := git.IsPrimaryWorktree(cwd)
 	if err != nil {
 		return nil, "", err
@@ -47,7 +47,7 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 	}
 
 	if !isPrimary {
-		return []protocol.RepoDescriptor{{
+		return []protocol.WorktreeDescriptor{{
 			ID:        primaryWorktreeID,
 			Path:      cwdAbs,
 			Label:     primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
@@ -61,7 +61,7 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 		return nil, "", err
 	}
 
-	repos := []protocol.RepoDescriptor{{
+	repos := []protocol.WorktreeDescriptor{{
 		ID:        primaryWorktreeID,
 		Path:      cwdAbs,
 		Label:     primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
@@ -80,8 +80,8 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 	return repos, modePrimary, nil
 }
 
-func descriptorForLinked(w git.Worktree) protocol.RepoDescriptor {
-	return protocol.RepoDescriptor{
+func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
+	return protocol.WorktreeDescriptor{
 		ID:        worktreeIDFor(w.Path, false),
 		Path:      w.Path,
 		Label:     linkedRepoLabel(w.Path),
@@ -184,7 +184,7 @@ type supervisor struct {
 	watchers map[string]context.CancelFunc // repoID -> cancel
 }
 
-func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.RepoDescriptor) {
+func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.WorktreeDescriptor) {
 	if !pathExists(desc.Path) {
 		return
 	}

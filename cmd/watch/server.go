@@ -38,7 +38,7 @@ type repoState struct {
 type broker struct {
 	mu          sync.Mutex
 	clients     map[chan protocol.GraphStreamPayload]struct{}
-	repos       []protocol.RepoDescriptor
+	repos       []protocol.WorktreeDescriptor
 	repoIndex   map[string]int
 	repoStates  map[string]*repoState
 	nextID      int64
@@ -79,7 +79,7 @@ func (b *broker) unsubscribe(ch chan protocol.GraphStreamPayload) {
 // registerRepo adds a worktree to the broker's tab set. If `desc.ID` already
 // exists, the descriptor is updated in place (path/label/isPrimary may change
 // on git operations like `worktree move`).
-func (b *broker) registerRepo(desc protocol.RepoDescriptor) {
+func (b *broker) registerRepo(desc protocol.WorktreeDescriptor) {
 	b.mu.Lock()
 	if idx, ok := b.repoIndex[desc.ID]; ok {
 		b.repos[idx] = desc
@@ -184,7 +184,7 @@ func (b *broker) publish(repoID, dot string) {
 	s.sessionStarted = true
 	s.history = append(s.history, protocol.GraphSnapshot{
 		ID:           b.nextID,
-		RepoID:       repoID,
+		WorktreeID:   repoID,
 		Timestamp:    time.Now().UTC(),
 		DOT:          dot,
 		SessionStart: sessionStart,
@@ -228,7 +228,7 @@ func (b *broker) archiveWorkingSetLocked(repoID string, s *repoState, commitHist
 		b.nextCycleID++
 		s.archivedCycles = append(s.archivedCycles, protocol.SnapshotCollection{
 			ID:            b.nextCycleID,
-			RepoID:        repoID,
+			WorktreeID:    repoID,
 			Timestamp:     time.Now().UTC(),
 			Snapshots:     archivedSnapshots,
 			CommitHistory: toProtocolCommitHistory(commitHistory),
@@ -275,7 +275,7 @@ func (b *broker) currentPayloadLocked() (protocol.GraphStreamPayload, bool) {
 		return protocol.GraphStreamPayload{}, false
 	}
 
-	repos := make([]protocol.RepoDescriptor, len(b.repos))
+	repos := make([]protocol.WorktreeDescriptor, len(b.repos))
 	copy(repos, b.repos)
 
 	working := b.collectWorkingLocked()
@@ -295,7 +295,7 @@ func (b *broker) currentPayloadLocked() (protocol.GraphStreamPayload, bool) {
 	}
 
 	return protocol.GraphStreamPayload{
-		Repos:                  repos,
+		Worktrees:              repos,
 		Format:                 b.format,
 		WorkingSnapshots:       working,
 		PastCollections:        past,
@@ -333,7 +333,7 @@ func (b *broker) collectPastLocked() []protocol.SnapshotCollection {
 			copy(snapshots, cycle.Snapshots)
 			past = append(past, protocol.SnapshotCollection{
 				ID:            cycle.ID,
-				RepoID:        cycle.RepoID,
+				WorktreeID:    cycle.WorktreeID,
 				Timestamp:     cycle.Timestamp,
 				Snapshots:     snapshots,
 				CommitHistory: copyCommitHistory(cycle.CommitHistory),
@@ -425,7 +425,7 @@ func newServer(b *broker, port int, repoPath string) *http.Server {
 	mux.HandleFunc(protocol.RouteEvents, handleSSE(b))
 
 	// Client→server: close a finished worktree tab.
-	mux.HandleFunc(protocol.RouteCloseRepo, handleCloseRepo(b))
+	mux.HandleFunc(protocol.RouteCloseWorktree, handleCloseRepo(b))
 
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

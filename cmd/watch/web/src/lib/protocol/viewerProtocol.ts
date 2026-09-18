@@ -3,7 +3,7 @@
  * These functions validate and normalize untrusted JSON payloads from the server.
  */
 
-export interface RepoDescriptor {
+export interface WorktreeDescriptor {
   id: string;
   path: string;
   label: string;
@@ -15,7 +15,7 @@ export interface RepoDescriptor {
 
 export interface Snapshot {
   id: number;
-  repoId?: string;
+  worktreeId?: string;
   timestamp: string;
   dot: string;
   // True for the first snapshot recorded for a worktree this session — the
@@ -34,14 +34,14 @@ export interface CommitSummary {
 
 export interface Collection {
   id: number;
-  repoId?: string;
+  worktreeId?: string;
   timestamp: string;
   snapshots: Snapshot[];
   commitHistory: CommitSummary[];
 }
 
 export interface GraphStreamPayload {
-  repos?: RepoDescriptor[];
+  worktrees?: WorktreeDescriptor[];
   // Session-global render format of every snapshot's `dot` field ("dot" or
   // "mermaid"). Absent on older payloads; treated as "dot".
   format?: string;
@@ -51,11 +51,11 @@ export interface GraphStreamPayload {
   latestPastCollectionId?: number;
 }
 
-function normalizeRepo(repo: unknown): RepoDescriptor | null {
-  if (!repo || typeof repo !== "object") {
+function normalizeWorktree(worktree: unknown): WorktreeDescriptor | null {
+  if (!worktree || typeof worktree !== "object") {
     return null;
   }
-  const r = repo as Record<string, unknown>;
+  const r = worktree as Record<string, unknown>;
   if (typeof r.id !== "string" || r.id === "") {
     return null;
   }
@@ -80,7 +80,7 @@ function normalizeSnapshot(snapshot: unknown): Snapshot | null {
 
   const normalized: Snapshot = {
     id: Number.isFinite(s.id) ? (s.id as number) : 0,
-    repoId: typeof s.repoId === "string" ? s.repoId : "",
+    worktreeId: typeof s.worktreeId === "string" ? s.worktreeId : "",
     timestamp: typeof s.timestamp === "string" ? s.timestamp : new Date(0).toISOString(),
     dot: s.dot,
   };
@@ -121,7 +121,7 @@ function normalizeCollection(collection: unknown): Collection | null {
 
   return {
     id: Number.isFinite(c.id) ? (c.id as number) : 0,
-    repoId: typeof c.repoId === "string" ? c.repoId : "",
+    worktreeId: typeof c.worktreeId === "string" ? c.worktreeId : "",
     timestamp: typeof c.timestamp === "string" ? c.timestamp : new Date(0).toISOString(),
     snapshots: c.snapshots
       .map(normalizeSnapshot)
@@ -139,7 +139,7 @@ function normalizeCollection(collection: unknown): Collection | null {
 export function normalizeGraphStreamPayload(payload: unknown): GraphStreamPayload {
   if (!payload || typeof payload !== "object") {
     return {
-      repos: [],
+      worktrees: [],
       format: "dot",
       workingSnapshots: [],
       pastCollections: [],
@@ -149,8 +149,8 @@ export function normalizeGraphStreamPayload(payload: unknown): GraphStreamPayloa
   const p = payload as Record<string, unknown>;
 
   return {
-    repos: Array.isArray(p.repos)
-      ? p.repos.map(normalizeRepo).filter((repo): repo is RepoDescriptor => repo !== null)
+    worktrees: Array.isArray(p.worktrees)
+      ? p.worktrees.map(normalizeWorktree).filter((worktree): worktree is WorktreeDescriptor => worktree !== null)
       : [],
     workingSnapshots: Array.isArray(p.workingSnapshots)
       ? p.workingSnapshots.map(normalizeSnapshot).filter((snapshot): snapshot is Snapshot => snapshot !== null)

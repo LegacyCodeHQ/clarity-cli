@@ -14,8 +14,8 @@ import type { Snapshot, Collection, CommitSummary } from '../protocol/viewerProt
 
 const TIMESTAMP = "2026-02-12T10:00:00Z";
 
-function snapshot(id: number, dot = `digraph ${id} {}`, repoId = "primary"): Snapshot {
-  return { id, repoId, timestamp: TIMESTAMP, dot };
+function snapshot(id: number, dot = `digraph ${id} {}`, worktreeId = "primary"): Snapshot {
+  return { id, worktreeId, timestamp: TIMESTAMP, dot };
 }
 
 function commit(subject: string, hash = "deadbeef"): CommitSummary {
@@ -29,10 +29,10 @@ function commit(subject: string, hash = "deadbeef"): CommitSummary {
   };
 }
 
-function collection(id: number, snapshots: Snapshot[], repoId = "primary", commitHistory: CommitSummary[] = []): Collection {
+function collection(id: number, snapshots: Snapshot[], worktreeId = "primary", commitHistory: CommitSummary[] = []): Collection {
   return {
     id,
-    repoId,
+    worktreeId,
     timestamp: TIMESTAMP,
     snapshots,
     commitHistory,
@@ -325,7 +325,7 @@ describe('getViewModel', () => {
 
   it('omits the live source option when the selected worktree is deleted', () => {
     const state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: false },
       ],
@@ -343,7 +343,7 @@ describe('getViewModel', () => {
 
   it('shows the most recent snapshot of the most recent session when the worktree is deleted', () => {
     const state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: false },
       ],
@@ -365,7 +365,7 @@ describe('getViewModel', () => {
 
   it('treats deleted worktree working snapshots as frozen instead of live', () => {
     const state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: false },
       ],
@@ -407,7 +407,7 @@ describe('applyLiveSelection', () => {
 describe('selectRepo', () => {
   it('switches the active tab and reprojects working snapshots', () => {
     const state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: true },
       ],
@@ -428,7 +428,7 @@ describe('selectRepo', () => {
 
   it('ignores selection for unknown repo id', () => {
     const state = mergePayload(baseState(), {
-      repos: [{ id: "primary", path: "/p", label: "primary", isPrimary: true, active: true }],
+      worktrees: [{ id: "primary", path: "/p", label: "primary", isPrimary: true, active: true }],
       workingSnapshots: [snapshot(1)],
       pastCollections: [],
     });
@@ -439,7 +439,7 @@ describe('selectRepo', () => {
 
   it('falls back to primary if the previously selected repo disappears', () => {
     let state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: true },
       ],
@@ -454,7 +454,7 @@ describe('selectRepo', () => {
 
     // Simulate the worktree being removed: payload no longer lists it.
     const next = mergePayload(state, {
-      repos: [{ id: "primary", path: "/p", label: "primary", isPrimary: true, active: true }],
+      worktrees: [{ id: "primary", path: "/p", label: "primary", isPrimary: true, active: true }],
       workingSnapshots: [snapshot(1, "digraph p {}", "primary")],
       pastCollections: [],
     });
@@ -464,7 +464,7 @@ describe('selectRepo', () => {
 
   it('resets timeline selection when switching tabs', () => {
     let state = mergePayload(baseState(), {
-      repos: [
+      worktrees: [
         { id: "primary", path: "/p", label: "primary", isPrimary: true, active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", isPrimary: false, active: true },
       ],

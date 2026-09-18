@@ -14,7 +14,7 @@ func TestBroker_RegisterRepo_EmitsTabsToSubscribers(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.registerRepo(protocol.RepoDescriptor{
+	b.registerRepo(protocol.WorktreeDescriptor{
 		ID:        "primary",
 		Path:      "/repo",
 		Label:     "clarity-cli",
@@ -23,9 +23,9 @@ func TestBroker_RegisterRepo_EmitsTabsToSubscribers(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		require.Len(t, got.Repos, 1)
-		assert.Equal(t, "primary", got.Repos[0].ID)
-		assert.True(t, got.Repos[0].IsPrimary)
+		require.Len(t, got.Worktrees, 1)
+		assert.Equal(t, "primary", got.Worktrees[0].ID)
+		assert.True(t, got.Worktrees[0].IsPrimary)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for tab descriptor")
 	}
@@ -33,8 +33,8 @@ func TestBroker_RegisterRepo_EmitsTabsToSubscribers(t *testing.T) {
 
 func TestBroker_PublishToMultipleRepos_FlatPayloadTaggedByRepoID(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", Label: "primary", IsPrimary: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", IsPrimary: false})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", IsPrimary: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", IsPrimary: false})
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -58,11 +58,11 @@ func TestBroker_PublishToMultipleRepos_FlatPayloadTaggedByRepoID(t *testing.T) {
 	}
 done:
 	require.Len(t, last.WorkingSnapshots, 2)
-	repoIDs := []string{last.WorkingSnapshots[0].RepoID, last.WorkingSnapshots[1].RepoID}
+	repoIDs := []string{last.WorkingSnapshots[0].WorktreeID, last.WorkingSnapshots[1].WorktreeID}
 	assert.ElementsMatch(t, []string{"primary", "wt-aaaaaaaa"}, repoIDs)
 
 	for _, s := range last.WorkingSnapshots {
-		if s.RepoID == "primary" {
+		if s.WorktreeID == "primary" {
 			assert.Equal(t, "digraph primary { A; }", s.DOT)
 		} else {
 			assert.Equal(t, "digraph wt { B; }", s.DOT)
@@ -72,7 +72,7 @@ done:
 
 func TestBroker_MarksSessionStartOncePerRepo(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
 
 	// The first snapshot recorded for a repo is the session start: it captures
 	// whatever already existed in the working tree when the watcher attached.
@@ -106,8 +106,8 @@ func TestBroker_MarksSessionStartOncePerRepo(t *testing.T) {
 
 func TestBroker_ArchiveOnlyAffectsThatRepo(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
 
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
@@ -121,9 +121,9 @@ func TestBroker_ArchiveOnlyAffectsThatRepo(t *testing.T) {
 	case got := <-ch:
 		// wt's working snapshot should remain; primary's was archived.
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "wt-aaaaaaaa", got.WorkingSnapshots[0].RepoID)
+		assert.Equal(t, "wt-aaaaaaaa", got.WorkingSnapshots[0].WorktreeID)
 		require.Len(t, got.PastCollections, 1)
-		assert.Equal(t, "primary", got.PastCollections[0].RepoID)
+		assert.Equal(t, "primary", got.PastCollections[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload")
 	}
@@ -131,8 +131,8 @@ func TestBroker_ArchiveOnlyAffectsThatRepo(t *testing.T) {
 
 func TestBroker_UnregisterRepo_DropsTabAndHistory(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
@@ -143,10 +143,10 @@ func TestBroker_UnregisterRepo_DropsTabAndHistory(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		require.Len(t, got.Repos, 1)
-		assert.Equal(t, "primary", got.Repos[0].ID)
+		require.Len(t, got.Worktrees, 1)
+		assert.Equal(t, "primary", got.Worktrees[0].ID)
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].RepoID)
+		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload after unregister")
 	}
@@ -157,8 +157,8 @@ func TestBroker_UnregisterRepo_DropsTabAndHistory(t *testing.T) {
 // no longer live and should be exposed as an archived collection.
 func TestBroker_MarkRepoFinished_ArchivesFinalWorkingSet(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
@@ -170,17 +170,17 @@ func TestBroker_MarkRepoFinished_ArchivesFinalWorkingSet(t *testing.T) {
 	select {
 	case got := <-ch:
 		// Both tabs remain; the removed worktree is now inactive.
-		require.Len(t, got.Repos, 2)
-		byID := make(map[string]protocol.RepoDescriptor)
-		for _, r := range got.Repos {
+		require.Len(t, got.Worktrees, 2)
+		byID := make(map[string]protocol.WorktreeDescriptor)
+		for _, r := range got.Worktrees {
 			byID[r.ID] = r
 		}
 		assert.True(t, byID["primary"].Active, "primary worktree stays active")
 		assert.False(t, byID["wt-aaaaaaaa"].Active, "removed worktree flips to inactive")
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].RepoID)
+		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
 		require.Len(t, got.PastCollections, 1)
-		assert.Equal(t, "wt-aaaaaaaa", got.PastCollections[0].RepoID)
+		assert.Equal(t, "wt-aaaaaaaa", got.PastCollections[0].WorktreeID)
 		require.Len(t, got.PastCollections[0].Snapshots, 1)
 		assert.Equal(t, "digraph w {}", got.PastCollections[0].Snapshots[0].DOT)
 	case <-time.After(time.Second):
@@ -192,8 +192,8 @@ func TestBroker_MarkRepoFinished_ArchivesFinalWorkingSet(t *testing.T) {
 // worktrees can be closed, and closing drops the tab and its history.
 func TestBroker_CloseRepo_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 	b.markRepoFinished("wt-aaaaaaaa")
@@ -205,10 +205,10 @@ func TestBroker_CloseRepo_RemovesFinishedTab(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		require.Len(t, got.Repos, 1)
-		assert.Equal(t, "primary", got.Repos[0].ID)
+		require.Len(t, got.Worktrees, 1)
+		assert.Equal(t, "primary", got.Worktrees[0].ID)
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].RepoID)
+		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload after closeRepo")
 	}
@@ -218,7 +218,7 @@ func TestBroker_CloseRepo_RemovesFinishedTab(t *testing.T) {
 // tear down a tab that's still being watched.
 func TestBroker_CloseRepo_RefusesActiveRepo(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 	b.publish("primary", "digraph p {}")
 
 	assert.Equal(t, closeActive, b.closeRepo("primary"), "closing an active worktree should be refused")
@@ -228,8 +228,8 @@ func TestBroker_CloseRepo_RefusesActiveRepo(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		require.Len(t, got.Repos, 1, "active tab must remain after a refused close")
-		assert.Equal(t, "primary", got.Repos[0].ID)
+		require.Len(t, got.Worktrees, 1, "active tab must remain after a refused close")
+		assert.Equal(t, "primary", got.Worktrees[0].ID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload")
 	}
@@ -237,7 +237,7 @@ func TestBroker_CloseRepo_RefusesActiveRepo(t *testing.T) {
 
 func TestBroker_CloseRepo_UnknownRepoReturnsFalse(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 
 	assert.Equal(t, closeNotFound, b.closeRepo("wt-missing"), "closing an unknown worktree should report not found")
 }

@@ -14,15 +14,15 @@ import (
 // It lets the UI tear down a finished (inactive) tab; active tabs are pinned.
 func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerRepo(protocol.RepoDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 	b.markRepoFinished("wt-aaaaaaaa")
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/repos/wt-aaaaaaaa/close", nil))
+	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/worktrees/wt-aaaaaaaa/close", nil))
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 
@@ -34,12 +34,12 @@ func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 
 func TestCloseEndpoint_RefusesActiveTab(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 	b.publish("primary", "digraph p {}")
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/repos/primary/close", nil))
+	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/worktrees/primary/close", nil))
 
 	assert.Equal(t, http.StatusConflict, rec.Code, "closing an active tab is a conflict")
 
@@ -51,11 +51,11 @@ func TestCloseEndpoint_RefusesActiveTab(t *testing.T) {
 
 func TestCloseEndpoint_UnknownTabReturns404(t *testing.T) {
 	b := newBroker()
-	b.registerRepo(protocol.RepoDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerRepo(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/repos/wt-missing/close", nil))
+	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/worktrees/wt-missing/close", nil))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

@@ -7,7 +7,7 @@ import type {
   Snapshot,
   Collection,
   GraphStreamPayload,
-  RepoDescriptor,
+  WorktreeDescriptor,
 } from '../protocol/viewerProtocol';
 
 /**
@@ -20,7 +20,7 @@ export interface RepoBucket {
 
 export interface ViewerState {
   // Multi-repo: the registered tab set + which tab is active.
-  repos: RepoDescriptor[];
+  repos: WorktreeDescriptor[];
   selectedRepoID: string;
   byRepo: Record<string, RepoBucket>;
 
@@ -107,7 +107,7 @@ function selectedRepoAllowsLive(state: Pick<ViewerState, "repos" | "selectedRepo
  * (e.g., its tab was removed). Prefers the existing selection, then "primary",
  * then the first repo in the list.
  */
-function resolveSelectedRepoID(repos: RepoDescriptor[], current: string): string {
+function resolveSelectedRepoID(repos: WorktreeDescriptor[], current: string): string {
   if (repos.length === 0) {
     return current || DEFAULT_REPO_ID;
   }
@@ -217,26 +217,26 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
 }
 
 /**
- * Buckets a flat payload by repoId. Snapshots/collections without a repoId
- * fall into the primary bucket — keeps backward-tolerance with older payloads
- * and with single-repo callers.
+ * Buckets a flat payload by worktreeId. Snapshots/collections without a
+ * worktreeId fall into the primary bucket — keeps backward-tolerance with
+ * older payloads and with single-repo callers.
  */
 function bucketPayload(payload: GraphStreamPayload): Record<string, RepoBucket> {
   const byRepo: Record<string, RepoBucket> = {};
   const knownIds = new Set<string>();
-  for (const repo of payload.repos || []) {
+  for (const repo of payload.worktrees || []) {
     knownIds.add(repo.id);
     byRepo[repo.id] = { working: [], past: [] };
   }
   for (const snap of payload.workingSnapshots || []) {
-    const id = snap.repoId || DEFAULT_REPO_ID;
+    const id = snap.worktreeId || DEFAULT_REPO_ID;
     if (!byRepo[id]) {
       byRepo[id] = { working: [], past: [] };
     }
     byRepo[id].working.push(snap);
   }
   for (const coll of payload.pastCollections || []) {
-    const id = coll.repoId || DEFAULT_REPO_ID;
+    const id = coll.worktreeId || DEFAULT_REPO_ID;
     if (!byRepo[id]) {
       byRepo[id] = { working: [], past: [] };
     }
@@ -253,7 +253,7 @@ function bucketPayload(payload: GraphStreamPayload): Record<string, RepoBucket> 
 }
 
 export function mergePayload(state: ViewerState, payload: GraphStreamPayload): ViewerState {
-  const repos = payload.repos || state.repos;
+  const repos = payload.worktrees || state.repos;
   const byRepo = bucketPayload(payload);
   return normalizeState({
     ...state,

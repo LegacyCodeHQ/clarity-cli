@@ -11,7 +11,7 @@
   async function handleClose(event: MouseEvent, repoID: string) {
     event.stopPropagation();
     try {
-      await fetch(`/repos/${encodeURIComponent(repoID)}/close`, { method: 'POST' });
+      await fetch(`/worktrees/${encodeURIComponent(repoID)}/close`, { method: 'POST' });
     } catch (err) {
       console.error('Failed to close worktree tab:', err);
     }
