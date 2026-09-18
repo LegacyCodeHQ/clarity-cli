@@ -40,6 +40,18 @@ func GetGitDir(path string) (string, error) {
 	return strings.TrimSpace(string(stdout)), nil
 }
 
+// GetWorktreeRoot returns the absolute path to the root of the working tree
+// containing path — canonical regardless of which subdirectory of that tree
+// path names. For the main worktree this is the repo root; for a linked
+// worktree, that worktree's own root, not the main one's.
+func GetWorktreeRoot(path string) (string, error) {
+	stdout, stderr, err := runGitCommand(path, "rev-parse", "--path-format=absolute", "--show-toplevel")
+	if err != nil {
+		return "", gitCommandError(err, stderr)
+	}
+	return strings.TrimSpace(string(stdout)), nil
+}
+
 // GetCommonDir returns the absolute path to the common git directory — the
 // main repository's `.git`. Identical for the main worktree and every linked
 // worktree of the same repository.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -77,7 +78,11 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve repo path: %w", err)
 	}
-	worktreePath = absWorktreePath
+
+	worktreePath, err = requireMainWorktree(absWorktreePath)
+	if err != nil {
+		return err
+	}
 
 	if direction, ok := formatters.ParseDirection(opts.direction); !ok {
 		return fmt.Errorf("unknown direction: %s (valid options: %s)", opts.direction, formatters.SupportedDirections())
@@ -91,11 +96,25 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	repoLock, existing, err := AcquireRepoLock(worktreePath)
+	if err != nil {
+		return fmt.Errorf("acquire repo lock: %w", err)
+	}
+	if repoLock == nil {
+		printAlreadyRunning(cmd.OutOrStdout(), existing)
+		return nil
+	}
+	defer repoLock.Release() //nolint:errcheck // best-effort; the OS releases it on exit regardless
+
 	ln, actualPort, err := listenWithPortFallback(opts.port)
 	if err != nil {
 		return err
 	}
 	defer ln.Close()
+
+	if err := repoLock.SetServing(actualPort); err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "record serving port: %v\n", err)
+	}
 
 	formatter, err := formatters.NewFormatter(opts.format)
 	if err != nil {
@@ -168,4 +187,17 @@ func listenWithPortFallback(preferredPort int) (net.Listener, int, error) {
 	}
 
 	return nil, 0, fmt.Errorf("failed to listen on ports %d-%d: %w", preferredPort, preferredPort+maxPortBindAttempts-1, lastErr)
+}
+
+// printAlreadyRunning tells the user another clarity watch process already
+// holds the repo lock, pointing them at it instead of leaving them to guess
+// why this process exited immediately. existing.Port is zero during the
+// brief window between the other process acquiring the lock and recording
+// its port, not an error.
+func printAlreadyRunning(w io.Writer, existing *lockInfo) {
+	if existing != nil && existing.Port != 0 {
+		fmt.Fprintf(w, "clarity watch is already running for this repo at http://localhost:%d\n", existing.Port)
+		return
+	}
+	fmt.Fprintln(w, "clarity watch is already running for this repo (starting up — try again in a moment)")
 }

@@ -18,9 +18,8 @@ import (
 func TestPlanInitialWorktrees_MainNoWorktrees(t *testing.T) {
 	repo := initRepoWithCommit(t)
 
-	descriptors, mode, err := planInitialWorktrees(repo)
+	descriptors, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
-	assert.Equal(t, modeMain, mode)
 	require.Len(t, descriptors, 1)
 	assert.Equal(t, mainWorktreeID, descriptors[0].ID)
 	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
@@ -32,9 +31,8 @@ func TestPlanInitialWorktrees_MainWithLinkedWorktree(t *testing.T) {
 	wt := filepath.Join(t.TempDir(), "linked")
 	runGit(t, repo, "worktree", "add", "-b", "feat/x", wt)
 
-	descriptors, mode, err := planInitialWorktrees(repo)
+	descriptors, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
-	assert.Equal(t, modeMain, mode)
 	require.Len(t, descriptors, 2)
 
 	assert.Equal(t, mainWorktreeID, descriptors[0].ID)
@@ -46,22 +44,42 @@ func TestPlanInitialWorktrees_MainWithLinkedWorktree(t *testing.T) {
 	assert.Equal(t, "linked", descriptors[1].Label, "label should be the worktree directory name")
 }
 
-func TestPlanInitialWorktrees_LinkedModeReturnsOnlyCwd(t *testing.T) {
+// TestPlanInitialWorktrees_SubdirectoryOfMainStillResolvesToRoot guards the
+// canonicalization fix from CLR-91: launching from a subdirectory of the
+// main worktree must resolve to the same root — and so the same "main"
+// identity and full worktree set — as launching from the root itself,
+// rather than silently narrowing the watched scope to that subdirectory.
+func TestPlanInitialWorktrees_SubdirectoryOfMainStillResolvesToRoot(t *testing.T) {
+	repo := initRepoWithCommit(t)
+	sub := filepath.Join(repo, "sub")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+
+	descriptors, err := planInitialWorktrees(sub)
+	require.NoError(t, err)
+	require.Len(t, descriptors, 1)
+	resolvedRepo, err := filepath.EvalSymlinks(repo)
+	require.NoError(t, err)
+	assert.Equal(t, resolvedRepo, descriptors[0].Path, "must resolve to the worktree root, not the launch subdirectory")
+}
+
+// TestPlanInitialWorktrees_LinkedWorktreeRejected pins the CLR-91 launch
+// constraint: clarity watch must be started from the main worktree.
+// Launching from inside a linked worktree is rejected rather than silently
+// scoping itself to just that one tree, since a second process launched
+// from the main worktree would otherwise cover the same worktree with no
+// coordination between the two.
+func TestPlanInitialWorktrees_LinkedWorktreeRejected(t *testing.T) {
 	repo := initRepoWithCommit(t)
 	wt := filepath.Join(t.TempDir(), "linked")
 	runGit(t, repo, "worktree", "add", "-b", "feat/x", wt)
 
-	descriptors, mode, err := planInitialWorktrees(wt)
-	require.NoError(t, err)
-	assert.Equal(t, modeLinked, mode)
-	require.Len(t, descriptors, 1)
-	assert.Equal(t, mainWorktreeID, descriptors[0].ID, "cwd-tree gets the 'main' id regardless of git's notion")
-	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
-	assert.Equal(t, "feat/x", descriptors[0].Label)
+	_, err := planInitialWorktrees(wt)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "main worktree")
 }
 
 func TestPlanInitialWorktrees_NonRepoErrors(t *testing.T) {
-	_, _, err := planInitialWorktrees(t.TempDir())
+	_, err := planInitialWorktrees(t.TempDir())
 	require.Error(t, err)
 }
 

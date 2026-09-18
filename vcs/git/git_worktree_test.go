@@ -40,6 +40,34 @@ func TestGetCommonDir_LinkedWorktree(t *testing.T) {
 		"common dir must be identical for the main worktree and linked worktrees")
 }
 
+func TestGetWorktreeRoot_ResolvesSubdirectoryToRoot(t *testing.T) {
+	repo := t.TempDir()
+	setupGitRepo(t, repo)
+	seedInitialCommit(t, repo)
+
+	sub := filepath.Join(repo, "sub", "deeper")
+	require.NoError(t, exec.Command("mkdir", "-p", sub).Run())
+
+	root, err := GetWorktreeRoot(sub)
+	require.NoError(t, err)
+	assert.Equal(t, resolveSymlinks(repo), resolveSymlinks(root))
+}
+
+func TestGetWorktreeRoot_LinkedWorktreeIsItsOwnRoot(t *testing.T) {
+	repo := t.TempDir()
+	setupGitRepo(t, repo)
+	seedInitialCommit(t, repo)
+
+	wtParent := t.TempDir()
+	wt := filepath.Join(wtParent, "linked")
+	gitWorktreeAdd(t, repo, wt, "feat/linked")
+
+	root, err := GetWorktreeRoot(wt)
+	require.NoError(t, err)
+	assert.Equal(t, resolveSymlinks(wt), resolveSymlinks(root),
+		"a linked worktree's root must be itself, not the main worktree")
+}
+
 func TestGetGitDir_MainEqualsCommon(t *testing.T) {
 	repo := t.TempDir()
 	setupGitRepo(t, repo)

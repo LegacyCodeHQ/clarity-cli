@@ -17,13 +17,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type repoMode string
-
-const (
-	modeMain   repoMode = "main"
-	modeLinked repoMode = "linked"
-)
-
 // worktreeReconcileInterval backs up fsnotify delivery with a lightweight
 // registry scan so stale worktree entries or dropped events do not strand the
 // watch process. fsnotify is the fast path (instant), so this is only a
@@ -31,41 +24,45 @@ const (
 // sleep/wake) and runs at a relaxed cadence -- worktree adds/removes are rare.
 const worktreeReconcileInterval = 2 * time.Second
 
-// planInitialWorktrees resolves which worktrees to watch when `clarity watch`
-// starts in `cwd`. The first entry is always the cwd-tree, given the literal
-// id "main" so it's the default tab. In main mode (cwd is the main
-// worktree), additional descriptors follow for each linked worktree.
-func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
+// requireMainWorktree returns the canonical root of the main worktree
+// containing cwd, or an error if cwd is inside a linked worktree instead.
+// clarity watch must always be launched from the main worktree (see CLR-91):
+// a single process discovers and watches every worktree of the repo
+// together, so a launch from inside a linked worktree would otherwise either
+// scope itself to just that one tree, or silently collide with a process
+// already covering it from the main worktree — two processes independently
+// persisting the same worktree's session history with no coordination.
+func requireMainWorktree(cwd string) (string, error) {
 	kind, err := git.WorktreeKindFor(cwd)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
-	isMain := kind == git.WorktreeKindMain
+	if kind != git.WorktreeKindMain {
+		return "", fmt.Errorf("clarity watch must be run from the repository's main worktree, not a linked one; " +
+			"run it from there instead — this worktree will appear automatically as a tab")
+	}
+	return git.GetWorktreeRoot(cwd)
+}
 
-	cwdAbs, err := filepath.Abs(cwd)
+// planInitialWorktrees resolves which worktrees to watch when `clarity watch`
+// starts in `cwd`. The first entry is always the main worktree, given the
+// literal id "main" so it's the default tab, followed by a descriptor for
+// every linked worktree.
+func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, error) {
+	root, err := requireMainWorktree(cwd)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	if !isMain {
-		return []protocol.WorktreeDescriptor{{
-			ID:     mainWorktreeID,
-			Path:   cwdAbs,
-			Label:  mainRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
-			Kind:   protocol.WorktreeKindMain,
-			Active: true,
-		}}, modeLinked, nil
-	}
-
-	worktrees, err := git.ListWorktrees(cwdAbs)
+	worktrees, err := git.ListWorktrees(root)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	descriptors := []protocol.WorktreeDescriptor{{
 		ID:     mainWorktreeID,
-		Path:   cwdAbs,
-		Label:  mainRepoLabel(cwdAbs, mainBranch(worktrees)),
+		Path:   root,
+		Label:  mainRepoLabel(root, mainBranch(worktrees)),
 		Kind:   protocol.WorktreeKindMain,
 		Active: true,
 	}}
@@ -78,7 +75,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 		}
 		descriptors = append(descriptors, descriptorForLinked(w))
 	}
-	return descriptors, modeMain, nil
+	return descriptors, nil
 }
 
 func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
@@ -100,37 +97,15 @@ func mainBranch(worktrees []git.Worktree) string {
 	return ""
 }
 
-func currentBranchFor(path string) string {
-	wts, err := git.ListWorktrees(path)
-	if err != nil {
-		return ""
-	}
-	pathResolved := resolveSymlinksOrSelf(path)
-	for _, w := range wts {
-		if resolveSymlinksOrSelf(w.Path) == pathResolved {
-			return w.Branch
-		}
-	}
-	return ""
-}
-
-func resolveSymlinksOrSelf(path string) string {
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return path
-	}
-	return resolved
-}
-
 // runSupervisor is the multi-worktree replacement for the old single-call
 // `watchAndRebuild` flow. It registers initial tabs with the broker, fans out
-// one watcher goroutine per tree, and (in main mode) installs a
-// meta-watcher on `<common-git-dir>/worktrees/` to pick up `git worktree add`
-// and `git worktree remove` events live.
+// one watcher goroutine per tree, and installs a meta-watcher on
+// `<common-git-dir>/worktrees/` to pick up `git worktree add` and
+// `git worktree remove` events live.
 //
 // Returns when ctx is cancelled.
 func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broker, formatter formatters.Formatter) error {
-	descriptors, mode, err := planInitialWorktrees(cwd)
+	descriptors, err := planInitialWorktrees(cwd)
 	if err != nil {
 		return err
 	}
@@ -143,23 +118,21 @@ func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broke
 		watchers:  make(map[string]context.CancelFunc),
 	}
 
-	// In main mode, install the meta-watcher BEFORE spawning initial
-	// watchers so a `git worktree add` racing with startup is never missed.
+	// Install the meta-watcher BEFORE spawning initial watchers so a
+	// `git worktree add` racing with startup is never missed.
 	var metaDone <-chan struct{}
-	if mode == modeMain {
-		// Meta-watching is best-effort; if the common dir can't be resolved or the
-		// watcher fails, fall back to running without it.
-		if commonDir, err := git.GetCommonDir(cwd); err == nil {
-			sup.commonDir = commonDir
-			ready := make(chan struct{})
-			done := make(chan struct{})
-			go func() {
-				_ = sup.runMetaWatcher(ctx, ready)
-				close(done)
-			}()
-			<-ready
-			metaDone = done
-		}
+	// Meta-watching is best-effort; if the common dir can't be resolved or the
+	// watcher fails, fall back to running without it.
+	if commonDir, err := git.GetCommonDir(cwd); err == nil {
+		sup.commonDir = commonDir
+		ready := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			_ = sup.runMetaWatcher(ctx, ready)
+			close(done)
+		}()
+		<-ready
+		metaDone = done
 	}
 
 	for _, desc := range descriptors {
