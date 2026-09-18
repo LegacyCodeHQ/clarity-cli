@@ -10,7 +10,7 @@ import {
   selectRepo,
   type ViewerState,
 } from './viewerState';
-import type { Snapshot, Collection } from '../protocol/viewerProtocol';
+import type { Snapshot, Collection, CommitSummary } from '../protocol/viewerProtocol';
 
 const TIMESTAMP = "2026-02-12T10:00:00Z";
 
@@ -18,13 +18,24 @@ function snapshot(id: number, dot = `digraph ${id} {}`, repoId = "primary"): Sna
   return { id, repoId, timestamp: TIMESTAMP, dot };
 }
 
-function collection(id: number, snapshots: Snapshot[], repoId = "primary"): Collection {
+function commit(subject: string, hash = "deadbeef"): CommitSummary {
+  return {
+    hash,
+    shortHash: hash.slice(0, 7),
+    subject,
+    author: "Test User",
+    email: "test@example.com",
+    timestamp: TIMESTAMP,
+  };
+}
+
+function collection(id: number, snapshots: Snapshot[], repoId = "primary", commitHistory: CommitSummary[] = []): Collection {
   return {
     id,
     repoId,
     timestamp: TIMESTAMP,
     snapshots,
-    commitHistory: [],
+    commitHistory,
   };
 }
 
@@ -257,7 +268,36 @@ describe('getViewModel', () => {
     expect(vm.timeline.sessionStartIndex).toBe(0);
   });
 
-  it('labels archived source options as sessions', () => {
+  it('labels archived source options with the session number and commit subject', () => {
+    const state: ViewerState = {
+      ...baseState(),
+      pastCollections: [collection(10, [snapshot(1), snapshot(2)], "primary", [commit("fix flaky test")])],
+    };
+
+    const vm = getViewModel(state, () => "10:00:00");
+    expect(vm.sourceOptions.find((option) => option.value === "collection:10")?.text).toBe(
+      "#1 fix flaky test"
+    );
+  });
+
+  it('labels a session with several commits using the most recent commit subject', () => {
+    const state: ViewerState = {
+      ...baseState(),
+      pastCollections: [
+        collection(10, [snapshot(1), snapshot(2)], "primary", [
+          commit("add retry logic", "aaaaaaa"),
+          commit("fix flaky test", "bbbbbbb"),
+        ]),
+      ],
+    };
+
+    const vm = getViewModel(state, () => "10:00:00");
+    expect(vm.sourceOptions.find((option) => option.value === "collection:10")?.text).toBe(
+      "#1 fix flaky test"
+    );
+  });
+
+  it('falls back to a snapshot-count label when a session has no commit history', () => {
     const state: ViewerState = {
       ...baseState(),
       pastCollections: [collection(10, [snapshot(1), snapshot(2)])],
@@ -265,8 +305,22 @@ describe('getViewModel', () => {
 
     const vm = getViewModel(state, () => "10:00:00");
     expect(vm.sourceOptions.find((option) => option.value === "collection:10")?.text).toBe(
-      "Session 1 (2 snapshots, 10:00:00)"
+      "#1 (2 snapshots, 10:00:00)"
     );
+  });
+
+  it('numbers multiple sessions sequentially, newest last processed first', () => {
+    const state: ViewerState = {
+      ...baseState(),
+      pastCollections: [
+        collection(10, [snapshot(1)], "primary", [commit("first commit")]),
+        collection(11, [snapshot(2)], "primary", [commit("second commit")]),
+      ],
+    };
+
+    const vm = getViewModel(state, () => "10:00:00");
+    expect(vm.sourceOptions.find((option) => option.value === "collection:10")?.text).toBe("#1 first commit");
+    expect(vm.sourceOptions.find((option) => option.value === "collection:11")?.text).toBe("#2 second commit");
   });
 
   it('omits the live source option when the selected worktree is deleted', () => {

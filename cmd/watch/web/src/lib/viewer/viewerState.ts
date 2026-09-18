@@ -388,9 +388,16 @@ export function getSourceOptions(state: ViewerState, timeFormatter: TimeFormatte
   const collectionOptions = orderedCollections.map((collection, index) => {
     const number = state.pastCollections.length - index;
     const snapshots = collection.snapshots || [];
+    const commitHistory = collection.commitHistory || [];
+    // A session can bundle several commits landed between polls; show the
+    // most recent one, matching what a user thinks of as "what HEAD is now".
+    const latestCommit = commitHistory[commitHistory.length - 1];
+    const label = latestCommit
+      ? latestCommit.subject
+      : `(${snapshots.length} snapshots, ${timeFormatter(collection.timestamp)})`;
     return {
       value: `collection:${collection.id}`,
-      text: `Session ${number} (${snapshots.length} snapshots, ${timeFormatter(collection.timestamp)})`,
+      text: `#${number} ${label}`,
     };
   });
 

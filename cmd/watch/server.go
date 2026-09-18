@@ -206,7 +206,14 @@ func (b *broker) archiveWorkingSet(repoID string) {
 	b.mu.Unlock()
 }
 
+// archiveWorkingSetWithCommitHistory closes the current session on a real
+// commit. A HEAD change with no reachable commits (git reset --hard, amend,
+// rebase discarding work) is not a new session — it's a no-op here, and the
+// working set stays open so the next real commit picks it back up.
 func (b *broker) archiveWorkingSetWithCommitHistory(repoID string, commitHistory []vcs.CommitSummary) {
+	if len(commitHistory) == 0 {
+		return
+	}
 	b.mu.Lock()
 	s := b.stateForLocked(repoID)
 	b.archiveWorkingSetLocked(repoID, s, commitHistory)

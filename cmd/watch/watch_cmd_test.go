@@ -254,6 +254,38 @@ func TestBroker_ArchiveWorkingSetCarriesCommitHistory(t *testing.T) {
 	}
 }
 
+func TestBroker_ArchiveWorkingSetWithCommitHistorySkipsWhenNoCommits(t *testing.T) {
+	b := newBroker()
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+
+	b.publish("primary", "digraph { A; }")
+	<-ch
+
+	// A HEAD change that discards commits (git reset --hard, amend, rebase)
+	// yields an empty commit history from `git log old..new`. That must not
+	// mint a new numbered session — the working set stays open.
+	b.archiveWorkingSetWithCommitHistory("primary", nil)
+
+	select {
+	case <-ch:
+		t.Fatal("unexpected archive payload for a HEAD change with no commits")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	b.publish("primary", "digraph { A; B; }")
+
+	select {
+	case got := <-ch:
+		assert.Empty(t, got.PastCollections)
+		require.Len(t, got.WorkingSnapshots, 2)
+		assert.Equal(t, "digraph { A; }", got.WorkingSnapshots[0].DOT)
+		assert.Equal(t, "digraph { A; B; }", got.WorkingSnapshots[1].DOT)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for continued working-set publish")
+	}
+}
+
 func TestBroker_NewSubscriberReceivesArchivedState(t *testing.T) {
 	b := newBroker()
 	b.publish("primary", "digraph { A; }")
