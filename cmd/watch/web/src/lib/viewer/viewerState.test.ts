@@ -14,7 +14,7 @@ import type { Snapshot, Collection, CommitSummary } from '../protocol/viewerProt
 
 const TIMESTAMP = "2026-02-12T10:00:00Z";
 
-function snapshot(id: number, dot = `digraph ${id} {}`, worktreeId = "primary"): Snapshot {
+function snapshot(id: number, dot = `digraph ${id} {}`, worktreeId = "main"): Snapshot {
   return { id, worktreeId, timestamp: TIMESTAMP, dot };
 }
 
@@ -29,7 +29,7 @@ function commit(subject: string, hash = "deadbeef"): CommitSummary {
   };
 }
 
-function collection(id: number, snapshots: Snapshot[], worktreeId = "primary", commitHistory: CommitSummary[] = []): Collection {
+function collection(id: number, snapshots: Snapshot[], worktreeId = "main", commitHistory: CommitSummary[] = []): Collection {
   return {
     id,
     worktreeId,
@@ -42,7 +42,7 @@ function collection(id: number, snapshots: Snapshot[], worktreeId = "primary", c
 function baseState(): ViewerState {
   return {
     worktrees: [],
-    selectedWorktreeID: "primary",
+    selectedWorktreeID: "main",
     byWorktree: {},
     workingSnapshots: [],
     pastCollections: [],
@@ -271,7 +271,7 @@ describe('getViewModel', () => {
   it('labels archived source options with the session number and commit subject', () => {
     const state: ViewerState = {
       ...baseState(),
-      pastCollections: [collection(10, [snapshot(1), snapshot(2)], "primary", [commit("fix flaky test")])],
+      pastCollections: [collection(10, [snapshot(1), snapshot(2)], "main", [commit("fix flaky test")])],
     };
 
     const vm = getViewModel(state, () => "10:00:00");
@@ -284,7 +284,7 @@ describe('getViewModel', () => {
     const state: ViewerState = {
       ...baseState(),
       pastCollections: [
-        collection(10, [snapshot(1), snapshot(2)], "primary", [
+        collection(10, [snapshot(1), snapshot(2)], "main", [
           commit("add retry logic", "aaaaaaa"),
           commit("fix flaky test", "bbbbbbb"),
         ]),
@@ -313,8 +313,8 @@ describe('getViewModel', () => {
     const state: ViewerState = {
       ...baseState(),
       pastCollections: [
-        collection(10, [snapshot(1)], "primary", [commit("first commit")]),
-        collection(11, [snapshot(2)], "primary", [commit("second commit")]),
+        collection(10, [snapshot(1)], "main", [commit("first commit")]),
+        collection(11, [snapshot(2)], "main", [commit("second commit")]),
       ],
     };
 
@@ -326,10 +326,10 @@ describe('getViewModel', () => {
   it('omits the live source option when the selected worktree is deleted', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
       ],
-      workingSnapshots: [snapshot(1, "digraph p {}", "primary")],
+      workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [collection(10, [snapshot(2, "digraph w {}", "wt-aaaaaaaa")], "wt-aaaaaaaa")],
     });
 
@@ -344,10 +344,10 @@ describe('getViewModel', () => {
   it('shows the most recent snapshot of the most recent session when the worktree is deleted', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
       ],
-      workingSnapshots: [snapshot(1, "digraph p {}", "primary")],
+      workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [
         collection(10, [snapshot(2, "digraph old1 {}", "wt-aaaaaaaa"), snapshot(3, "digraph old2 {}", "wt-aaaaaaaa")], "wt-aaaaaaaa"),
         collection(20, [snapshot(4, "digraph new1 {}", "wt-aaaaaaaa"), snapshot(5, "digraph new2 {}", "wt-aaaaaaaa"), snapshot(6, "digraph new3 {}", "wt-aaaaaaaa")], "wt-aaaaaaaa"),
@@ -366,11 +366,11 @@ describe('getViewModel', () => {
   it('treats deleted worktree working snapshots as frozen instead of live', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
       ],
       workingSnapshots: [
-        snapshot(1, "digraph p {}", "primary"),
+        snapshot(1, "digraph p {}", "main"),
         snapshot(2, "digraph frozen {}", "wt-aaaaaaaa"),
       ],
       pastCollections: [],
@@ -408,18 +408,18 @@ describe('selectWorktree', () => {
   it('switches the active tab and reprojects working snapshots', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
       ],
       workingSnapshots: [
-        snapshot(1, "digraph p {}", "primary"),
+        snapshot(1, "digraph p {}", "main"),
         snapshot(2, "digraph w {}", "wt-aaaaaaaa"),
       ],
       pastCollections: [],
     });
 
-    expect(state.selectedWorktreeID).toBe("primary");
-    expect(state.workingSnapshots).toEqual([snapshot(1, "digraph p {}", "primary")]);
+    expect(state.selectedWorktreeID).toBe("main");
+    expect(state.workingSnapshots).toEqual([snapshot(1, "digraph p {}", "main")]);
 
     const switched = selectWorktree(state, "wt-aaaaaaaa");
     expect(switched.selectedWorktreeID).toBe("wt-aaaaaaaa");
@@ -428,7 +428,7 @@ describe('selectWorktree', () => {
 
   it('ignores selection for unknown worktree id', () => {
     const state = mergePayload(baseState(), {
-      worktrees: [{ id: "primary", path: "/p", label: "primary", kind: 'main', active: true }],
+      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true }],
       workingSnapshots: [snapshot(1)],
       pastCollections: [],
     });
@@ -437,14 +437,14 @@ describe('selectWorktree', () => {
     expect(same).toBe(state);
   });
 
-  it('falls back to primary if the previously selected worktree disappears', () => {
+  it('falls back to main if the previously selected worktree disappears', () => {
     let state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
       ],
       workingSnapshots: [
-        snapshot(1, "digraph p {}", "primary"),
+        snapshot(1, "digraph p {}", "main"),
         snapshot(2, "digraph w {}", "wt-aaaaaaaa"),
       ],
       pastCollections: [],
@@ -454,23 +454,23 @@ describe('selectWorktree', () => {
 
     // Simulate the worktree being removed: payload no longer lists it.
     const next = mergePayload(state, {
-      worktrees: [{ id: "primary", path: "/p", label: "primary", kind: 'main', active: true }],
-      workingSnapshots: [snapshot(1, "digraph p {}", "primary")],
+      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true }],
+      workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [],
     });
-    expect(next.selectedWorktreeID).toBe("primary");
-    expect(next.workingSnapshots).toEqual([snapshot(1, "digraph p {}", "primary")]);
+    expect(next.selectedWorktreeID).toBe("main");
+    expect(next.workingSnapshots).toEqual([snapshot(1, "digraph p {}", "main")]);
   });
 
   it('resets timeline selection when switching tabs', () => {
     let state = mergePayload(baseState(), {
       worktrees: [
-        { id: "primary", path: "/p", label: "primary", kind: 'main', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
         { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
       ],
       workingSnapshots: [
-        snapshot(1, "digraph p1 {}", "primary"),
-        snapshot(2, "digraph p2 {}", "primary"),
+        snapshot(1, "digraph p1 {}", "main"),
+        snapshot(2, "digraph p2 {}", "main"),
         snapshot(3, "digraph w {}", "wt-aaaaaaaa"),
       ],
       pastCollections: [],

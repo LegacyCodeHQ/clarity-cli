@@ -14,9 +14,9 @@ import (
 // It lets the UI tear down a finished (inactive) tab; active tabs are pinned.
 func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Active: true})
-	b.publish("primary", "digraph p {}")
+	b.publish("main", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 	b.markWorktreeFinished("wt-aaaaaaaa")
 
@@ -34,24 +34,24 @@ func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 
 func TestCloseEndpoint_RefusesActiveTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
-	b.publish("primary", "digraph p {}")
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.publish("main", "digraph p {}")
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/worktrees/primary/close", nil))
+	srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/worktrees/main/close", nil))
 
 	assert.Equal(t, http.StatusConflict, rec.Code, "closing an active tab is a conflict")
 
 	b.mu.Lock()
-	_, stillPresent := b.worktreeIndex["primary"]
+	_, stillPresent := b.worktreeIndex["main"]
 	b.mu.Unlock()
 	require.True(t, stillPresent, "active tab must survive a refused close")
 }
 
 func TestCloseEndpoint_UnknownTabReturns404(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()

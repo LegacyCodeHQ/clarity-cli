@@ -3,14 +3,14 @@ import { normalizeGraphStreamPayload, type Snapshot, type Collection, type Commi
 
 const TIMESTAMP = "2026-02-12T10:00:00Z";
 
-function snapshot(id: number, worktreeId = "primary", dot = `digraph ${id} {}`): Snapshot {
+function snapshot(id: number, worktreeId = "main", dot = `digraph ${id} {}`): Snapshot {
   return { id, worktreeId, timestamp: TIMESTAMP, dot };
 }
 
 function collection(
   id: number,
   snapshots: Snapshot[],
-  worktreeId = "primary",
+  worktreeId = "main",
   commitHistory: CommitSummary[] = []
 ): Collection {
   return {
@@ -25,15 +25,15 @@ function collection(
 describe('normalizeGraphStreamPayload', () => {
   it('filters malformed snapshot and collection data', () => {
     const normalized = normalizeGraphStreamPayload({
-      worktrees: [{ id: "primary", path: "/repo", label: "repo", kind: 'main' }],
+      worktrees: [{ id: "main", path: "/repo", label: "repo", kind: 'main' }],
       workingSnapshots: [
         snapshot(1),
-        { id: 2, worktreeId: "primary", timestamp: TIMESTAMP }, // missing dot
+        { id: 2, worktreeId: "main", timestamp: TIMESTAMP }, // missing dot
         null,
       ],
       pastCollections: [
-        collection(10, [snapshot(7), { id: 8, worktreeId: "primary", timestamp: TIMESTAMP }]), // inner snapshot missing dot
-        { id: 11, worktreeId: "primary", timestamp: TIMESTAMP }, // missing snapshots array
+        collection(10, [snapshot(7), { id: 8, worktreeId: "main", timestamp: TIMESTAMP }]), // inner snapshot missing dot
+        { id: 11, worktreeId: "main", timestamp: TIMESTAMP }, // missing snapshots array
         null,
       ],
       latestWorkingId: "bad", // not a number
@@ -80,7 +80,7 @@ describe('normalizeGraphStreamPayload', () => {
   it('normalizes the worktrees[] tab descriptor list', () => {
     const normalized = normalizeGraphStreamPayload({
       worktrees: [
-        { id: "primary", path: "/repo", label: "clarity-cli", kind: 'main' },
+        { id: "main", path: "/repo", label: "clarity-cli", kind: 'main' },
         { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked' },
         { id: "" }, // empty id should be dropped
         null,
@@ -91,26 +91,26 @@ describe('normalizeGraphStreamPayload', () => {
     });
 
     expect(normalized.worktrees).toEqual([
-      { id: "primary", path: "/repo", label: "clarity-cli", kind: 'main', active: true },
+      { id: "main", path: "/repo", label: "clarity-cli", kind: 'main', active: true },
       { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked', active: true },
     ]);
   });
 
   it('falls back to worktree id as label when label missing', () => {
     const normalized = normalizeGraphStreamPayload({
-      worktrees: [{ id: "primary", path: "/repo", kind: 'main' }],
+      worktrees: [{ id: "main", path: "/repo", kind: 'main' }],
       workingSnapshots: [],
       pastCollections: [],
     });
 
-    expect(normalized.worktrees[0].label).toBe("primary");
+    expect(normalized.worktrees[0].label).toBe("main");
     expect(normalized.worktrees[0].kind).toBe("main");
   });
 
   it('normalizes the active flag, defaulting missing to true', () => {
     const normalized = normalizeGraphStreamPayload({
       worktrees: [
-        { id: "primary", path: "/repo", label: "repo", kind: 'main', active: true },
+        { id: "main", path: "/repo", label: "repo", kind: 'main', active: true },
         { id: "wt-finished", path: "/tmp/done", label: "done", kind: 'linked', active: false },
         { id: "wt-legacy", path: "/tmp/old", label: "old", kind: 'linked' }, // no active field
       ],
@@ -127,8 +127,8 @@ describe('normalizeGraphStreamPayload', () => {
   it('carries the sessionStart flag through normalization', () => {
     const normalized = normalizeGraphStreamPayload({
       workingSnapshots: [
-        { id: 1, worktreeId: "primary", timestamp: TIMESTAMP, dot: "digraph {}", sessionStart: true },
-        { id: 2, worktreeId: "primary", timestamp: TIMESTAMP, dot: "digraph {}" },
+        { id: 1, worktreeId: "main", timestamp: TIMESTAMP, dot: "digraph {}", sessionStart: true },
+        { id: 2, worktreeId: "main", timestamp: TIMESTAMP, dot: "digraph {}" },
       ],
       pastCollections: [],
     });
@@ -152,13 +152,13 @@ describe('normalizeGraphStreamPayload', () => {
       workingSnapshots: [],
       pastCollections: [{
         id: 5,
-        worktreeId: "primary",
+        worktreeId: "main",
         timestamp: TIMESTAMP,
         snapshots: [snapshot(1)],
         commitHistory: [commit, { subject: "missing hash" }],
       }],
     });
 
-    expect(normalized.pastCollections).toEqual([collection(5, [snapshot(1)], "primary", [commit])]);
+    expect(normalized.pastCollections).toEqual([collection(5, [snapshot(1)], "main", [commit])]);
   });
 });

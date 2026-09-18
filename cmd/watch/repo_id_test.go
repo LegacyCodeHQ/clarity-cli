@@ -3,28 +3,29 @@ package watch
 import (
 	"testing"
 
+	"github.com/LegacyCodeHQ/clarity/cmd/watch/protocol"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRepoIDForPrimary(t *testing.T) {
-	assert.Equal(t, "primary", worktreeIDFor("/any/path", true))
+func TestWorktreeIDForMain(t *testing.T) {
+	assert.Equal(t, "main", worktreeIDFor("/any/path", protocol.WorktreeKindMain))
 }
 
-func TestRepoIDForLinkedIsStable(t *testing.T) {
-	a := worktreeIDFor("/tmp/foo-feat", false)
-	b := worktreeIDFor("/tmp/foo-feat", false)
-	assert.Equal(t, a, b, "repo id must be stable for the same path")
+func TestWorktreeIDForLinkedIsStable(t *testing.T) {
+	a := worktreeIDFor("/tmp/foo-feat", protocol.WorktreeKindLinked)
+	b := worktreeIDFor("/tmp/foo-feat", protocol.WorktreeKindLinked)
+	assert.Equal(t, a, b, "worktree id must be stable for the same path")
 }
 
-func TestRepoIDForLinkedHasPrefixAndLength(t *testing.T) {
-	id := worktreeIDFor("/tmp/foo-feat", false)
+func TestWorktreeIDForLinkedHasPrefixAndLength(t *testing.T) {
+	id := worktreeIDFor("/tmp/foo-feat", protocol.WorktreeKindLinked)
 	assert.Contains(t, id, "wt-", "linked worktree id should be prefixed")
 	assert.Equal(t, len("wt-")+8, len(id), "linked worktree id should be wt- + 8 hex chars")
 }
 
-func TestRepoIDForLinkedDistinguishesPaths(t *testing.T) {
-	a := worktreeIDFor("/tmp/foo-feat-a", false)
-	b := worktreeIDFor("/tmp/foo-feat-b", false)
+func TestWorktreeIDForLinkedDistinguishesPaths(t *testing.T) {
+	a := worktreeIDFor("/tmp/foo-feat-a", protocol.WorktreeKindLinked)
+	b := worktreeIDFor("/tmp/foo-feat-b", protocol.WorktreeKindLinked)
 	assert.NotEqual(t, a, b)
 }
 

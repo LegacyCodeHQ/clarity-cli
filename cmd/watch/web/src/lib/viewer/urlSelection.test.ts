@@ -38,7 +38,7 @@ describe('parseSelectionFromSearch', () => {
 describe('buildSearchFromState', () => {
   it('produces an empty string for the default live-at-latest state', () => {
     expect(buildSearchFromState({
-      selectedWorktreeID: 'primary',
+      selectedWorktreeID: 'main',
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: null,
@@ -47,7 +47,7 @@ describe('buildSearchFromState', () => {
 
   it('encodes a live scrub position', () => {
     expect(buildSearchFromState({
-      selectedWorktreeID: 'primary',
+      selectedWorktreeID: 'main',
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: 1,
@@ -56,7 +56,7 @@ describe('buildSearchFromState', () => {
 
   it('encodes an archived session and its snapshot index', () => {
     expect(buildSearchFromState({
-      selectedWorktreeID: 'primary',
+      selectedWorktreeID: 'main',
       selectedCollectionID: 3,
       selectedCollectionSnapshotIndex: 2,
       liveSnapshotIndex: null,

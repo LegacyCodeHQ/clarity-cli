@@ -67,7 +67,7 @@ export interface ViewModel {
 
 type TimeFormatter = (timestamp: string) => string;
 
-export const DEFAULT_WORKTREE_ID = "primary";
+export const DEFAULT_WORKTREE_ID = "main";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
@@ -106,7 +106,7 @@ function selectedWorktreeAllowsLive(state: Pick<ViewerState, "worktrees" | "sele
 /**
  * Picks the next selected worktree when the previous selection becomes
  * invalid (e.g., its tab was removed). Prefers the existing selection, then
- * "primary", then the first worktree in the list.
+ * "main", then the first worktree in the list.
  */
 function resolveSelectedWorktreeID(worktrees: WorktreeDescriptor[], current: string): string {
   if (worktrees.length === 0) {
@@ -219,7 +219,7 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
 
 /**
  * Buckets a flat payload by worktreeId. Snapshots/collections without a
- * worktreeId fall into the primary bucket — keeps backward-tolerance with
+ * worktreeId fall into the main bucket — keeps backward-tolerance with
  * older payloads and with single-worktree callers.
  */
 function bucketPayload(payload: GraphStreamPayload): Record<string, WorktreeBucket> {

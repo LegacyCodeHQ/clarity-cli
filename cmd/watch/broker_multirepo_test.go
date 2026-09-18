@@ -15,7 +15,7 @@ func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 	defer b.unsubscribe(ch)
 
 	b.registerWorktree(protocol.WorktreeDescriptor{
-		ID:    "primary",
+		ID:    "main",
 		Path:  "/repo",
 		Label: "clarity-cli",
 		Kind:  protocol.WorktreeKindMain,
@@ -24,7 +24,7 @@ func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 	select {
 	case got := <-ch:
 		require.Len(t, got.Worktrees, 1)
-		assert.Equal(t, "primary", got.Worktrees[0].ID)
+		assert.Equal(t, "main", got.Worktrees[0].ID)
 		assert.Equal(t, protocol.WorktreeKindMain, got.Worktrees[0].Kind)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for tab descriptor")
@@ -33,13 +33,13 @@ func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 
 func TestBroker_PublishToMultipleWorktrees_FlatPayloadTaggedByWorktreeID(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Label: "main", Kind: protocol.WorktreeKindMain})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", Kind: protocol.WorktreeKindLinked})
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph primary { A; }")
+	b.publish("main", "digraph primary { A; }")
 	b.publish("wt-aaaaaaaa", "digraph wt { B; }")
 
 	// Drain until we see both repos represented.
@@ -59,10 +59,10 @@ func TestBroker_PublishToMultipleWorktrees_FlatPayloadTaggedByWorktreeID(t *test
 done:
 	require.Len(t, last.WorkingSnapshots, 2)
 	repoIDs := []string{last.WorkingSnapshots[0].WorktreeID, last.WorkingSnapshots[1].WorktreeID}
-	assert.ElementsMatch(t, []string{"primary", "wt-aaaaaaaa"}, repoIDs)
+	assert.ElementsMatch(t, []string{"main", "wt-aaaaaaaa"}, repoIDs)
 
 	for _, s := range last.WorkingSnapshots {
-		if s.WorktreeID == "primary" {
+		if s.WorktreeID == "main" {
 			assert.Equal(t, "digraph primary { A; }", s.DOT)
 		} else {
 			assert.Equal(t, "digraph wt { B; }", s.DOT)
@@ -72,13 +72,13 @@ done:
 
 func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain})
 
 	// The first snapshot recorded for a repo is the session start: it captures
 	// whatever already existed in the working tree when the watcher attached.
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	// Subsequent live snapshots are not session starts.
-	b.publish("primary", "digraph { A; B; }")
+	b.publish("main", "digraph { A; B; }")
 
 	ch := b.subscribe()
 	got := <-ch
@@ -89,8 +89,8 @@ func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 
 	// A commit archives the working set; the next snapshot belongs to a new
 	// cycle but is still mid-session — it must NOT be a fresh session start.
-	b.archiveWorkingSet("primary")
-	b.publish("primary", "digraph { C; }")
+	b.archiveWorkingSet("main")
+	b.publish("main", "digraph { C; }")
 
 	ch2 := b.subscribe()
 	got2 := <-ch2
@@ -106,13 +106,13 @@ func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 
 func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked})
 
-	b.publish("primary", "digraph p {}")
+	b.publish("main", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
-	b.archiveWorkingSet("primary")
+	b.archiveWorkingSet("main")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -123,7 +123,7 @@ func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 		require.Len(t, got.WorkingSnapshots, 1)
 		assert.Equal(t, "wt-aaaaaaaa", got.WorkingSnapshots[0].WorktreeID)
 		require.Len(t, got.PastCollections, 1)
-		assert.Equal(t, "primary", got.PastCollections[0].WorktreeID)
+		assert.Equal(t, "main", got.PastCollections[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload")
 	}
@@ -131,9 +131,9 @@ func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 
 func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked})
-	b.publish("primary", "digraph p {}")
+	b.publish("main", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
 	b.unregisterWorktree("wt-aaaaaaaa")
@@ -144,9 +144,9 @@ func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 	select {
 	case got := <-ch:
 		require.Len(t, got.Worktrees, 1)
-		assert.Equal(t, "primary", got.Worktrees[0].ID)
+		assert.Equal(t, "main", got.Worktrees[0].ID)
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
+		assert.Equal(t, "main", got.WorkingSnapshots[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload after unregister")
 	}
@@ -157,9 +157,9 @@ func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 // no longer live and should be exposed as an archived collection.
 func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked, Active: true})
-	b.publish("primary", "digraph p {}")
+	b.publish("main", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
 	b.markWorktreeFinished("wt-aaaaaaaa")
@@ -175,10 +175,10 @@ func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 		for _, r := range got.Worktrees {
 			byID[r.ID] = r
 		}
-		assert.True(t, byID["primary"].Active, "primary worktree stays active")
+		assert.True(t, byID["main"].Active, "main worktree stays active")
 		assert.False(t, byID["wt-aaaaaaaa"].Active, "removed worktree flips to inactive")
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
+		assert.Equal(t, "main", got.WorkingSnapshots[0].WorktreeID)
 		require.Len(t, got.PastCollections, 1)
 		assert.Equal(t, "wt-aaaaaaaa", got.PastCollections[0].WorktreeID)
 		require.Len(t, got.PastCollections[0].Snapshots, 1)
@@ -192,9 +192,9 @@ func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 // worktrees can be closed, and closing drops the tab and its history.
 func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked, Active: true})
-	b.publish("primary", "digraph p {}")
+	b.publish("main", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 	b.markWorktreeFinished("wt-aaaaaaaa")
 
@@ -206,9 +206,9 @@ func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 	select {
 	case got := <-ch:
 		require.Len(t, got.Worktrees, 1)
-		assert.Equal(t, "primary", got.Worktrees[0].ID)
+		assert.Equal(t, "main", got.Worktrees[0].ID)
 		require.Len(t, got.WorkingSnapshots, 1)
-		assert.Equal(t, "primary", got.WorkingSnapshots[0].WorktreeID)
+		assert.Equal(t, "main", got.WorkingSnapshots[0].WorktreeID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload after closeWorktree")
 	}
@@ -218,10 +218,10 @@ func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 // tear down a tab that's still being watched.
 func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
-	b.publish("primary", "digraph p {}")
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.publish("main", "digraph p {}")
 
-	assert.Equal(t, closeActive, b.closeWorktree("primary"), "closing an active worktree should be refused")
+	assert.Equal(t, closeActive, b.closeWorktree("main"), "closing an active worktree should be refused")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -229,7 +229,7 @@ func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 	select {
 	case got := <-ch:
 		require.Len(t, got.Worktrees, 1, "active tab must remain after a refused close")
-		assert.Equal(t, "primary", got.Worktrees[0].ID)
+		assert.Equal(t, "main", got.Worktrees[0].ID)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for payload")
 	}
@@ -237,7 +237,7 @@ func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 
 func TestBroker_CloseWorktree_UnknownWorktreeReturnsFalse(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 
 	assert.Equal(t, closeNotFound, b.closeWorktree("wt-missing"), "closing an unknown worktree should report not found")
 }

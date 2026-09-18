@@ -33,7 +33,7 @@ const worktreeReconcileInterval = 2 * time.Second
 
 // planInitialWorktrees resolves which worktrees to watch when `clarity watch`
 // starts in `cwd`. The first entry is always the cwd-tree, given the literal
-// id "primary" so it's the default tab. In primary mode (cwd is the primary
+// id "main" so it's the default tab. In primary mode (cwd is the primary
 // worktree), additional descriptors follow for each linked worktree.
 func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
 	kind, err := git.WorktreeKindFor(cwd)
@@ -49,7 +49,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 
 	if !isPrimary {
 		return []protocol.WorktreeDescriptor{{
-			ID:     primaryWorktreeID,
+			ID:     mainWorktreeID,
 			Path:   cwdAbs,
 			Label:  primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
 			Kind:   protocol.WorktreeKindMain,
@@ -63,7 +63,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 	}
 
 	descriptors := []protocol.WorktreeDescriptor{{
-		ID:     primaryWorktreeID,
+		ID:     mainWorktreeID,
 		Path:   cwdAbs,
 		Label:  primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
 		Kind:   protocol.WorktreeKindMain,
@@ -83,7 +83,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 
 func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
 	return protocol.WorktreeDescriptor{
-		ID:     worktreeIDFor(w.Path, false),
+		ID:     worktreeIDFor(w.Path, protocol.WorktreeKindLinked),
 		Path:   w.Path,
 		Label:  linkedRepoLabel(w.Path),
 		Kind:   protocol.WorktreeKindLinked,
@@ -337,7 +337,7 @@ func (s *supervisor) linkedWatchersMissingFrom(seen map[string]bool) []string {
 	defer s.mu.Unlock()
 	var missing []string
 	for worktreeID := range s.watchers {
-		if worktreeID != primaryWorktreeID && !seen[worktreeID] {
+		if worktreeID != mainWorktreeID && !seen[worktreeID] {
 			missing = append(missing, worktreeID)
 		}
 	}

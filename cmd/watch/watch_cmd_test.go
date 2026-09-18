@@ -30,7 +30,7 @@ func TestBroker_PublishAndSubscribe(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A -> B; }")
+	b.publish("main", "digraph { A -> B; }")
 
 	select {
 	case got := <-ch:
@@ -46,7 +46,7 @@ func TestBroker_PublishAndSubscribe(t *testing.T) {
 
 func TestBroker_NewSubscriberReceivesLatest(t *testing.T) {
 	b := newBroker()
-	b.publish("primary", "digraph { X -> Y; }")
+	b.publish("main", "digraph { X -> Y; }")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -69,7 +69,7 @@ func TestBroker_MultipleSubscribers(t *testing.T) {
 	defer b.unsubscribe(ch1)
 	defer b.unsubscribe(ch2)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 
 	select {
 	case got := <-ch1:
@@ -111,7 +111,7 @@ func TestHandleSSE_StreamsGraphEvent(t *testing.T) {
 	b := newBroker()
 
 	// Pre-publish so the subscriber gets data immediately on subscribe.
-	b.publish("primary", "digraph { test; }")
+	b.publish("main", "digraph { test; }")
 
 	handler := handleSSE(b)
 	server := httptest.NewServer(handler)
@@ -135,7 +135,7 @@ func TestHandleSSE_MultiLineData(t *testing.T) {
 	b := newBroker()
 
 	multiLine := "digraph {\n  A -> B;\n}"
-	b.publish("primary", multiLine)
+	b.publish("main", multiLine)
 
 	handler := handleSSE(b)
 	server := httptest.NewServer(handler)
@@ -162,10 +162,10 @@ func TestBroker_PublishSkipsDuplicateSnapshots(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A -> B; }")
+	b.publish("main", "digraph { A -> B; }")
 	<-ch
 
-	b.publish("primary", "digraph { A -> B; }")
+	b.publish("main", "digraph { A -> B; }")
 
 	select {
 	case <-ch:
@@ -180,10 +180,10 @@ func TestBroker_NewPayloadOverwritesQueuedStalePayload(t *testing.T) {
 	defer b.unsubscribe(ch)
 
 	// Queue a stale reset payload and do not consume it yet.
-	b.clearWorkingSet("primary")
+	b.clearWorkingSet("main")
 
 	// Publish a fresh working snapshot while the channel buffer is full.
-	b.publish("primary", "digraph { A -> B; }")
+	b.publish("main", "digraph { A -> B; }")
 
 	select {
 	case got := <-ch:
@@ -200,10 +200,10 @@ func TestBroker_ArchiveWorkingSetClearsActiveSnapshots(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	<-ch
 
-	b.archiveWorkingSet("primary")
+	b.archiveWorkingSet("main")
 
 	select {
 	case got := <-ch:
@@ -223,7 +223,7 @@ func TestBroker_ArchiveWorkingSetCarriesCommitHistory(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	<-ch
 
 	commitTime := time.Date(2026, 6, 8, 10, 0, 0, 0, time.UTC)
@@ -235,7 +235,7 @@ func TestBroker_ArchiveWorkingSetCarriesCommitHistory(t *testing.T) {
 		Email:     "test@example.com",
 		Timestamp: commitTime,
 	}}
-	b.archiveWorkingSetWithCommitHistory("primary", history)
+	b.archiveWorkingSetWithCommitHistory("main", history)
 
 	select {
 	case got := <-ch:
@@ -259,13 +259,13 @@ func TestBroker_ArchiveWorkingSetWithCommitHistorySkipsWhenNoCommits(t *testing.
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	<-ch
 
 	// A HEAD change that discards commits (git reset --hard, amend, rebase)
 	// yields an empty commit history from `git log old..new`. That must not
 	// mint a new numbered session — the working set stays open.
-	b.archiveWorkingSetWithCommitHistory("primary", nil)
+	b.archiveWorkingSetWithCommitHistory("main", nil)
 
 	select {
 	case <-ch:
@@ -273,7 +273,7 @@ func TestBroker_ArchiveWorkingSetWithCommitHistorySkipsWhenNoCommits(t *testing.
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	b.publish("primary", "digraph { A; B; }")
+	b.publish("main", "digraph { A; B; }")
 
 	select {
 	case got := <-ch:
@@ -288,8 +288,8 @@ func TestBroker_ArchiveWorkingSetWithCommitHistorySkipsWhenNoCommits(t *testing.
 
 func TestBroker_NewSubscriberReceivesArchivedState(t *testing.T) {
 	b := newBroker()
-	b.publish("primary", "digraph { A; }")
-	b.archiveWorkingSet("primary")
+	b.publish("main", "digraph { A; }")
+	b.archiveWorkingSet("main")
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -312,14 +312,14 @@ func TestBroker_ArchiveWorkingSetAcrossCycles(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	<-ch
-	b.archiveWorkingSet("primary")
+	b.archiveWorkingSet("main")
 	<-ch
 
-	b.publish("primary", "digraph { B; }")
+	b.publish("main", "digraph { B; }")
 	<-ch
-	b.archiveWorkingSet("primary")
+	b.archiveWorkingSet("main")
 
 	select {
 	case got := <-ch:
@@ -340,10 +340,10 @@ func TestBroker_ClearWorkingSetDoesNotArchive(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "digraph { A; }")
+	b.publish("main", "digraph { A; }")
 	<-ch
 
-	b.clearWorkingSet("primary")
+	b.clearWorkingSet("main")
 
 	select {
 	case got := <-ch:
@@ -358,8 +358,8 @@ func TestBroker_ClearWorkingSetDoesNotArchive(t *testing.T) {
 
 func TestHandleSSE_StreamsJSONPayload(t *testing.T) {
 	b := newBroker()
-	b.publish("primary", "digraph { A; }")
-	b.publish("primary", "digraph { B; }")
+	b.publish("main", "digraph { A; }")
+	b.publish("main", "digraph { B; }")
 
 	handler := handleSSE(b)
 	server := httptest.NewServer(handler)
@@ -479,7 +479,7 @@ func TestBroker_PayloadCarriesSessionFormat(t *testing.T) {
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("primary", "flowchart LR\n")
+	b.publish("main", "flowchart LR\n")
 
 	select {
 	case payload := <-ch:
@@ -986,7 +986,7 @@ func TestPublishCurrentGraph_NoUncommittedChangesClearsWorkingSnapshots(t *testi
 
 	formatter, err := formatters.NewFormatter("dot")
 	require.NoError(t, err)
-	publishCurrentGraph("primary", dir, &watchOptions{}, b, formatter)
+	publishCurrentGraph("main", dir, &watchOptions{}, b, formatter)
 
 	select {
 	case got := <-ch:
@@ -1008,7 +1008,7 @@ func TestPublishCurrentGraph_ExistingRepositoryReportsGraphError(t *testing.T) {
 	require.NoError(t, err)
 
 	stderr := captureStderr(t, func() {
-		publishCurrentGraph("primary", dir, &watchOptions{depthLevel: -1}, b, formatter)
+		publishCurrentGraph("main", dir, &watchOptions{depthLevel: -1}, b, formatter)
 	})
 
 	assert.Contains(t, stderr, "graph rebuild error: --depth must be at least 0")
@@ -1160,7 +1160,7 @@ func TestWatchAndRebuild_DetectsFileRename(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() { _ = watchAndRebuild(ctx, "primary", dir, opts, b, formatter) }()
+	go func() { _ = watchAndRebuild(ctx, "main", dir, opts, b, formatter) }()
 
 	// Give the watcher a moment to install its fsnotify watches before we
 	// mutate the tree. Then create the first uncommitted change so the watcher
@@ -1225,7 +1225,7 @@ func TestWatchAndRebuild_DebounceFiresOnEverySaveCycle(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() { _ = watchAndRebuild(ctx, "primary", dir, opts, b, formatter) }()
+	go func() { _ = watchAndRebuild(ctx, "main", dir, opts, b, formatter) }()
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -1270,7 +1270,7 @@ func TestWatchAndRebuild_GitStatePollDoesNotSampleMidChurnState(t *testing.T) {
 	defer cancel()
 
 	stderr := captureStderr(t, func() {
-		go func() { _ = watchAndRebuild(ctx, "primary", dir, opts, b, formatter) }()
+		go func() { _ = watchAndRebuild(ctx, "main", dir, opts, b, formatter) }()
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -1319,7 +1319,7 @@ func waitForSnapshotID(t *testing.T, b *broker, want int64, timeout time.Duratio
 func latestSnapshot(b *broker) (string, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := b.worktreeStates[primaryWorktreeID]
+	s := b.worktreeStates[mainWorktreeID]
 	if s == nil || len(s.history) == 0 {
 		return "", false
 	}
