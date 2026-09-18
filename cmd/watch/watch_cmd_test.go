@@ -1319,7 +1319,7 @@ func waitForSnapshotID(t *testing.T, b *broker, want int64, timeout time.Duratio
 func latestSnapshot(b *broker) (string, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := b.repoStates[primaryRepoID]
+	s := b.repoStates[primaryWorktreeID]
 	if s == nil || len(s.history) == 0 {
 		return "", false
 	}

@@ -48,7 +48,7 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 
 	if !isPrimary {
 		return []protocol.RepoDescriptor{{
-			ID:        primaryRepoID,
+			ID:        primaryWorktreeID,
 			Path:      cwdAbs,
 			Label:     primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
 			IsPrimary: true,
@@ -62,7 +62,7 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 	}
 
 	repos := []protocol.RepoDescriptor{{
-		ID:        primaryRepoID,
+		ID:        primaryWorktreeID,
 		Path:      cwdAbs,
 		Label:     primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
 		IsPrimary: true,
@@ -82,7 +82,7 @@ func planInitialRepos(cwd string) ([]protocol.RepoDescriptor, repoMode, error) {
 
 func descriptorForLinked(w git.Worktree) protocol.RepoDescriptor {
 	return protocol.RepoDescriptor{
-		ID:        repoIDFor(w.Path, false),
+		ID:        worktreeIDFor(w.Path, false),
 		Path:      w.Path,
 		Label:     linkedRepoLabel(w.Path),
 		IsPrimary: false,
@@ -336,7 +336,7 @@ func (s *supervisor) linkedWatchersMissingFrom(seen map[string]bool) []string {
 	defer s.mu.Unlock()
 	var missing []string
 	for repoID := range s.watchers {
-		if repoID != primaryRepoID && !seen[repoID] {
+		if repoID != primaryWorktreeID && !seen[repoID] {
 			missing = append(missing, repoID)
 		}
 	}

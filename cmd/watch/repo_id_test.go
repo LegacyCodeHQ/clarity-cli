@@ -7,24 +7,24 @@ import (
 )
 
 func TestRepoIDForPrimary(t *testing.T) {
-	assert.Equal(t, "primary", repoIDFor("/any/path", true))
+	assert.Equal(t, "primary", worktreeIDFor("/any/path", true))
 }
 
 func TestRepoIDForLinkedIsStable(t *testing.T) {
-	a := repoIDFor("/tmp/foo-feat", false)
-	b := repoIDFor("/tmp/foo-feat", false)
+	a := worktreeIDFor("/tmp/foo-feat", false)
+	b := worktreeIDFor("/tmp/foo-feat", false)
 	assert.Equal(t, a, b, "repo id must be stable for the same path")
 }
 
 func TestRepoIDForLinkedHasPrefixAndLength(t *testing.T) {
-	id := repoIDFor("/tmp/foo-feat", false)
+	id := worktreeIDFor("/tmp/foo-feat", false)
 	assert.Contains(t, id, "wt-", "linked worktree id should be prefixed")
 	assert.Equal(t, len("wt-")+8, len(id), "linked worktree id should be wt- + 8 hex chars")
 }
 
 func TestRepoIDForLinkedDistinguishesPaths(t *testing.T) {
-	a := repoIDFor("/tmp/foo-feat-a", false)
-	b := repoIDFor("/tmp/foo-feat-b", false)
+	a := worktreeIDFor("/tmp/foo-feat-a", false)
+	b := worktreeIDFor("/tmp/foo-feat-b", false)
 	assert.NotEqual(t, a, b)
 }
 

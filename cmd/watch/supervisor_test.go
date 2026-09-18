@@ -21,7 +21,7 @@ func TestPlanInitialRepos_PrimaryNoWorktrees(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, modePrimary, mode)
 	require.Len(t, repos, 1)
-	assert.Equal(t, primaryRepoID, repos[0].ID)
+	assert.Equal(t, primaryWorktreeID, repos[0].ID)
 	assert.True(t, repos[0].IsPrimary)
 	assert.Equal(t, "main", repos[0].Label)
 }
@@ -36,11 +36,11 @@ func TestPlanInitialRepos_PrimaryWithLinkedWorktree(t *testing.T) {
 	assert.Equal(t, modePrimary, mode)
 	require.Len(t, repos, 2)
 
-	assert.Equal(t, primaryRepoID, repos[0].ID)
+	assert.Equal(t, primaryWorktreeID, repos[0].ID)
 	assert.True(t, repos[0].IsPrimary)
 	assert.Equal(t, "main", repos[0].Label)
 	// The linked worktree comes after the primary, with a derived id.
-	assert.True(t, repos[1].ID != primaryRepoID, "linked worktree should not get the primary id")
+	assert.True(t, repos[1].ID != primaryWorktreeID, "linked worktree should not get the primary id")
 	assert.False(t, repos[1].IsPrimary)
 	assert.Equal(t, "linked", repos[1].Label, "label should be the worktree directory name")
 }
@@ -54,7 +54,7 @@ func TestPlanInitialRepos_LinkedModeReturnsOnlyCwd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, modeLinked, mode)
 	require.Len(t, repos, 1)
-	assert.Equal(t, primaryRepoID, repos[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
+	assert.Equal(t, primaryWorktreeID, repos[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
 	assert.True(t, repos[0].IsPrimary)
 	assert.Equal(t, "feat/x", repos[0].Label)
 }
@@ -103,8 +103,8 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	linkedID := b.repos[1].ID
 	bothActive := b.repos[0].Active && b.repos[1].Active
 	b.mu.Unlock()
-	assert.Contains(t, gotIDs, primaryRepoID)
-	assert.NotEqual(t, primaryRepoID, gotIDs[1], "second tab should be the linked worktree, not another primary")
+	assert.Contains(t, gotIDs, primaryWorktreeID)
+	assert.NotEqual(t, primaryWorktreeID, gotIDs[1], "second tab should be the linked worktree, not another primary")
 	assert.True(t, bothActive, "freshly watched worktrees start active")
 
 	// Removing the worktree keeps the tab as a frozen, inactive record — the
@@ -205,7 +205,7 @@ func TestSupervisor_SkipsStaleInitialWorktreeAndDetectsLaterAdds(t *testing.T) {
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		return len(b.repos) > 0 && b.repos[0].ID == primaryRepoID
+		return len(b.repos) > 0 && b.repos[0].ID == primaryWorktreeID
 	}, 2*time.Second, 20*time.Millisecond, "primary tab should register on startup")
 
 	live := filepath.Join(t.TempDir(), "live-after-stale")
