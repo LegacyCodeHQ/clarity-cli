@@ -115,13 +115,13 @@ func TestCloseSessionCommitted_NoCommits_Errors(t *testing.T) {
 	assert.False(t, closedAt.Valid, "a rejected close must not leave the session half-closed")
 }
 
-func TestCloseSessionAbandoned_SetsClosedReasonNoCommits(t *testing.T) {
+func TestCloseSessionDiscarded_SetsClosedReasonNoCommits(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
 	sessionID, err := OpenSession(db, "main")
 	require.NoError(t, err)
 
-	require.NoError(t, CloseSessionAbandoned(db, sessionID))
+	require.NoError(t, CloseSessionDiscarded(db, sessionID))
 
 	var closedAt sql.NullTime
 	var closedReason string
@@ -129,7 +129,7 @@ func TestCloseSessionAbandoned_SetsClosedReasonNoCommits(t *testing.T) {
 		`SELECT closed_at, closed_reason FROM sessions WHERE id = ?`, sessionID,
 	).Scan(&closedAt, &closedReason))
 	assert.True(t, closedAt.Valid)
-	assert.Equal(t, "abandoned", closedReason)
+	assert.Equal(t, "discarded", closedReason)
 
 	var commitCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM commits WHERE session_id = ?`, sessionID).Scan(&commitCount))
@@ -147,4 +147,17 @@ func TestCloseSessionWorktreeRemoved_SetsClosedReasonNoCommits(t *testing.T) {
 	var closedReason string
 	require.NoError(t, db.QueryRow(`SELECT closed_reason FROM sessions WHERE id = ?`, sessionID).Scan(&closedReason))
 	assert.Equal(t, "worktree_removed", closedReason)
+}
+
+func TestCloseSessionStale_SetsClosedReasonNoCommits(t *testing.T) {
+	db := openMigratedTestDB(t)
+	seedWorktree(t, db, "main")
+	sessionID, err := OpenSession(db, "main")
+	require.NoError(t, err)
+
+	require.NoError(t, CloseSessionStale(db, sessionID))
+
+	var closedReason string
+	require.NoError(t, db.QueryRow(`SELECT closed_reason FROM sessions WHERE id = ?`, sessionID).Scan(&closedReason))
+	assert.Equal(t, "stale", closedReason)
 }

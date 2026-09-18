@@ -394,8 +394,8 @@ func (b *broker) clearWorkingSet(worktreeID string) {
 	b.mu.Unlock()
 
 	if hadHistory && dbStore != nil && dbSessionID != 0 {
-		if err := store.CloseSessionAbandoned(dbStore, dbSessionID); err != nil {
-			fmt.Fprintf(os.Stderr, "persist session close (abandoned) for %s: %v\n", worktreeID, err)
+		if err := store.CloseSessionDiscarded(dbStore, dbSessionID); err != nil {
+			fmt.Fprintf(os.Stderr, "persist session close (discarded) for %s: %v\n", worktreeID, err)
 		}
 	}
 }

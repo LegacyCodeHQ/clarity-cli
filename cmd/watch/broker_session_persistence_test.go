@@ -92,7 +92,7 @@ func TestBroker_ArchiveWorkingSetWithCommitHistory_ClosesSessionCommitted(t *tes
 	assert.Equal(t, 1, commitCount)
 }
 
-func TestBroker_ClearWorkingSet_ClosesSessionAbandoned(t *testing.T) {
+func TestBroker_ClearWorkingSet_ClosesSessionDiscarded(t *testing.T) {
 	b, db := newPersistedBroker(t)
 	b.publish("main", "digraph{a}")
 
@@ -102,7 +102,7 @@ func TestBroker_ClearWorkingSet_ClosesSessionAbandoned(t *testing.T) {
 	var closedReason string
 	require.NoError(t, db.QueryRow(`SELECT closed_at, closed_reason FROM sessions WHERE number = 1`).Scan(&closedAt, &closedReason))
 	assert.True(t, closedAt.Valid)
-	assert.Equal(t, "abandoned", closedReason)
+	assert.Equal(t, "discarded", closedReason)
 
 	var commitCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM commits`).Scan(&commitCount))

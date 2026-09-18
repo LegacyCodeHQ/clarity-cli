@@ -26,7 +26,7 @@ type CommitRecord struct {
 //
 // Each call always creates a fresh session; it never looks for or resumes
 // a previously-open one. Deciding what to do with a session left open by a
-// prior process run (resume vs. treat as abandoned) is restart-hydration's
+// prior process run (resume vs. CloseSessionStale) is restart-hydration's
 // job, not this one's.
 //
 // Numbering is computed as MAX(number)+1 inside a transaction and retried
@@ -71,8 +71,8 @@ func isUniqueConstraintErr(err error) bool {
 // CloseSessionCommitted closes sessionID as committed: sets closed_at and
 // closed_reason='committed', and records commits. Requires at least one
 // commit — a session closed by a real commit always has one, per the
-// design; a session with none belongs to CloseSessionAbandoned or
-// CloseSessionWorktreeRemoved instead.
+// design; a session with none belongs to CloseSessionDiscarded,
+// CloseSessionWorktreeRemoved, or CloseSessionStale instead.
 func CloseSessionCommitted(db *sql.DB, sessionID int64, commits []CommitRecord) error {
 	if len(commits) == 0 {
 		return fmt.Errorf("close session %d as committed: at least one commit required", sessionID)
@@ -100,11 +100,12 @@ func CloseSessionCommitted(db *sql.DB, sessionID int64, commits []CommitRecord) 
 	return nil
 }
 
-// CloseSessionAbandoned closes sessionID as abandoned: the working tree
+// CloseSessionDiscarded closes sessionID as discarded: the working tree
 // returned to a clean state with no commit (stash, checkout -- ., reset
-// with no reachable new commits). No commits are recorded.
-func CloseSessionAbandoned(db *sql.DB, sessionID int64) error {
-	return closeSessionWithoutCommit(db, sessionID, "abandoned")
+// with no reachable new commits) while clarity watch was actively watching.
+// No commits are recorded.
+func CloseSessionDiscarded(db *sql.DB, sessionID int64) error {
+	return closeSessionWithoutCommit(db, sessionID, "discarded")
 }
 
 // CloseSessionWorktreeRemoved closes sessionID as worktree_removed: the
@@ -112,6 +113,19 @@ func CloseSessionAbandoned(db *sql.DB, sessionID int64) error {
 // had uncommitted snapshots. No commits are recorded.
 func CloseSessionWorktreeRemoved(db *sql.DB, sessionID int64) error {
 	return closeSessionWithoutCommit(db, sessionID, "worktree_removed")
+}
+
+// CloseSessionStale closes sessionID as stale: it was left open by a
+// process that exited without closing it (a crash, a kill, a machine
+// restart — clarity watch doesn't know which), and at the next relaunch its
+// last recorded snapshot no longer matched the freshly rebuilt graph, so it
+// was closed rather than resumed. No commits are recorded.
+//
+// This is a primitive only — the comparison that decides whether to call
+// this or resume the session instead is restart hydration's job, not
+// implemented yet.
+func CloseSessionStale(db *sql.DB, sessionID int64) error {
+	return closeSessionWithoutCommit(db, sessionID, "stale")
 }
 
 func closeSessionWithoutCommit(db *sql.DB, sessionID int64, reason string) error {
