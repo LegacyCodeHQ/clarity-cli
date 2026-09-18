@@ -16,11 +16,17 @@ import (
 // relies on (foreign key enforcement, since the schema depends on it) and
 // runs any pending migrations. Callers should PathFor(worktreePath) to get
 // path.
+//
+// The connection pool is limited to one connection: SQLite serializes
+// writers anyway, and Migrate needs a guarantee that the connection it
+// toggles PRAGMA foreign_keys on is the same one golang-migrate later runs
+// its transaction on (see migrate.go).
 func Open(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
+	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("open %s: %w", path, err)

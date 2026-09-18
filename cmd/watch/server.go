@@ -33,6 +33,14 @@ type worktreeState struct {
 	// watcher-attach state) has already been emitted. Set once and never reset,
 	// so the session-start marker doesn't reappear after commit/archive cycles.
 	sessionStarted bool
+	// dbSessionID and dbSnapshotPos track the persisted session this
+	// process's live snapshot stream is being written into (see
+	// broker.publish). dbSessionID is 0 until the first snapshot of this
+	// worktree's lifetime in this process opens one via store.OpenSession —
+	// each process always opens a fresh session, never resumes one left
+	// open by an earlier run (that's restart hydration's job, not this).
+	dbSessionID   int64
+	dbSnapshotPos int
 }
 
 // broker manages SSE client connections and broadcasts graph snapshots.
@@ -149,9 +157,11 @@ func (b *broker) unregisterWorktreeLocked(idx int, worktreeID string) {
 func (b *broker) markWorktreeFinished(worktreeID string) {
 	b.mu.Lock()
 	finished := false
+	var dbSessionID int64
+	var hadHistory bool
 	if idx, ok := b.worktreeIndex[worktreeID]; ok && b.worktrees[idx].Active {
 		s := b.stateForLocked(worktreeID)
-		b.archiveWorkingSetLocked(worktreeID, s, nil)
+		dbSessionID, hadHistory = b.archiveWorkingSetLocked(worktreeID, s, nil)
 		b.worktrees[idx].Active = false
 		b.broadcastLocked()
 		finished = true
@@ -159,9 +169,19 @@ func (b *broker) markWorktreeFinished(worktreeID string) {
 	dbStore := b.dbStore
 	b.mu.Unlock()
 
-	if finished && dbStore != nil {
-		if err := store.MarkWorktreeDisposed(dbStore, worktreeID); err != nil {
-			fmt.Fprintf(os.Stderr, "persist worktree %s disposed: %v\n", worktreeID, err)
+	if !finished || dbStore == nil {
+		return
+	}
+
+	if err := store.MarkWorktreeDisposed(dbStore, worktreeID); err != nil {
+		fmt.Fprintf(os.Stderr, "persist worktree %s disposed: %v\n", worktreeID, err)
+	}
+	// A session can still have been open (uncommitted snapshots in flight)
+	// when the worktree disappeared — distinct from the user reverting
+	// while still watching, hence its own closed_reason.
+	if hadHistory && dbSessionID != 0 {
+		if err := store.CloseSessionWorktreeRemoved(dbStore, dbSessionID); err != nil {
+			fmt.Fprintf(os.Stderr, "persist session close (worktree_removed) for %s: %v\n", worktreeID, err)
 		}
 	}
 }
@@ -226,10 +246,11 @@ func (b *broker) publish(worktreeID, dot string) {
 	b.nextID++
 	sessionStart := !s.sessionStarted
 	s.sessionStarted = true
+	timestamp := time.Now().UTC()
 	s.history = append(s.history, protocol.GraphSnapshot{
 		ID:           b.nextID,
 		WorktreeID:   worktreeID,
-		Timestamp:    time.Now().UTC(),
+		Timestamp:    timestamp,
 		DOT:          dot,
 		SessionStart: sessionStart,
 	})
@@ -239,7 +260,56 @@ func (b *broker) publish(worktreeID, dot string) {
 	s.hasState = true
 
 	b.broadcastLocked()
+	dbStore, format := b.dbStore, b.format
+	needsNewSession := dbStore != nil && s.dbSessionID == 0
 	b.mu.Unlock()
+
+	if dbStore == nil {
+		return
+	}
+	b.persistSnapshot(dbStore, worktreeID, s, needsNewSession, dot, format, sessionStart, timestamp)
+}
+
+// persistSnapshot writes one snapshot to the database, opening a session
+// first if this is the first snapshot of this worktree's lifetime in this
+// process. Failures are logged, never fatal — clarity watch's live
+// behavior does not depend on the database.
+func (b *broker) persistSnapshot(
+	dbStore *sql.DB, worktreeID string, s *worktreeState,
+	needsNewSession bool, dot, format string, sessionStart bool, timestamp time.Time,
+) {
+	if needsNewSession {
+		sessionID, err := store.OpenSession(dbStore, worktreeID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "open persisted session for %s: %v\n", worktreeID, err)
+			return
+		}
+		b.mu.Lock()
+		s.dbSessionID = sessionID
+		s.dbSnapshotPos = 0
+		b.mu.Unlock()
+	}
+
+	b.mu.Lock()
+	sessionID := s.dbSessionID
+	position := s.dbSnapshotPos
+	s.dbSnapshotPos++
+	b.mu.Unlock()
+
+	if sessionID == 0 {
+		return // opening the session above already failed and was logged
+	}
+
+	if format == "" {
+		format = "dot"
+	}
+	kind := "incremental"
+	if sessionStart {
+		kind = "baseline"
+	}
+	if err := store.AppendSnapshot(dbStore, sessionID, position, dot, format, kind, timestamp); err != nil {
+		fmt.Fprintf(os.Stderr, "persist snapshot for %s: %v\n", worktreeID, err)
+	}
 }
 
 func (b *broker) archiveWorkingSet(worktreeID string) {
@@ -260,12 +330,28 @@ func (b *broker) archiveWorkingSetWithCommitHistory(worktreeID string, commitHis
 	}
 	b.mu.Lock()
 	s := b.stateForLocked(worktreeID)
-	b.archiveWorkingSetLocked(worktreeID, s, commitHistory)
+	dbSessionID, hadHistory := b.archiveWorkingSetLocked(worktreeID, s, commitHistory)
 	b.broadcastLocked()
+	dbStore := b.dbStore
 	b.mu.Unlock()
+
+	if !hadHistory || dbStore == nil || dbSessionID == 0 {
+		return
+	}
+	commits := make([]store.CommitRecord, len(commitHistory))
+	for i, c := range commitHistory {
+		commits[i] = store.CommitRecord{Position: i, Hash: c.Hash, Subject: c.Subject}
+	}
+	if err := store.CloseSessionCommitted(dbStore, dbSessionID, commits); err != nil {
+		fmt.Fprintf(os.Stderr, "persist session close (committed) for %s: %v\n", worktreeID, err)
+	}
 }
 
-func (b *broker) archiveWorkingSetLocked(worktreeID string, s *worktreeState, commitHistory []vcs.CommitSummary) {
+// archiveWorkingSetLocked returns the persisted session id that was open
+// (0 if none) and whether there was anything to archive. The caller — which
+// holds b.mu across this call — must release the lock before actually
+// persisting the close, since it's an I/O call.
+func (b *broker) archiveWorkingSetLocked(worktreeID string, s *worktreeState, commitHistory []vcs.CommitSummary) (dbSessionID int64, hadHistory bool) {
 	if len(s.history) > 0 {
 		archivedSnapshots := make([]protocol.GraphSnapshot, len(s.history))
 		copy(archivedSnapshots, s.history)
@@ -277,10 +363,15 @@ func (b *broker) archiveWorkingSetLocked(worktreeID string, s *worktreeState, co
 			Snapshots:     archivedSnapshots,
 			CommitHistory: toProtocolCommitHistory(commitHistory),
 		})
+		dbSessionID = s.dbSessionID
+		hadHistory = true
 	}
 
 	s.history = nil
+	s.dbSessionID = 0
+	s.dbSnapshotPos = 0
 	s.hasState = true
+	return dbSessionID, hadHistory
 }
 
 func (b *broker) clearWorkingSet(worktreeID string) {
@@ -291,10 +382,22 @@ func (b *broker) clearWorkingSet(worktreeID string) {
 		return
 	}
 
+	dbSessionID := s.dbSessionID
+	hadHistory := len(s.history) > 0
+
 	s.history = nil
+	s.dbSessionID = 0
+	s.dbSnapshotPos = 0
 	s.hasState = true
 	b.broadcastLocked()
+	dbStore := b.dbStore
 	b.mu.Unlock()
+
+	if hadHistory && dbStore != nil && dbSessionID != 0 {
+		if err := store.CloseSessionAbandoned(dbStore, dbSessionID); err != nil {
+			fmt.Fprintf(os.Stderr, "persist session close (abandoned) for %s: %v\n", worktreeID, err)
+		}
+	}
 }
 
 func (b *broker) broadcastLocked() {

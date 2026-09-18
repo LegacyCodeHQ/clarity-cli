@@ -19,6 +19,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
 	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
 	return db
 }
