@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -591,6 +592,10 @@ func newServer(b *broker, port int, worktreePath string) *http.Server {
 	// Client→server: close a finished worktree tab.
 	mux.HandleFunc(protocol.RouteCloseWorktree, handleCloseWorktree(b))
 
+	// Client→server: browse persisted session history.
+	mux.HandleFunc(protocol.RouteListSessions, handleListSessions(b))
+	mux.HandleFunc(protocol.RouteGetSession, handleGetSession(b))
+
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
@@ -669,6 +674,123 @@ func handleCloseWorktree(b *broker) http.HandlerFunc {
 		case closeNotFound:
 			http.Error(w, "unknown worktree", http.StatusNotFound)
 		}
+	}
+}
+
+// dbStoreAndProjectLocked returns the broker's persistence handle and
+// project id, or ok=false when persistence is disabled for this process
+// (see broker.enablePersistence) — the same "no database, no history to
+// show" condition every session-history handler below reports as 404.
+func (b *broker) dbStoreAndProjectLocked() (dbStore *sql.DB, projectID string, ok bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.dbStore, b.projectID, b.dbStore != nil
+}
+
+// handleListSessions returns the metadata-only listing of every persisted
+// session across the whole project this process is watching (see
+// protocol.RouteListSessions) — no snapshot content, cheap enough for the
+// client to fetch unconditionally on attach.
+func handleListSessions(b *broker) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		dbStore, projectID, ok := b.dbStoreAndProjectLocked()
+		if !ok {
+			http.Error(w, "session history persistence disabled", http.StatusNotFound)
+			return
+		}
+
+		summaries, err := store.ListSessions(dbStore, projectID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "list persisted sessions for project %s: %v\n", projectID, err)
+			http.Error(w, "failed to list sessions", http.StatusInternalServerError)
+			return
+		}
+
+		out := make([]protocol.PersistedSessionSummary, len(summaries))
+		for i, s := range summaries {
+			out[i] = toPersistedSessionSummary(s)
+		}
+		writeJSON(w, out)
+	}
+}
+
+// handleGetSession fetches one persisted session's full content (snapshots
+// and commits) on demand — see protocol.RouteGetSession. Only called when
+// the user actually clicks into a session; handleListSessions is what gets
+// fetched eagerly.
+func handleGetSession(b *broker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dbStore, _, ok := b.dbStoreAndProjectLocked()
+		if !ok {
+			http.Error(w, "session history persistence disabled", http.StatusNotFound)
+			return
+		}
+
+		sessionID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid session id", http.StatusBadRequest)
+			return
+		}
+
+		detail, found, err := store.GetSessionDetail(dbStore, sessionID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "get persisted session %d: %v\n", sessionID, err)
+			http.Error(w, "failed to get session", http.StatusInternalServerError)
+			return
+		}
+		if !found {
+			http.Error(w, "unknown session", http.StatusNotFound)
+			return
+		}
+
+		writeJSON(w, toPersistedSessionDetail(detail))
+	}
+}
+
+func toPersistedSessionSummary(s store.SessionSummary) protocol.PersistedSessionSummary {
+	return protocol.PersistedSessionSummary{
+		ID:            s.ID,
+		WorktreeID:    s.WorktreeID,
+		RunID:         s.RunID,
+		Number:        s.Number,
+		CreatedAt:     s.CreatedAt,
+		ClosedAt:      s.ClosedAt,
+		ClosedReason:  s.ClosedReason,
+		SnapshotCount: s.SnapshotCount,
+		CommitCount:   s.CommitCount,
+	}
+}
+
+func toPersistedSessionDetail(d store.SessionDetail) protocol.PersistedSessionDetail {
+	snapshots := make([]protocol.PersistedSnapshot, len(d.Snapshots))
+	for i, s := range d.Snapshots {
+		snapshots[i] = protocol.PersistedSnapshot{
+			Position:  s.Position,
+			Source:    s.Source,
+			Format:    s.Format,
+			Kind:      s.Kind,
+			CreatedAt: s.CreatedAt,
+		}
+	}
+	commits := make([]protocol.PersistedCommit, len(d.Commits))
+	for i, c := range d.Commits {
+		commits[i] = protocol.PersistedCommit{Position: c.Position, Hash: c.Hash, Subject: c.Subject}
+	}
+	return protocol.PersistedSessionDetail{
+		PersistedSessionSummary: toPersistedSessionSummary(d.SessionSummary),
+		Snapshots:               snapshots,
+		Commits:                 commits,
+	}
+}
+
+// writeJSON encodes v as the JSON response body. Failures can only happen
+// after headers are already sent (Encode writes incrementally), so there's
+// nothing left to do but log — the same posture as every other handler in
+// this file toward a response that can't be completed.
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		fmt.Fprintf(os.Stderr, "write JSON response: %v\n", err)
 	}
 }
 
