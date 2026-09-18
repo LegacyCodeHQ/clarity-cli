@@ -114,7 +114,7 @@ func watchAndRebuild(ctx context.Context, worktreeID, worktreePath string, opts 
 			// `git worktree remove` REMOVE event may have been coalesced/dropped
 			// by fsnotify during a batch removal), stop polling git against the
 			// dead path and flip the tab to a finished, closable record. This is
-			// independent of the meta-watcher, which is the primary trigger.
+			// independent of the meta-watcher, which is the main trigger.
 			if !pathExists(worktreePath) {
 				b.markWorktreeFinished(worktreeID)
 				return nil

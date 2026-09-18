@@ -77,7 +77,7 @@ func (b *broker) unsubscribe(ch chan protocol.GraphStreamPayload) {
 }
 
 // registerWorktree adds a worktree to the broker's tab set. If `desc.ID`
-// already exists, the descriptor is updated in place (path/label/isPrimary
+// already exists, the descriptor is updated in place (path/label/kind
 // may change on git operations like `worktree move`).
 func (b *broker) registerWorktree(desc protocol.WorktreeDescriptor) {
 	b.mu.Lock()

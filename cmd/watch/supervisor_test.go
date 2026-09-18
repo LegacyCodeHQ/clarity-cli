@@ -15,33 +15,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPlanInitialWorktrees_PrimaryNoWorktrees(t *testing.T) {
+func TestPlanInitialWorktrees_MainNoWorktrees(t *testing.T) {
 	repo := initRepoWithCommit(t)
 
 	descriptors, mode, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
-	assert.Equal(t, modePrimary, mode)
+	assert.Equal(t, modeMain, mode)
 	require.Len(t, descriptors, 1)
 	assert.Equal(t, mainWorktreeID, descriptors[0].ID)
 	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "main", descriptors[0].Label)
 }
 
-func TestPlanInitialWorktrees_PrimaryWithLinkedWorktree(t *testing.T) {
+func TestPlanInitialWorktrees_MainWithLinkedWorktree(t *testing.T) {
 	repo := initRepoWithCommit(t)
 	wt := filepath.Join(t.TempDir(), "linked")
 	runGit(t, repo, "worktree", "add", "-b", "feat/x", wt)
 
 	descriptors, mode, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
-	assert.Equal(t, modePrimary, mode)
+	assert.Equal(t, modeMain, mode)
 	require.Len(t, descriptors, 2)
 
 	assert.Equal(t, mainWorktreeID, descriptors[0].ID)
 	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "main", descriptors[0].Label)
-	// The linked worktree comes after the primary, with a derived id.
-	assert.True(t, descriptors[1].ID != mainWorktreeID, "linked worktree should not get the primary id")
+	// The linked worktree comes after the main worktree, with a derived id.
+	assert.True(t, descriptors[1].ID != mainWorktreeID, "linked worktree should not get the main id")
 	assert.Equal(t, protocol.WorktreeKindLinked, descriptors[1].Kind)
 	assert.Equal(t, "linked", descriptors[1].Label, "label should be the worktree directory name")
 }
@@ -55,7 +55,7 @@ func TestPlanInitialWorktrees_LinkedModeReturnsOnlyCwd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, modeLinked, mode)
 	require.Len(t, descriptors, 1)
-	assert.Equal(t, mainWorktreeID, descriptors[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
+	assert.Equal(t, mainWorktreeID, descriptors[0].ID, "cwd-tree gets the 'main' id regardless of git's notion")
 	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "feat/x", descriptors[0].Label)
 }
@@ -66,7 +66,7 @@ func TestPlanInitialWorktrees_NonRepoErrors(t *testing.T) {
 }
 
 // TestSupervisor_DetectsLiveWorktreeAdd is the core test for the user-facing
-// behavior: starting `clarity watch` in the primary tree should make a newly
+// behavior: starting `clarity watch` in the main tree should make a newly
 // added linked worktree appear as a tab without restarting.
 func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	repo := initRepoWithCommit(t)
@@ -82,12 +82,12 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 		close(supervisorDone)
 	}()
 
-	// Wait for the initial primary tab to register.
+	// Wait for the initial main tab to register.
 	require.Eventually(t, func() bool {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		return len(b.worktrees) == 1
-	}, 2*time.Second, 20*time.Millisecond, "primary tab should register on startup")
+	}, 2*time.Second, 20*time.Millisecond, "main tab should register on startup")
 
 	// Add a worktree from outside the supervisor and expect it to appear as a tab.
 	wt := filepath.Join(t.TempDir(), "live-added")
@@ -105,7 +105,7 @@ func TestSupervisor_DetectsLiveWorktreeAdd(t *testing.T) {
 	bothActive := b.worktrees[0].Active && b.worktrees[1].Active
 	b.mu.Unlock()
 	assert.Contains(t, gotIDs, mainWorktreeID)
-	assert.NotEqual(t, mainWorktreeID, gotIDs[1], "second tab should be the linked worktree, not another primary")
+	assert.NotEqual(t, mainWorktreeID, gotIDs[1], "second tab should be the linked worktree, not another main tab")
 	assert.True(t, bothActive, "freshly watched worktrees start active")
 
 	// Removing the worktree keeps the tab as a frozen, inactive record — the
@@ -207,7 +207,7 @@ func TestSupervisor_SkipsStaleInitialWorktreeAndDetectsLaterAdds(t *testing.T) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		return len(b.worktrees) > 0 && b.worktrees[0].ID == mainWorktreeID
-	}, 2*time.Second, 20*time.Millisecond, "primary tab should register on startup")
+	}, 2*time.Second, 20*time.Millisecond, "main tab should register on startup")
 
 	live := filepath.Join(t.TempDir(), "live-after-stale")
 	runGit(t, repo, "worktree", "add", "-b", "feat/live-after-stale", live)

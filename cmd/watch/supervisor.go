@@ -20,8 +20,8 @@ import (
 type repoMode string
 
 const (
-	modePrimary repoMode = "primary"
-	modeLinked  repoMode = "linked"
+	modeMain   repoMode = "main"
+	modeLinked repoMode = "linked"
 )
 
 // worktreeReconcileInterval backs up fsnotify delivery with a lightweight
@@ -33,25 +33,25 @@ const worktreeReconcileInterval = 2 * time.Second
 
 // planInitialWorktrees resolves which worktrees to watch when `clarity watch`
 // starts in `cwd`. The first entry is always the cwd-tree, given the literal
-// id "main" so it's the default tab. In primary mode (cwd is the primary
+// id "main" so it's the default tab. In main mode (cwd is the main
 // worktree), additional descriptors follow for each linked worktree.
 func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
 	kind, err := git.WorktreeKindFor(cwd)
 	if err != nil {
 		return nil, "", err
 	}
-	isPrimary := kind == git.WorktreeKindMain
+	isMain := kind == git.WorktreeKindMain
 
 	cwdAbs, err := filepath.Abs(cwd)
 	if err != nil {
 		return nil, "", err
 	}
 
-	if !isPrimary {
+	if !isMain {
 		return []protocol.WorktreeDescriptor{{
 			ID:     mainWorktreeID,
 			Path:   cwdAbs,
-			Label:  primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
+			Label:  mainRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
 			Kind:   protocol.WorktreeKindMain,
 			Active: true,
 		}}, modeLinked, nil
@@ -65,7 +65,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 	descriptors := []protocol.WorktreeDescriptor{{
 		ID:     mainWorktreeID,
 		Path:   cwdAbs,
-		Label:  primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
+		Label:  mainRepoLabel(cwdAbs, mainBranch(worktrees)),
 		Kind:   protocol.WorktreeKindMain,
 		Active: true,
 	}}
@@ -78,7 +78,7 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 		}
 		descriptors = append(descriptors, descriptorForLinked(w))
 	}
-	return descriptors, modePrimary, nil
+	return descriptors, modeMain, nil
 }
 
 func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
@@ -91,7 +91,7 @@ func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
 	}
 }
 
-func primaryBranch(worktrees []git.Worktree) string {
+func mainBranch(worktrees []git.Worktree) string {
 	for _, w := range worktrees {
 		if w.Kind == git.WorktreeKindMain {
 			return w.Branch
@@ -124,7 +124,7 @@ func resolveSymlinksOrSelf(path string) string {
 
 // runSupervisor is the multi-worktree replacement for the old single-call
 // `watchAndRebuild` flow. It registers initial tabs with the broker, fans out
-// one watcher goroutine per tree, and (in primary mode) installs a
+// one watcher goroutine per tree, and (in main mode) installs a
 // meta-watcher on `<common-git-dir>/worktrees/` to pick up `git worktree add`
 // and `git worktree remove` events live.
 //
@@ -143,10 +143,10 @@ func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broke
 		watchers:  make(map[string]context.CancelFunc),
 	}
 
-	// In primary mode, install the meta-watcher BEFORE spawning initial
+	// In main mode, install the meta-watcher BEFORE spawning initial
 	// watchers so a `git worktree add` racing with startup is never missed.
 	var metaDone <-chan struct{}
-	if mode == modePrimary {
+	if mode == modeMain {
 		// Meta-watching is best-effort; if the common dir can't be resolved or the
 		// watcher fails, fall back to running without it.
 		if commonDir, err := git.GetCommonDir(cwd); err == nil {

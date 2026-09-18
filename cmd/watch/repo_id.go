@@ -23,10 +23,10 @@ func worktreeIDFor(absPath string, kind protocol.WorktreeKind) string {
 	return "wt-" + hex.EncodeToString(sum[:])[:8]
 }
 
-// primaryRepoLabel returns the tab label for the currently checked-out tree.
+// mainRepoLabel returns the tab label for the currently checked-out tree.
 // The branch is more useful than the project directory here because the first
 // tab is always the current checkout.
-func primaryRepoLabel(absPath, branch string) string {
+func mainRepoLabel(absPath, branch string) string {
 	short := strings.TrimPrefix(branch, "refs/heads/")
 	if short != "" {
 		return short

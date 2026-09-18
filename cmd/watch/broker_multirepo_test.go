@@ -39,7 +39,7 @@ func TestBroker_PublishToMultipleWorktrees_FlatPayloadTaggedByWorktreeID(t *test
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
 
-	b.publish("main", "digraph primary { A; }")
+	b.publish("main", "digraph main { A; }")
 	b.publish("wt-aaaaaaaa", "digraph wt { B; }")
 
 	// Drain until we see both repos represented.
@@ -63,7 +63,7 @@ done:
 
 	for _, s := range last.WorkingSnapshots {
 		if s.WorktreeID == "main" {
-			assert.Equal(t, "digraph primary { A; }", s.DOT)
+			assert.Equal(t, "digraph main { A; }", s.DOT)
 		} else {
 			assert.Equal(t, "digraph wt { B; }", s.DOT)
 		}
@@ -119,7 +119,7 @@ func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		// wt's working snapshot should remain; primary's was archived.
+		// wt's working snapshot should remain; main worktree's was archived.
 		require.Len(t, got.WorkingSnapshots, 1)
 		assert.Equal(t, "wt-aaaaaaaa", got.WorkingSnapshots[0].WorktreeID)
 		require.Len(t, got.PastCollections, 1)

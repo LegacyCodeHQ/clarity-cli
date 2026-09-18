@@ -1015,17 +1015,17 @@ func TestPublishCurrentGraph_ExistingRepositoryReportsGraphError(t *testing.T) {
 }
 
 func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.T) {
-	primary := t.TempDir()
-	initGitRepo(t, primary)
+	main := t.TempDir()
+	initGitRepo(t, main)
 
-	require.NoError(t, os.MkdirAll(filepath.Join(primary, "src"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(primary, "src", "app.ts"), []byte("export const app = 1;\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(primary, "src", "util.ts"), []byte("export const util = 1;\n"), 0o644))
-	runGit(t, primary, "add", ".")
-	runGit(t, primary, "commit", "-m", "seed source")
+	require.NoError(t, os.MkdirAll(filepath.Join(main, "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(main, "src", "app.ts"), []byte("export const app = 1;\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(main, "src", "util.ts"), []byte("export const util = 1;\n"), 0o644))
+	runGit(t, main, "add", ".")
+	runGit(t, main, "commit", "-m", "seed source")
 
 	linked := filepath.Join(t.TempDir(), "linked")
-	runGit(t, primary, "worktree", "add", "-b", "teardown-test", linked)
+	runGit(t, main, "worktree", "add", "-b", "teardown-test", linked)
 
 	b := newBroker()
 	b.registerWorktree(protocol.WorktreeDescriptor{
@@ -1056,16 +1056,16 @@ func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.
 }
 
 func TestPublishCurrentGraph_RemovedLinkedWorktreeFinishesWithoutError(t *testing.T) {
-	primary := t.TempDir()
-	initGitRepo(t, primary)
+	main := t.TempDir()
+	initGitRepo(t, main)
 
-	appPath := filepath.Join(primary, "app.ts")
+	appPath := filepath.Join(main, "app.ts")
 	require.NoError(t, os.WriteFile(appPath, []byte("export const app = 1;\n"), 0o644))
-	runGit(t, primary, "add", ".")
-	runGit(t, primary, "commit", "-m", "seed source")
+	runGit(t, main, "add", ".")
+	runGit(t, main, "commit", "-m", "seed source")
 
 	linked := filepath.Join(t.TempDir(), "linked")
-	runGit(t, primary, "worktree", "add", "-b", "removed-teardown-test", linked)
+	runGit(t, main, "worktree", "add", "-b", "removed-teardown-test", linked)
 
 	b := newBroker()
 	b.registerWorktree(protocol.WorktreeDescriptor{

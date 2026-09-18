@@ -29,7 +29,7 @@ func TestWorktreeIDForLinkedDistinguishesPaths(t *testing.T) {
 	assert.NotEqual(t, a, b)
 }
 
-func TestPrimaryRepoLabel(t *testing.T) {
+func TestMainRepoLabel(t *testing.T) {
 	cases := []struct {
 		branch string
 		want   string
@@ -39,7 +39,7 @@ func TestPrimaryRepoLabel(t *testing.T) {
 		{"refs/heads/feat/foo", "feat/foo"},
 	}
 	for _, c := range cases {
-		assert.Equal(t, c.want, primaryRepoLabel("/Users/ragu/clarity-cli", c.branch), "branch=%q", c.branch)
+		assert.Equal(t, c.want, mainRepoLabel("/Users/ragu/clarity-cli", c.branch), "branch=%q", c.branch)
 	}
 }
 

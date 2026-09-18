@@ -30,7 +30,7 @@ type Worktree struct {
 }
 
 // GetGitDir returns the absolute path to the git directory for `path`.
-// For the primary worktree this equals GetCommonDir; for a linked worktree
+// For the main worktree this equals GetCommonDir; for a linked worktree
 // this is the per-worktree gitdir under `<common>/worktrees/<name>`.
 func GetGitDir(path string) (string, error) {
 	stdout, stderr, err := runGitCommand(path, "rev-parse", "--absolute-git-dir")
@@ -41,7 +41,7 @@ func GetGitDir(path string) (string, error) {
 }
 
 // GetCommonDir returns the absolute path to the common git directory — the
-// primary repository's `.git`. Identical for the primary and every linked
+// main repository's `.git`. Identical for the main worktree and every linked
 // worktree of the same repository.
 func GetCommonDir(path string) (string, error) {
 	stdout, stderr, err := runGitCommand(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
