@@ -279,15 +279,25 @@ func (b *broker) persistSnapshot(
 	needsNewSession bool, dot, format string, sessionStart bool, timestamp time.Time,
 ) {
 	if needsNewSession {
-		sessionID, err := store.OpenSession(dbStore, worktreeID)
+		// OpenOrResumeSession is restart hydration: if a prior process run
+		// left a session open (crash, kill, machine restart), it's a resume
+		// candidate. When dot matches that session's last recorded
+		// snapshot exactly, the gap was invisible to what we track, so the
+		// session is resumed rather than starting a fresh one.
+		sessionID, nextPosition, matched, err := store.OpenOrResumeSession(dbStore, worktreeID, dot)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "open persisted session for %s: %v\n", worktreeID, err)
 			return
 		}
 		b.mu.Lock()
 		s.dbSessionID = sessionID
-		s.dbSnapshotPos = 0
+		s.dbSnapshotPos = nextPosition
 		b.mu.Unlock()
+		if matched {
+			// dot is already the resumed session's last recorded snapshot —
+			// nothing new to write for this particular publish.
+			return
+		}
 	}
 
 	b.mu.Lock()
