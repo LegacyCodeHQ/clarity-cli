@@ -2,11 +2,13 @@ package watch
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"github.com/LegacyCodeHQ/clarity/cmd/watch/protocol"
+	"github.com/LegacyCodeHQ/clarity/cmd/watch/store"
 	"github.com/LegacyCodeHQ/clarity/vcs"
 )
 
@@ -47,6 +50,12 @@ type broker struct {
 	// clients so the viewer knows how to render each snapshot's DOT payload. An
 	// empty value is treated as "dot".
 	format string
+	// dbStore and projectID enable persisting worktree lifecycle events
+	// (see enablePersistence). dbStore is nil by default, which makes every
+	// persistence call in this file a no-op — existing tests constructing a
+	// broker with newBroker() are unaffected.
+	dbStore   *sql.DB
+	projectID string
 }
 
 func newBroker() *broker {
@@ -55,6 +64,15 @@ func newBroker() *broker {
 		worktreeIndex:  make(map[string]int),
 		worktreeStates: make(map[string]*worktreeState),
 	}
+}
+
+// enablePersistence turns on shadow-writing worktree lifecycle events
+// (registration, disposal, hiding) to db under projectID. It must be called
+// before any worktree is registered. Persistence failures are logged, never
+// fatal — clarity watch's live behavior does not depend on the database.
+func (b *broker) enablePersistence(db *sql.DB, projectID string) {
+	b.dbStore = db
+	b.projectID = projectID
 }
 
 func (b *broker) subscribe() chan protocol.GraphStreamPayload {
@@ -89,7 +107,14 @@ func (b *broker) registerWorktree(desc protocol.WorktreeDescriptor) {
 		b.worktreeStates[desc.ID] = &worktreeState{}
 	}
 	b.broadcastLocked()
+	dbStore, projectID := b.dbStore, b.projectID
 	b.mu.Unlock()
+
+	if dbStore != nil {
+		if err := store.RegisterWorktree(dbStore, desc.ID, projectID, desc.Path, desc.Kind, desc.Label); err != nil {
+			fmt.Fprintf(os.Stderr, "persist worktree %s: %v\n", desc.ID, err)
+		}
+	}
 }
 
 // unregisterWorktree removes a worktree and its snapshot history outright.
@@ -123,13 +148,22 @@ func (b *broker) unregisterWorktreeLocked(idx int, worktreeID string) {
 // and the teardown completes via closeWorktree.
 func (b *broker) markWorktreeFinished(worktreeID string) {
 	b.mu.Lock()
+	finished := false
 	if idx, ok := b.worktreeIndex[worktreeID]; ok && b.worktrees[idx].Active {
 		s := b.stateForLocked(worktreeID)
 		b.archiveWorkingSetLocked(worktreeID, s, nil)
 		b.worktrees[idx].Active = false
 		b.broadcastLocked()
+		finished = true
 	}
+	dbStore := b.dbStore
 	b.mu.Unlock()
+
+	if finished && dbStore != nil {
+		if err := store.MarkWorktreeDisposed(dbStore, worktreeID); err != nil {
+			fmt.Fprintf(os.Stderr, "persist worktree %s disposed: %v\n", worktreeID, err)
+		}
+	}
 }
 
 // closeOutcome reports how a closeWorktree request resolved, letting the
@@ -147,16 +181,25 @@ const (
 // worktrees are pinned: they cannot be closed while still being watched.
 func (b *broker) closeWorktree(worktreeID string) closeOutcome {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	idx, ok := b.worktreeIndex[worktreeID]
 	if !ok {
+		b.mu.Unlock()
 		return closeNotFound
 	}
 	if b.worktrees[idx].Active {
+		b.mu.Unlock()
 		return closeActive
 	}
 	b.unregisterWorktreeLocked(idx, worktreeID)
 	b.broadcastLocked()
+	dbStore := b.dbStore
+	b.mu.Unlock()
+
+	if dbStore != nil {
+		if err := store.MarkWorktreeHidden(dbStore, worktreeID); err != nil {
+			fmt.Fprintf(os.Stderr, "persist worktree %s hidden: %v\n", worktreeID, err)
+		}
+	}
 	return closeOK
 }
 

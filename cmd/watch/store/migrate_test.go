@@ -23,6 +23,16 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// openMigratedTestDB is openTestDB plus Migrate, for tests that only care
+// about querying/writing against the real schema, not migration behavior
+// itself.
+func openMigratedTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db := openTestDB(t)
+	require.NoError(t, Migrate(db))
+	return db
+}
+
 func tableNames(t *testing.T, db *sql.DB) []string {
 	t.Helper()
 	rows, err := db.Query(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)

@@ -21,6 +21,7 @@ type watchOptions struct {
 	edgeLabels   bool
 	noStats      bool
 	noPhantom    bool
+	dbPath       string
 }
 
 func defaultWatchOptions() *watchOptions {

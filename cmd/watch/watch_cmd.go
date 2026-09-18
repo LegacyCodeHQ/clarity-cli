@@ -62,6 +62,7 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.edgeLabels, "label", false, "Add deterministic short labels to edges")
 	cmd.Flags().BoolVar(&opts.noStats, "no-stats", false, "Skip file addition/deletion statistics for faster rendering")
 	cmd.Flags().BoolVar(&opts.noPhantom, "no-phantom", false, "Suppress phantom test nodes (Rust files with #[cfg(test)] regions are rendered as a single node)")
+	cmd.Flags().StringVar(&opts.dbPath, "db-path", "", "Override the session-history database path (default: inside the repo's .git directory)")
 
 	return cmd
 }
@@ -103,6 +104,15 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 
 	b := newBroker()
 	b.format = opts.format
+
+	persistDB, projectID, persistErr := setupPersistence(worktreePath, opts.dbPath)
+	if persistErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "session history persistence disabled: %v\n", persistErr)
+	} else {
+		defer persistDB.Close()
+		b.enablePersistence(persistDB, projectID)
+	}
+
 	srv := newServer(b, actualPort, worktreePath)
 
 	go func() {
