@@ -13,19 +13,20 @@ import type {
 /**
  * Snapshots and archived cycles for a single working tree (tab).
  */
-export interface RepoBucket {
+export interface WorktreeBucket {
   working: Snapshot[];
   past: Collection[];
 }
 
 export interface ViewerState {
-  // Multi-repo: the registered tab set + which tab is active.
-  repos: WorktreeDescriptor[];
-  selectedRepoID: string;
-  byRepo: Record<string, RepoBucket>;
+  // Multi-worktree: the registered tab set + which tab is active.
+  worktrees: WorktreeDescriptor[];
+  selectedWorktreeID: string;
+  byWorktree: Record<string, WorktreeBucket>;
 
-  // Effective view for the selected repo — derived from byRepo[selectedRepoID]
-  // on every state update so downstream timeline/graph code stays unchanged.
+  // Effective view for the selected worktree — derived from
+  // byWorktree[selectedWorktreeID] on every state update so downstream
+  // timeline/graph code stays unchanged.
   workingSnapshots: Snapshot[];
   pastCollections: Collection[];
 
@@ -66,7 +67,7 @@ export interface ViewModel {
 
 type TimeFormatter = (timestamp: string) => string;
 
-export const DEFAULT_REPO_ID = "primary";
+export const DEFAULT_WORKTREE_ID = "primary";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
@@ -97,35 +98,35 @@ export function getSelectedCollection(state: ViewerState): Collection | null {
   return state.pastCollections.find((collection) => collection.id === state.selectedCollectionID) || null;
 }
 
-function selectedRepoAllowsLive(state: Pick<ViewerState, "repos" | "selectedRepoID">): boolean {
-  const repo = state.repos.find((r) => r.id === state.selectedRepoID);
-  return repo ? repo.active !== false : true;
+function selectedWorktreeAllowsLive(state: Pick<ViewerState, "worktrees" | "selectedWorktreeID">): boolean {
+  const worktree = state.worktrees.find((w) => w.id === state.selectedWorktreeID);
+  return worktree ? worktree.active !== false : true;
 }
 
 /**
- * Picks the next selected repo when the previous selection becomes invalid
- * (e.g., its tab was removed). Prefers the existing selection, then "primary",
- * then the first repo in the list.
+ * Picks the next selected worktree when the previous selection becomes
+ * invalid (e.g., its tab was removed). Prefers the existing selection, then
+ * "primary", then the first worktree in the list.
  */
-function resolveSelectedRepoID(repos: WorktreeDescriptor[], current: string): string {
-  if (repos.length === 0) {
-    return current || DEFAULT_REPO_ID;
+function resolveSelectedWorktreeID(worktrees: WorktreeDescriptor[], current: string): string {
+  if (worktrees.length === 0) {
+    return current || DEFAULT_WORKTREE_ID;
   }
-  if (repos.some((r) => r.id === current)) {
+  if (worktrees.some((w) => w.id === current)) {
     return current;
   }
-  const primary = repos.find((r) => r.id === DEFAULT_REPO_ID);
+  const primary = worktrees.find((w) => w.id === DEFAULT_WORKTREE_ID);
   if (primary) {
     return primary.id;
   }
-  return repos[0].id;
+  return worktrees[0].id;
 }
 
 function projectBucketsForState(
   state: ViewerState,
-  selectedRepoID: string,
+  selectedWorktreeID: string,
 ): { workingSnapshots: Snapshot[]; pastCollections: Collection[] } {
-  const bucket = state.byRepo[selectedRepoID];
+  const bucket = state.byWorktree[selectedWorktreeID];
   return {
     workingSnapshots: bucket ? bucket.working : [],
     pastCollections: bucket ? bucket.past : [],
@@ -133,27 +134,27 @@ function projectBucketsForState(
 }
 
 export function normalizeState(state: Partial<ViewerState>): ViewerState {
-  const repos = Array.isArray(state.repos) ? state.repos : [];
-  const selectedRepoID = resolveSelectedRepoID(repos, state.selectedRepoID ?? DEFAULT_REPO_ID);
+  const worktrees = Array.isArray(state.worktrees) ? state.worktrees : [];
+  const selectedWorktreeID = resolveSelectedWorktreeID(worktrees, state.selectedWorktreeID ?? DEFAULT_WORKTREE_ID);
 
   // Ad-hoc callers (notably test fixtures) can set workingSnapshots /
-  // pastCollections directly without populating a byRepo bucket. When the
-  // selected repo has no bucket yet, treat those arrays as its initial state.
-  // mergePayload clears these arrays explicitly so an empty payload doesn't
-  // bring stale snapshots back through this fallback.
+  // pastCollections directly without populating a byWorktree bucket. When the
+  // selected worktree has no bucket yet, treat those arrays as its initial
+  // state. mergePayload clears these arrays explicitly so an empty payload
+  // doesn't bring stale snapshots back through this fallback.
   const fallbackWorking = Array.isArray(state.workingSnapshots) ? state.workingSnapshots : [];
   const fallbackPast = Array.isArray(state.pastCollections) ? state.pastCollections : [];
-  const byRepo: Record<string, RepoBucket> = state.byRepo ? { ...state.byRepo } : {};
-  if (!byRepo[selectedRepoID] && (fallbackWorking.length > 0 || fallbackPast.length > 0)) {
-    byRepo[selectedRepoID] = { working: fallbackWorking, past: fallbackPast };
+  const byWorktree: Record<string, WorktreeBucket> = state.byWorktree ? { ...state.byWorktree } : {};
+  if (!byWorktree[selectedWorktreeID] && (fallbackWorking.length > 0 || fallbackPast.length > 0)) {
+    byWorktree[selectedWorktreeID] = { working: fallbackWorking, past: fallbackPast };
   }
 
-  const projected = projectBucketsForState({ ...(state as ViewerState), byRepo }, selectedRepoID);
+  const projected = projectBucketsForState({ ...(state as ViewerState), byWorktree }, selectedWorktreeID);
 
   const next: ViewerState = {
-    repos,
-    selectedRepoID,
-    byRepo,
+    worktrees,
+    selectedWorktreeID,
+    byWorktree,
     workingSnapshots: projected.workingSnapshots,
     pastCollections: projected.pastCollections,
     selectedCollectionID: state.selectedCollectionID ?? null,
@@ -178,7 +179,7 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
 
   if (
     next.selectedCollectionID === null
-    && !selectedRepoAllowsLive(next)
+    && !selectedWorktreeAllowsLive(next)
     && next.workingSnapshots.length === 0
     && next.pastCollections.length > 0
   ) {
@@ -219,65 +220,65 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
 /**
  * Buckets a flat payload by worktreeId. Snapshots/collections without a
  * worktreeId fall into the primary bucket — keeps backward-tolerance with
- * older payloads and with single-repo callers.
+ * older payloads and with single-worktree callers.
  */
-function bucketPayload(payload: GraphStreamPayload): Record<string, RepoBucket> {
-  const byRepo: Record<string, RepoBucket> = {};
+function bucketPayload(payload: GraphStreamPayload): Record<string, WorktreeBucket> {
+  const byWorktree: Record<string, WorktreeBucket> = {};
   const knownIds = new Set<string>();
-  for (const repo of payload.worktrees || []) {
-    knownIds.add(repo.id);
-    byRepo[repo.id] = { working: [], past: [] };
+  for (const worktree of payload.worktrees || []) {
+    knownIds.add(worktree.id);
+    byWorktree[worktree.id] = { working: [], past: [] };
   }
   for (const snap of payload.workingSnapshots || []) {
-    const id = snap.worktreeId || DEFAULT_REPO_ID;
-    if (!byRepo[id]) {
-      byRepo[id] = { working: [], past: [] };
+    const id = snap.worktreeId || DEFAULT_WORKTREE_ID;
+    if (!byWorktree[id]) {
+      byWorktree[id] = { working: [], past: [] };
     }
-    byRepo[id].working.push(snap);
+    byWorktree[id].working.push(snap);
   }
   for (const coll of payload.pastCollections || []) {
-    const id = coll.worktreeId || DEFAULT_REPO_ID;
-    if (!byRepo[id]) {
-      byRepo[id] = { working: [], past: [] };
+    const id = coll.worktreeId || DEFAULT_WORKTREE_ID;
+    if (!byWorktree[id]) {
+      byWorktree[id] = { working: [], past: [] };
     }
-    byRepo[id].past.push(coll);
+    byWorktree[id].past.push(coll);
   }
-  // Drop any synthesized empty buckets that weren't declared by repos[] AND
-  // received no snapshots — keeps `byRepo` honest.
-  for (const id of Object.keys(byRepo)) {
-    if (!knownIds.has(id) && byRepo[id].working.length === 0 && byRepo[id].past.length === 0) {
-      delete byRepo[id];
+  // Drop any synthesized empty buckets that weren't declared by worktrees[]
+  // AND received no snapshots — keeps `byWorktree` honest.
+  for (const id of Object.keys(byWorktree)) {
+    if (!knownIds.has(id) && byWorktree[id].working.length === 0 && byWorktree[id].past.length === 0) {
+      delete byWorktree[id];
     }
   }
-  return byRepo;
+  return byWorktree;
 }
 
 export function mergePayload(state: ViewerState, payload: GraphStreamPayload): ViewerState {
-  const repos = payload.worktrees || state.repos;
-  const byRepo = bucketPayload(payload);
+  const worktrees = payload.worktrees || state.worktrees;
+  const byWorktree = bucketPayload(payload);
   return normalizeState({
     ...state,
-    repos,
-    byRepo,
+    worktrees,
+    byWorktree,
     format: payload.format ?? state.format ?? "dot",
     // Discard the previous projection so it can't leak through normalizeState's
-    // fallback when the new bucket is empty for the selected repo.
+    // fallback when the new bucket is empty for the selected worktree.
     workingSnapshots: [],
     pastCollections: [],
   });
 }
 
-export function selectRepo(state: ViewerState, repoID: string): ViewerState {
-  if (!state.repos.some((r) => r.id === repoID)) {
+export function selectWorktree(state: ViewerState, worktreeID: string): ViewerState {
+  if (!state.worktrees.some((w) => w.id === worktreeID)) {
     return state;
   }
-  if (state.selectedRepoID === repoID) {
+  if (state.selectedWorktreeID === worktreeID) {
     return state;
   }
   // Switching tabs resets the per-tab timeline selection.
   return normalizeState({
     ...state,
-    selectedRepoID: repoID,
+    selectedWorktreeID: worktreeID,
     selectedCollectionID: null,
     selectedCollectionSnapshotIndex: 0,
     liveSnapshotIndex: null,
@@ -371,7 +372,7 @@ export function applySourceSelection(state: ViewerState, selected: string): View
 }
 
 export function getSourceOptions(state: ViewerState, timeFormatter: TimeFormatter = formatTime): SourceOption[] {
-  const allowsLive = selectedRepoAllowsLive(state);
+  const allowsLive = selectedWorktreeAllowsLive(state);
   const liveOptions: SourceOption[] = allowsLive
     ? [{
       value: "live",
@@ -406,7 +407,7 @@ export function getSourceOptions(state: ViewerState, timeFormatter: TimeFormatte
 
 export function getViewModel(state: ViewerState, timeFormatter: TimeFormatter = formatTime): ViewModel {
   const normalized = normalizeState(state);
-  const allowsLive = selectedRepoAllowsLive(normalized);
+  const allowsLive = selectedWorktreeAllowsLive(normalized);
   const sourceValue = normalized.selectedCollectionID === null
     ? allowsLive
       ? "live"

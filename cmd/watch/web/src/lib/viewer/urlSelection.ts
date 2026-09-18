@@ -1,5 +1,5 @@
 /**
- * Persists the viewer's current selection (repo tab, archived session,
+ * Persists the viewer's current selection (worktree tab, archived session,
  * scrub position) to and from the page's URL query string, so a browser
  * refresh restores the view instead of always landing back on Live.
  *
@@ -9,10 +9,10 @@
  * graphStore.ts.
  */
 
-import { DEFAULT_REPO_ID, type ViewerState } from './viewerState';
+import { DEFAULT_WORKTREE_ID, type ViewerState } from './viewerState';
 
 export interface URLSelection {
-  repo?: string;
+  worktree?: string;
   collectionID?: number;
   snapshotIndex?: number;
 }
@@ -21,9 +21,9 @@ export function parseSelectionFromSearch(search: string): URLSelection {
   const params = new URLSearchParams(search);
   const result: URLSelection = {};
 
-  const repo = params.get('repo');
-  if (repo) {
-    result.repo = repo;
+  const worktree = params.get('worktree');
+  if (worktree) {
+    result.worktree = worktree;
   }
 
   const sessionRaw = params.get('session');
@@ -46,12 +46,12 @@ export function parseSelectionFromSearch(search: string): URLSelection {
 }
 
 export function buildSearchFromState(
-  state: Pick<ViewerState, 'selectedRepoID' | 'selectedCollectionID' | 'selectedCollectionSnapshotIndex' | 'liveSnapshotIndex'>,
+  state: Pick<ViewerState, 'selectedWorktreeID' | 'selectedCollectionID' | 'selectedCollectionSnapshotIndex' | 'liveSnapshotIndex'>,
 ): string {
   const params = new URLSearchParams();
 
-  if (state.selectedRepoID && state.selectedRepoID !== DEFAULT_REPO_ID) {
-    params.set('repo', state.selectedRepoID);
+  if (state.selectedWorktreeID && state.selectedWorktreeID !== DEFAULT_WORKTREE_ID) {
+    params.set('worktree', state.selectedWorktreeID);
   }
 
   if (state.selectedCollectionID !== null) {

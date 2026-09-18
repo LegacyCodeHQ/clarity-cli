@@ -6,9 +6,9 @@ describe('parseSelectionFromSearch', () => {
     expect(parseSelectionFromSearch('')).toEqual({});
   });
 
-  it('parses repo, session, and snapshot together', () => {
-    expect(parseSelectionFromSearch('?repo=wt-abc&session=3&snapshot=2')).toEqual({
-      repo: 'wt-abc',
+  it('parses worktree, session, and snapshot together', () => {
+    expect(parseSelectionFromSearch('?worktree=wt-abc&session=3&snapshot=2')).toEqual({
+      worktree: 'wt-abc',
       collectionID: 3,
       snapshotIndex: 2,
     });
@@ -30,15 +30,15 @@ describe('parseSelectionFromSearch', () => {
     expect(parseSelectionFromSearch('?snapshot=-1')).toEqual({});
   });
 
-  it('ignores an empty repo param', () => {
-    expect(parseSelectionFromSearch('?repo=')).toEqual({});
+  it('ignores an empty worktree param', () => {
+    expect(parseSelectionFromSearch('?worktree=')).toEqual({});
   });
 });
 
 describe('buildSearchFromState', () => {
   it('produces an empty string for the default live-at-latest state', () => {
     expect(buildSearchFromState({
-      selectedRepoID: 'primary',
+      selectedWorktreeID: 'primary',
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: null,
@@ -47,7 +47,7 @@ describe('buildSearchFromState', () => {
 
   it('encodes a live scrub position', () => {
     expect(buildSearchFromState({
-      selectedRepoID: 'primary',
+      selectedWorktreeID: 'primary',
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: 1,
@@ -56,41 +56,41 @@ describe('buildSearchFromState', () => {
 
   it('encodes an archived session and its snapshot index', () => {
     expect(buildSearchFromState({
-      selectedRepoID: 'primary',
+      selectedWorktreeID: 'primary',
       selectedCollectionID: 3,
       selectedCollectionSnapshotIndex: 2,
       liveSnapshotIndex: null,
     })).toBe('?session=3&snapshot=2');
   });
 
-  it('encodes a non-default repo', () => {
+  it('encodes a non-default worktree', () => {
     expect(buildSearchFromState({
-      selectedRepoID: 'wt-abc',
+      selectedWorktreeID: 'wt-abc',
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: null,
-    })).toBe('?repo=wt-abc');
+    })).toBe('?worktree=wt-abc');
   });
 
-  it('combines repo and session selection', () => {
+  it('combines worktree and session selection', () => {
     expect(buildSearchFromState({
-      selectedRepoID: 'wt-abc',
+      selectedWorktreeID: 'wt-abc',
       selectedCollectionID: 3,
       selectedCollectionSnapshotIndex: 0,
       liveSnapshotIndex: null,
-    })).toBe('?repo=wt-abc&session=3&snapshot=0');
+    })).toBe('?worktree=wt-abc&session=3&snapshot=0');
   });
 
   it('round-trips through parseSelectionFromSearch', () => {
     const state = {
-      selectedRepoID: 'wt-xyz',
+      selectedWorktreeID: 'wt-xyz',
       selectedCollectionID: 7,
       selectedCollectionSnapshotIndex: 4,
       liveSnapshotIndex: null,
     };
     const search = buildSearchFromState(state);
     expect(parseSelectionFromSearch(search)).toEqual({
-      repo: 'wt-xyz',
+      worktree: 'wt-xyz',
       collectionID: 7,
       snapshotIndex: 4,
     });

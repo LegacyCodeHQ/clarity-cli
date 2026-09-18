@@ -11,9 +11,9 @@ import {
   applyTimelineStep,
   applyLiveSelection,
   applySourceSelection,
-  selectRepo,
+  selectWorktree,
   getViewModel,
-  DEFAULT_REPO_ID,
+  DEFAULT_WORKTREE_ID,
   type ViewerState,
   type ViewModel,
 } from '../viewer/viewerState';
@@ -23,8 +23,8 @@ import type { GraphStreamPayload } from '../protocol/viewerProtocol';
 function createGraphStore() {
   // Read once at startup: the selection a refresh (or a shared/bookmarked
   // link) should restore. It can't be validated against real data yet —
-  // repos/collections don't exist until the first SSE payload arrives — so
-  // it's applied on that first mergePayload call, not baked into
+  // worktrees/collections don't exist until the first SSE payload arrives —
+  // so it's applied on that first mergePayload call, not baked into
   // initialState, and normalizeState's usual clamping falls back to Live if
   // it turns out to reference a session/snapshot that no longer exists.
   let pendingSelection: URLSelection | null =
@@ -34,9 +34,9 @@ function createGraphStore() {
   }
 
   const initialState: ViewerState = normalizeState({
-    repos: [],
-    selectedRepoID: pendingSelection?.repo ?? DEFAULT_REPO_ID,
-    byRepo: {},
+    worktrees: [],
+    selectedWorktreeID: pendingSelection?.worktree ?? DEFAULT_WORKTREE_ID,
+    byWorktree: {},
     workingSnapshots: [],
     pastCollections: [],
     selectedCollectionID: null,
@@ -79,7 +79,7 @@ function createGraphStore() {
         const seeded = mergePayload(
           {
             ...state,
-            selectedRepoID: pendingSelection.repo ?? state.selectedRepoID,
+            selectedWorktreeID: pendingSelection.worktree ?? state.selectedWorktreeID,
             selectedCollectionID: pendingSelection.collectionID ?? null,
             selectedCollectionSnapshotIndex: pendingSelection.snapshotIndex ?? 0,
             liveSnapshotIndex: pendingSelection.collectionID === undefined
@@ -109,8 +109,8 @@ function createGraphStore() {
       applyAndSync(state => applySourceSelection(state, selected));
     },
 
-    onSelectRepo: (repoID: string) => {
-      applyAndSync(state => selectRepo(state, repoID));
+    onSelectWorktree: (worktreeID: string) => {
+      applyAndSync(state => selectWorktree(state, worktreeID));
     },
 
     reset: () => {
