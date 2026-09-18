@@ -14,53 +14,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPlanInitialRepos_PrimaryNoWorktrees(t *testing.T) {
+func TestPlanInitialWorktrees_PrimaryNoWorktrees(t *testing.T) {
 	repo := initRepoWithCommit(t)
 
-	repos, mode, err := planInitialRepos(repo)
+	descriptors, mode, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
 	assert.Equal(t, modePrimary, mode)
-	require.Len(t, repos, 1)
-	assert.Equal(t, primaryWorktreeID, repos[0].ID)
-	assert.True(t, repos[0].IsPrimary)
-	assert.Equal(t, "main", repos[0].Label)
+	require.Len(t, descriptors, 1)
+	assert.Equal(t, primaryWorktreeID, descriptors[0].ID)
+	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, "main", descriptors[0].Label)
 }
 
-func TestPlanInitialRepos_PrimaryWithLinkedWorktree(t *testing.T) {
+func TestPlanInitialWorktrees_PrimaryWithLinkedWorktree(t *testing.T) {
 	repo := initRepoWithCommit(t)
 	wt := filepath.Join(t.TempDir(), "linked")
 	runGit(t, repo, "worktree", "add", "-b", "feat/x", wt)
 
-	repos, mode, err := planInitialRepos(repo)
+	descriptors, mode, err := planInitialWorktrees(repo)
 	require.NoError(t, err)
 	assert.Equal(t, modePrimary, mode)
-	require.Len(t, repos, 2)
+	require.Len(t, descriptors, 2)
 
-	assert.Equal(t, primaryWorktreeID, repos[0].ID)
-	assert.True(t, repos[0].IsPrimary)
-	assert.Equal(t, "main", repos[0].Label)
+	assert.Equal(t, primaryWorktreeID, descriptors[0].ID)
+	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, "main", descriptors[0].Label)
 	// The linked worktree comes after the primary, with a derived id.
-	assert.True(t, repos[1].ID != primaryWorktreeID, "linked worktree should not get the primary id")
-	assert.False(t, repos[1].IsPrimary)
-	assert.Equal(t, "linked", repos[1].Label, "label should be the worktree directory name")
+	assert.True(t, descriptors[1].ID != primaryWorktreeID, "linked worktree should not get the primary id")
+	assert.False(t, descriptors[1].IsPrimary)
+	assert.Equal(t, "linked", descriptors[1].Label, "label should be the worktree directory name")
 }
 
-func TestPlanInitialRepos_LinkedModeReturnsOnlyCwd(t *testing.T) {
+func TestPlanInitialWorktrees_LinkedModeReturnsOnlyCwd(t *testing.T) {
 	repo := initRepoWithCommit(t)
 	wt := filepath.Join(t.TempDir(), "linked")
 	runGit(t, repo, "worktree", "add", "-b", "feat/x", wt)
 
-	repos, mode, err := planInitialRepos(wt)
+	descriptors, mode, err := planInitialWorktrees(wt)
 	require.NoError(t, err)
 	assert.Equal(t, modeLinked, mode)
-	require.Len(t, repos, 1)
-	assert.Equal(t, primaryWorktreeID, repos[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
-	assert.True(t, repos[0].IsPrimary)
-	assert.Equal(t, "feat/x", repos[0].Label)
+	require.Len(t, descriptors, 1)
+	assert.Equal(t, primaryWorktreeID, descriptors[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
+	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, "feat/x", descriptors[0].Label)
 }
 
-func TestPlanInitialRepos_NonRepoErrors(t *testing.T) {
-	_, _, err := planInitialRepos(t.TempDir())
+func TestPlanInitialWorktrees_NonRepoErrors(t *testing.T) {
+	_, _, err := planInitialWorktrees(t.TempDir())
 	require.Error(t, err)
 }
 
@@ -218,11 +218,11 @@ func TestSupervisor_SkipsStaleInitialWorktreeAndDetectsLaterAdds(t *testing.T) {
 			return false
 		}
 		hasLive := false
-		for _, repo := range b.worktrees {
-			if repo.Label == "stale" {
+		for _, worktree := range b.worktrees {
+			if worktree.Label == "stale" {
 				return false
 			}
-			if repo.Label == "live-after-stale" && repo.Active {
+			if worktree.Label == "live-after-stale" && worktree.Active {
 				hasLive = true
 			}
 		}

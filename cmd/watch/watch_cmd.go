@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.repoPath, "repo", "r", "", "Git repository path (default: current directory)")
+	cmd.Flags().StringVarP(&opts.worktreePath, "repo", "r", "", "Git repository path (default: current directory)")
 	cmd.Flags().IntVarP(&opts.port, "port", "P", opts.port, "HTTP server port")
 	cmd.Flags().StringSliceVar(&opts.excludes, "exclude", nil, "Exclude specific files and/or directories (comma-separated)")
 	cmd.Flags().StringVar(&opts.includeExt, "include-ext", "", "Include only files with these extensions (comma-separated, e.g. .go,.java)")
@@ -67,16 +67,16 @@ func NewCommand() *cobra.Command {
 }
 
 func runWatch(cmd *cobra.Command, opts *watchOptions) error {
-	repoPath := opts.repoPath
-	if repoPath == "" {
-		repoPath = "."
+	worktreePath := opts.worktreePath
+	if worktreePath == "" {
+		worktreePath = "."
 	}
 
-	absRepoPath, err := filepath.Abs(repoPath)
+	absWorktreePath, err := filepath.Abs(worktreePath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve repo path: %w", err)
 	}
-	repoPath = absRepoPath
+	worktreePath = absWorktreePath
 
 	if direction, ok := formatters.ParseDirection(opts.direction); !ok {
 		return fmt.Errorf("unknown direction: %s (valid options: %s)", opts.direction, formatters.SupportedDirections())
@@ -103,7 +103,7 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 
 	b := newBroker()
 	b.format = opts.format
-	srv := newServer(b, actualPort, repoPath)
+	srv := newServer(b, actualPort, worktreePath)
 
 	go func() {
 		if serveErr := srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
@@ -113,7 +113,7 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 
 	watchURL := fmt.Sprintf("http://localhost:%d", actualPort)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Watching %s\n", repoPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "Watching %s\n", worktreePath)
 	if actualPort != opts.port {
 		fmt.Fprintf(cmd.OutOrStdout(), "Port %d in use, using %d\n", opts.port, actualPort)
 	}
@@ -125,7 +125,7 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Press Ctrl+C to stop\n")
 	}
 
-	err = runSupervisor(ctx, repoPath, opts, b, formatter)
+	err = runSupervisor(ctx, worktreePath, opts, b, formatter)
 
 	srv.Close()
 	return err

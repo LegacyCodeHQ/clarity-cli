@@ -31,11 +31,11 @@ const (
 // sleep/wake) and runs at a relaxed cadence -- worktree adds/removes are rare.
 const worktreeReconcileInterval = 2 * time.Second
 
-// planInitialRepos resolves which worktrees to watch when `clarity watch`
+// planInitialWorktrees resolves which worktrees to watch when `clarity watch`
 // starts in `cwd`. The first entry is always the cwd-tree, given the literal
 // id "primary" so it's the default tab. In primary mode (cwd is the primary
 // worktree), additional descriptors follow for each linked worktree.
-func planInitialRepos(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
+func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, error) {
 	isPrimary, err := git.IsPrimaryWorktree(cwd)
 	if err != nil {
 		return nil, "", err
@@ -61,7 +61,7 @@ func planInitialRepos(cwd string) ([]protocol.WorktreeDescriptor, repoMode, erro
 		return nil, "", err
 	}
 
-	repos := []protocol.WorktreeDescriptor{{
+	descriptors := []protocol.WorktreeDescriptor{{
 		ID:        primaryWorktreeID,
 		Path:      cwdAbs,
 		Label:     primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
@@ -75,9 +75,9 @@ func planInitialRepos(cwd string) ([]protocol.WorktreeDescriptor, repoMode, erro
 		if !pathExists(w.Path) {
 			continue
 		}
-		repos = append(repos, descriptorForLinked(w))
+		descriptors = append(descriptors, descriptorForLinked(w))
 	}
-	return repos, modePrimary, nil
+	return descriptors, modePrimary, nil
 }
 
 func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
@@ -129,7 +129,7 @@ func resolveSymlinksOrSelf(path string) string {
 //
 // Returns when ctx is cancelled.
 func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broker, formatter formatters.Formatter) error {
-	repos, mode, err := planInitialRepos(cwd)
+	descriptors, mode, err := planInitialWorktrees(cwd)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broke
 		b:         b,
 		opts:      opts,
 		formatter: formatter,
-		rootPath:  repos[0].Path,
+		rootPath:  descriptors[0].Path,
 		watchers:  make(map[string]context.CancelFunc),
 	}
 
@@ -161,7 +161,7 @@ func runSupervisor(ctx context.Context, cwd string, opts *watchOptions, b *broke
 		}
 	}
 
-	for _, desc := range repos {
+	for _, desc := range descriptors {
 		sup.spawnWatcher(ctx, desc)
 	}
 
@@ -181,7 +181,7 @@ type supervisor struct {
 	rootPath  string
 
 	mu       sync.Mutex
-	watchers map[string]context.CancelFunc // repoID -> cancel
+	watchers map[string]context.CancelFunc // worktreeID -> cancel
 }
 
 func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.WorktreeDescriptor) {
@@ -214,15 +214,15 @@ func (s *supervisor) spawnWatcher(parent context.Context, desc protocol.Worktree
 // but keeps its tab: the file watcher is cancelled while the broker flips the
 // tab to inactive and preserves its snapshot history. The tab survives as a
 // frozen, read-only record until the user closes it (see broker.closeWorktree).
-func (s *supervisor) finishWatcher(repoID string) {
+func (s *supervisor) finishWatcher(worktreeID string) {
 	s.mu.Lock()
-	cancel, ok := s.watchers[repoID]
-	delete(s.watchers, repoID)
+	cancel, ok := s.watchers[worktreeID]
+	delete(s.watchers, worktreeID)
 	s.mu.Unlock()
 	if ok {
 		cancel()
 	}
-	s.b.markWorktreeFinished(repoID)
+	s.b.markWorktreeFinished(worktreeID)
 }
 
 func (s *supervisor) shutdown() {
@@ -320,24 +320,24 @@ func (s *supervisor) reconcileWorktrees(ctx context.Context) {
 		}
 	}
 
-	for _, repoID := range s.linkedWatchersMissingFrom(seen) {
-		s.finishWatcher(repoID)
+	for _, worktreeID := range s.linkedWatchersMissingFrom(seen) {
+		s.finishWatcher(worktreeID)
 	}
 }
 
-func (s *supervisor) hasWatcher(repoID string) bool {
+func (s *supervisor) hasWatcher(worktreeID string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.watchers[repoID] != nil
+	return s.watchers[worktreeID] != nil
 }
 
 func (s *supervisor) linkedWatchersMissingFrom(seen map[string]bool) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var missing []string
-	for repoID := range s.watchers {
-		if repoID != primaryWorktreeID && !seen[repoID] {
-			missing = append(missing, repoID)
+	for worktreeID := range s.watchers {
+		if worktreeID != primaryWorktreeID && !seen[worktreeID] {
+			missing = append(missing, worktreeID)
 		}
 	}
 	return missing

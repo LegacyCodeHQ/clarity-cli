@@ -3,7 +3,7 @@ package watch
 import "github.com/LegacyCodeHQ/clarity/cmd/show/formatters"
 
 type watchOptions struct {
-	repoPath     string
+	worktreePath string
 	port         int
 	direction    string
 	format       string

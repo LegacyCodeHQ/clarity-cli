@@ -20,14 +20,14 @@ import (
 const debounceInterval = 300 * time.Millisecond
 const gitStatePollInterval = 500 * time.Millisecond
 
-func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOptions, b *broker, formatter formatters.Formatter) error {
+func watchAndRebuild(ctx context.Context, worktreeID, worktreePath string, opts *watchOptions, b *broker, formatter formatters.Formatter) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("failed to create file watcher: %w", err)
 	}
 	defer watcher.Close()
 
-	if err := addWatchDirs(watcher, repoPath); err != nil {
+	if err := addWatchDirs(watcher, worktreePath); err != nil {
 		return fmt.Errorf("failed to watch directories: %w", err)
 	}
 
@@ -49,10 +49,10 @@ func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOp
 			debounceTimer.Reset(debounceInterval)
 		}
 	}
-	lastGitStateSig, err := git.GetRepositoryStateSignature(repoPath)
+	lastGitStateSig, err := git.GetRepositoryStateSignature(worktreePath)
 	lastHeadSig := extractHEADSignature(lastGitStateSig)
 	if err != nil {
-		if finishRepoIfRemoved(repoID, repoPath, b) {
+		if finishWorktreeIfRemoved(worktreeID, worktreePath, b) {
 			return nil
 		}
 		fmt.Fprintf(os.Stderr, "git state read error: %v\n", err)
@@ -115,13 +115,13 @@ func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOp
 			// by fsnotify during a batch removal), stop polling git against the
 			// dead path and flip the tab to a finished, closable record. This is
 			// independent of the meta-watcher, which is the primary trigger.
-			if !pathExists(repoPath) {
-				b.markWorktreeFinished(repoID)
+			if !pathExists(worktreePath) {
+				b.markWorktreeFinished(worktreeID)
 				return nil
 			}
-			stateSig, err := git.GetRepositoryStateSignature(repoPath)
+			stateSig, err := git.GetRepositoryStateSignature(worktreePath)
 			if err != nil {
-				if finishRepoIfRemoved(repoID, repoPath, b) {
+				if finishWorktreeIfRemoved(worktreeID, worktreePath, b) {
 					return nil
 				}
 				fmt.Fprintf(os.Stderr, "git state read error: %v\n", err)
@@ -137,14 +137,14 @@ func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOp
 			lastGitStateSig = stateSig
 			lastHeadSig = headSig
 			if headChanged {
-				commitHistory, err := git.GetCommitHistory(repoPath, previousHeadSig, headSig)
+				commitHistory, err := git.GetCommitHistory(worktreePath, previousHeadSig, headSig)
 				if err != nil {
-					if finishRepoIfRemoved(repoID, repoPath, b) {
+					if finishWorktreeIfRemoved(worktreeID, worktreePath, b) {
 						return nil
 					}
 					fmt.Fprintf(os.Stderr, "git commit history read error: %v\n", err)
 				}
-				b.archiveWorkingSetWithCommitHistory(repoID, commitHistory)
+				b.archiveWorkingSetWithCommitHistory(worktreeID, commitHistory)
 			}
 			// Defer to the debounce timer rather than rebuilding immediately:
 			// a state change detected mid-burst (a refactor, a codegen regen)
@@ -153,7 +153,7 @@ func watchAndRebuild(ctx context.Context, repoID, repoPath string, opts *watchOp
 			armDebounce()
 
 		case <-debounceC:
-			publishCurrentGraph(repoID, repoPath, opts, b, formatter)
+			publishCurrentGraph(worktreeID, worktreePath, opts, b, formatter)
 			// Drop the timer too so the next event takes the
 			// `debounceTimer == nil` branch and re-arms debounceC.
 			// Without this, Reset would fire the timer into a nil
@@ -176,22 +176,22 @@ func stopAndDrainTimer(timer *time.Timer) {
 	}
 }
 
-func publishCurrentGraph(repoID, repoPath string, opts *watchOptions, b *broker, formatter formatters.Formatter) {
-	if finishRepoIfRemoved(repoID, repoPath, b) {
+func publishCurrentGraph(worktreeID, worktreePath string, opts *watchOptions, b *broker, formatter formatters.Formatter) {
+	if finishWorktreeIfRemoved(worktreeID, worktreePath, b) {
 		return
 	}
-	if isLinkedWorktreeTeardownSnapshot(repoPath) {
-		b.markWorktreeFinished(repoID)
+	if isLinkedWorktreeTeardownSnapshot(worktreePath) {
+		b.markWorktreeFinished(worktreeID)
 		return
 	}
 
-	dot, err := buildGraph(repoPath, opts, formatter)
+	dot, err := buildGraph(worktreePath, opts, formatter)
 	if errors.Is(err, errNoUncommittedChanges) {
-		b.clearWorkingSet(repoID)
+		b.clearWorkingSet(worktreeID)
 		return
 	}
 	if err != nil {
-		if finishRepoIfRemoved(repoID, repoPath, b) {
+		if finishWorktreeIfRemoved(worktreeID, worktreePath, b) {
 			return
 		}
 		// A rebuild can lose an individual file while an editor replaces it or
@@ -203,38 +203,38 @@ func publishCurrentGraph(repoID, repoPath string, opts *watchOptions, b *broker,
 		fmt.Fprintf(os.Stderr, "graph rebuild error: %v\n", err)
 		return
 	}
-	b.publish(repoID, dot)
+	b.publish(worktreeID, dot)
 }
 
-func finishRepoIfRemoved(repoID, repoPath string, b *broker) bool {
-	if pathExists(repoPath) {
+func finishWorktreeIfRemoved(worktreeID, worktreePath string, b *broker) bool {
+	if pathExists(worktreePath) {
 		return false
 	}
-	b.markWorktreeFinished(repoID)
+	b.markWorktreeFinished(worktreeID)
 	return true
 }
 
-func isLinkedWorktreeTeardownSnapshot(repoPath string) bool {
-	if !pathExists(repoPath) {
+func isLinkedWorktreeTeardownSnapshot(worktreePath string) bool {
+	if !pathExists(worktreePath) {
 		return false
 	}
 
-	isPrimary, err := git.IsPrimaryWorktree(repoPath)
+	isPrimary, err := git.IsPrimaryWorktree(worktreePath)
 	if err != nil || isPrimary {
 		return false
 	}
 
-	nonDeletedChanges, err := git.GetUncommittedFiles(repoPath)
+	nonDeletedChanges, err := git.GetUncommittedFiles(worktreePath)
 	if err != nil || len(nonDeletedChanges) > 0 {
 		return false
 	}
 
-	deletedFiles, err := git.GetUncommittedDeletedFiles(repoPath)
+	deletedFiles, err := git.GetUncommittedDeletedFiles(worktreePath)
 	if err != nil || len(deletedFiles) == 0 {
 		return false
 	}
 
-	trackedFiles, err := git.ListTrackedFiles(repoPath)
+	trackedFiles, err := git.ListTrackedFiles(worktreePath)
 	if err != nil {
 		return false
 	}
