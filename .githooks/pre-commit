@@ -18,3 +18,6 @@ echo "pre-commit: running make format-check"
 make format-check
 echo "pre-commit: running make lint"
 make lint
+
+echo "pre-commit: running compass guard run --staged"
+compass guard run --staged
