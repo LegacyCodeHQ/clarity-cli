@@ -14,21 +14,34 @@ const (
 
 const SSEEventGraph = "graph"
 
+// WorktreeKind classifies a worktree using git's own vocabulary: the single
+// main worktree created by `git init`/`git clone`, or one of possibly several
+// linked worktrees created via `git worktree add`. See git-worktree(1). Kept
+// independent of vcs/git.WorktreeKind so this package stays a self-contained
+// wire contract.
+type WorktreeKind string
+
+const (
+	WorktreeKindMain   WorktreeKind = "main"
+	WorktreeKindLinked WorktreeKind = "linked"
+)
+
 // WorktreeDescriptor names a working tree visible to the watch session.
 // One descriptor per tab in the viewer.
 type WorktreeDescriptor struct {
 	// ID is a stable identifier for the tree across reconnects.
-	// "primary" for the primary worktree in primary mode; "wt-<hash8>" otherwise.
+	// "main" for the repository's main worktree; "wt-<hash8>" otherwise.
 	ID string `json:"id"`
 	// Path is the absolute path to the working tree on disk.
 	Path string `json:"path"`
 	// Label is a human-readable name for tab display.
 	Label string `json:"label"`
-	// IsPrimary marks the primary worktree of the repository.
-	IsPrimary bool `json:"isPrimary"`
+	// Kind is WorktreeKindMain for the repository's main worktree,
+	// WorktreeKindLinked otherwise.
+	Kind WorktreeKind `json:"kind"`
 	// Active reports whether the worktree is still being watched. It flips to
 	// false when the underlying git worktree is removed: the tab stays visible
-	// as a frozen, read-only record and becomes user-closable. The primary
+	// as a frozen, read-only record and becomes user-closable. The main
 	// worktree stays active for the life of the watch session.
 	Active bool `json:"active"`
 }

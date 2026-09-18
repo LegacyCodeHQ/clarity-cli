@@ -49,11 +49,11 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 
 	if !isPrimary {
 		return []protocol.WorktreeDescriptor{{
-			ID:        primaryWorktreeID,
-			Path:      cwdAbs,
-			Label:     primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
-			IsPrimary: true,
-			Active:    true,
+			ID:     primaryWorktreeID,
+			Path:   cwdAbs,
+			Label:  primaryRepoLabel(cwdAbs, currentBranchFor(cwdAbs)),
+			Kind:   protocol.WorktreeKindMain,
+			Active: true,
 		}}, modeLinked, nil
 	}
 
@@ -63,11 +63,11 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 	}
 
 	descriptors := []protocol.WorktreeDescriptor{{
-		ID:        primaryWorktreeID,
-		Path:      cwdAbs,
-		Label:     primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
-		IsPrimary: true,
-		Active:    true,
+		ID:     primaryWorktreeID,
+		Path:   cwdAbs,
+		Label:  primaryRepoLabel(cwdAbs, primaryBranch(worktrees)),
+		Kind:   protocol.WorktreeKindMain,
+		Active: true,
 	}}
 	for _, w := range worktrees {
 		if w.Kind == git.WorktreeKindMain {
@@ -83,11 +83,11 @@ func planInitialWorktrees(cwd string) ([]protocol.WorktreeDescriptor, repoMode, 
 
 func descriptorForLinked(w git.Worktree) protocol.WorktreeDescriptor {
 	return protocol.WorktreeDescriptor{
-		ID:        worktreeIDFor(w.Path, false),
-		Path:      w.Path,
-		Label:     linkedRepoLabel(w.Path),
-		IsPrimary: false,
-		Active:    true,
+		ID:     worktreeIDFor(w.Path, false),
+		Path:   w.Path,
+		Label:  linkedRepoLabel(w.Path),
+		Kind:   protocol.WorktreeKindLinked,
+		Active: true,
 	}
 }
 

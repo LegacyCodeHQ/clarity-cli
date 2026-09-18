@@ -15,17 +15,17 @@ func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 	defer b.unsubscribe(ch)
 
 	b.registerWorktree(protocol.WorktreeDescriptor{
-		ID:        "primary",
-		Path:      "/repo",
-		Label:     "clarity-cli",
-		IsPrimary: true,
+		ID:    "primary",
+		Path:  "/repo",
+		Label: "clarity-cli",
+		Kind:  protocol.WorktreeKindMain,
 	})
 
 	select {
 	case got := <-ch:
 		require.Len(t, got.Worktrees, 1)
 		assert.Equal(t, "primary", got.Worktrees[0].ID)
-		assert.True(t, got.Worktrees[0].IsPrimary)
+		assert.Equal(t, protocol.WorktreeKindMain, got.Worktrees[0].Kind)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for tab descriptor")
 	}
@@ -33,8 +33,8 @@ func TestBroker_RegisterWorktree_EmitsTabsToSubscribers(t *testing.T) {
 
 func TestBroker_PublishToMultipleWorktrees_FlatPayloadTaggedByWorktreeID(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", IsPrimary: true})
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Label: "primary", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Label: "wt", Kind: protocol.WorktreeKindLinked})
 
 	ch := b.subscribe()
 	defer b.unsubscribe(ch)
@@ -72,7 +72,7 @@ done:
 
 func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
 
 	// The first snapshot recorded for a repo is the session start: it captures
 	// whatever already existed in the working tree when the watcher attached.
@@ -106,8 +106,8 @@ func TestBroker_MarksSessionStartOncePerWorktree(t *testing.T) {
 
 func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked})
 
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
@@ -131,8 +131,8 @@ func TestBroker_ArchiveOnlyAffectsThatWorktree(t *testing.T) {
 
 func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true})
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
@@ -157,8 +157,8 @@ func TestBroker_UnregisterWorktree_DropsTabAndHistory(t *testing.T) {
 // no longer live and should be exposed as an archived collection.
 func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 
@@ -192,8 +192,8 @@ func TestBroker_MarkWorktreeFinished_ArchivesFinalWorkingSet(t *testing.T) {
 // worktrees can be closed, and closing drops the tab and its history.
 func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", IsPrimary: false, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Kind: protocol.WorktreeKindLinked, Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
 	b.markWorktreeFinished("wt-aaaaaaaa")
@@ -218,7 +218,7 @@ func TestBroker_CloseWorktree_RemovesFinishedTab(t *testing.T) {
 // tear down a tab that's still being watched.
 func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.publish("primary", "digraph p {}")
 
 	assert.Equal(t, closeActive, b.closeWorktree("primary"), "closing an active worktree should be refused")
@@ -237,7 +237,7 @@ func TestBroker_CloseWorktree_RefusesActiveWorktree(t *testing.T) {
 
 func TestBroker_CloseWorktree_UnknownWorktreeReturnsFalse(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 
 	assert.Equal(t, closeNotFound, b.closeWorktree("wt-missing"), "closing an unknown worktree should report not found")
 }

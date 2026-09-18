@@ -3,11 +3,16 @@
  * These functions validate and normalize untrusted JSON payloads from the server.
  */
 
+// WorktreeKind classifies a worktree using git's own vocabulary: the single
+// main worktree created by `git init`/`git clone`, or one of possibly several
+// linked worktrees created via `git worktree add`. See git-worktree(1).
+export type WorktreeKind = "main" | "linked";
+
 export interface WorktreeDescriptor {
   id: string;
   path: string;
   label: string;
-  isPrimary: boolean;
+  kind: WorktreeKind;
   // False once the underlying git worktree is removed — the tab becomes a
   // frozen, closable record. A missing flag is treated as active.
   active: boolean;
@@ -63,7 +68,7 @@ function normalizeWorktree(worktree: unknown): WorktreeDescriptor | null {
     id: r.id,
     path: typeof r.path === "string" ? r.path : "",
     label: typeof r.label === "string" ? r.label : r.id,
-    isPrimary: r.isPrimary === true,
+    kind: r.kind === "main" ? "main" : "linked",
     // Treat a missing flag as active so older payloads keep their tabs pinned.
     active: r.active !== false,
   };

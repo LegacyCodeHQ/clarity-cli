@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LegacyCodeHQ/clarity/cmd/show/formatters"
+	"github.com/LegacyCodeHQ/clarity/cmd/watch/protocol"
 	"github.com/LegacyCodeHQ/clarity/vcs/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,7 @@ func TestPlanInitialWorktrees_PrimaryNoWorktrees(t *testing.T) {
 	assert.Equal(t, modePrimary, mode)
 	require.Len(t, descriptors, 1)
 	assert.Equal(t, primaryWorktreeID, descriptors[0].ID)
-	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "main", descriptors[0].Label)
 }
 
@@ -37,11 +38,11 @@ func TestPlanInitialWorktrees_PrimaryWithLinkedWorktree(t *testing.T) {
 	require.Len(t, descriptors, 2)
 
 	assert.Equal(t, primaryWorktreeID, descriptors[0].ID)
-	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "main", descriptors[0].Label)
 	// The linked worktree comes after the primary, with a derived id.
 	assert.True(t, descriptors[1].ID != primaryWorktreeID, "linked worktree should not get the primary id")
-	assert.False(t, descriptors[1].IsPrimary)
+	assert.Equal(t, protocol.WorktreeKindLinked, descriptors[1].Kind)
 	assert.Equal(t, "linked", descriptors[1].Label, "label should be the worktree directory name")
 }
 
@@ -55,7 +56,7 @@ func TestPlanInitialWorktrees_LinkedModeReturnsOnlyCwd(t *testing.T) {
 	assert.Equal(t, modeLinked, mode)
 	require.Len(t, descriptors, 1)
 	assert.Equal(t, primaryWorktreeID, descriptors[0].ID, "cwd-tree gets the 'primary' id regardless of git's notion")
-	assert.True(t, descriptors[0].IsPrimary)
+	assert.Equal(t, protocol.WorktreeKindMain, descriptors[0].Kind)
 	assert.Equal(t, "feat/x", descriptors[0].Label)
 }
 

@@ -25,7 +25,7 @@ function collection(
 describe('normalizeGraphStreamPayload', () => {
   it('filters malformed snapshot and collection data', () => {
     const normalized = normalizeGraphStreamPayload({
-      worktrees: [{ id: "primary", path: "/repo", label: "repo", isPrimary: true }],
+      worktrees: [{ id: "primary", path: "/repo", label: "repo", kind: 'main' }],
       workingSnapshots: [
         snapshot(1),
         { id: 2, worktreeId: "primary", timestamp: TIMESTAMP }, // missing dot
@@ -80,8 +80,8 @@ describe('normalizeGraphStreamPayload', () => {
   it('normalizes the worktrees[] tab descriptor list', () => {
     const normalized = normalizeGraphStreamPayload({
       worktrees: [
-        { id: "primary", path: "/repo", label: "clarity-cli", isPrimary: true },
-        { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", isPrimary: false },
+        { id: "primary", path: "/repo", label: "clarity-cli", kind: 'main' },
+        { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked' },
         { id: "" }, // empty id should be dropped
         null,
         "garbage",
@@ -91,28 +91,28 @@ describe('normalizeGraphStreamPayload', () => {
     });
 
     expect(normalized.worktrees).toEqual([
-      { id: "primary", path: "/repo", label: "clarity-cli", isPrimary: true, active: true },
-      { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", isPrimary: false, active: true },
+      { id: "primary", path: "/repo", label: "clarity-cli", kind: 'main', active: true },
+      { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked', active: true },
     ]);
   });
 
   it('falls back to worktree id as label when label missing', () => {
     const normalized = normalizeGraphStreamPayload({
-      worktrees: [{ id: "primary", path: "/repo", isPrimary: true }],
+      worktrees: [{ id: "primary", path: "/repo", kind: 'main' }],
       workingSnapshots: [],
       pastCollections: [],
     });
 
     expect(normalized.worktrees[0].label).toBe("primary");
-    expect(normalized.worktrees[0].isPrimary).toBe(true);
+    expect(normalized.worktrees[0].kind).toBe("main");
   });
 
   it('normalizes the active flag, defaulting missing to true', () => {
     const normalized = normalizeGraphStreamPayload({
       worktrees: [
-        { id: "primary", path: "/repo", label: "repo", isPrimary: true, active: true },
-        { id: "wt-finished", path: "/tmp/done", label: "done", isPrimary: false, active: false },
-        { id: "wt-legacy", path: "/tmp/old", label: "old", isPrimary: false }, // no active field
+        { id: "primary", path: "/repo", label: "repo", kind: 'main', active: true },
+        { id: "wt-finished", path: "/tmp/done", label: "done", kind: 'linked', active: false },
+        { id: "wt-legacy", path: "/tmp/old", label: "old", kind: 'linked' }, // no active field
       ],
       workingSnapshots: [],
       pastCollections: [],

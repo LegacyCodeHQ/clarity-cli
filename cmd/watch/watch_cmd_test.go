@@ -1029,11 +1029,11 @@ func TestPublishCurrentGraph_LinkedWorktreeTeardownMarksRepoFinished(t *testing.
 
 	b := newBroker()
 	b.registerWorktree(protocol.WorktreeDescriptor{
-		ID:        "wt-teardown",
-		Path:      linked,
-		Label:     "linked",
-		IsPrimary: false,
-		Active:    true,
+		ID:     "wt-teardown",
+		Path:   linked,
+		Label:  "linked",
+		Kind:   protocol.WorktreeKindLinked,
+		Active: true,
 	})
 	b.publish("wt-teardown", "digraph { clean }")
 
@@ -1069,11 +1069,11 @@ func TestPublishCurrentGraph_RemovedLinkedWorktreeFinishesWithoutError(t *testin
 
 	b := newBroker()
 	b.registerWorktree(protocol.WorktreeDescriptor{
-		ID:        "wt-removed",
-		Path:      linked,
-		Label:     "linked",
-		IsPrimary: false,
-		Active:    true,
+		ID:     "wt-removed",
+		Path:   linked,
+		Label:  "linked",
+		Kind:   protocol.WorktreeKindLinked,
+		Active: true,
 	})
 	b.publish("wt-removed", "digraph { clean }")
 

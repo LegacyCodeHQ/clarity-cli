@@ -14,7 +14,7 @@ import (
 // It lets the UI tear down a finished (inactive) tab; active tabs are pinned.
 func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "wt-aaaaaaaa", Path: "/tmp/wt", Active: true})
 	b.publish("primary", "digraph p {}")
 	b.publish("wt-aaaaaaaa", "digraph w {}")
@@ -34,7 +34,7 @@ func TestCloseEndpoint_RemovesFinishedTab(t *testing.T) {
 
 func TestCloseEndpoint_RefusesActiveTab(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.publish("primary", "digraph p {}")
 
 	srv := newServer(b, 0, "/repo")
@@ -51,7 +51,7 @@ func TestCloseEndpoint_RefusesActiveTab(t *testing.T) {
 
 func TestCloseEndpoint_UnknownTabReturns404(t *testing.T) {
 	b := newBroker()
-	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", IsPrimary: true, Active: true})
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "primary", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 
 	srv := newServer(b, 0, "/repo")
 	rec := httptest.NewRecorder()

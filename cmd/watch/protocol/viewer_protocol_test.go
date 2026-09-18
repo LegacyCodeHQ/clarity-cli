@@ -15,6 +15,24 @@ func TestProtocolConstants_AreStable(t *testing.T) {
 	assert.Equal(t, "graph", SSEEventGraph)
 }
 
+func TestWorktreeDescriptor_JSONContract(t *testing.T) {
+	main := WorktreeDescriptor{ID: "main", Path: "/repo", Label: "repo", Kind: WorktreeKindMain, Active: true}
+	linked := WorktreeDescriptor{ID: "wt-abc12345", Path: "/tmp/feat", Label: "feat", Kind: WorktreeKindLinked, Active: true}
+
+	rawMain, err := json.Marshal(main)
+	require.NoError(t, err)
+	var mainDoc map[string]any
+	require.NoError(t, json.Unmarshal(rawMain, &mainDoc))
+	assert.Equal(t, "main", mainDoc["kind"])
+	assert.NotContains(t, mainDoc, "isPrimary")
+
+	rawLinked, err := json.Marshal(linked)
+	require.NoError(t, err)
+	var linkedDoc map[string]any
+	require.NoError(t, json.Unmarshal(rawLinked, &linkedDoc))
+	assert.Equal(t, "linked", linkedDoc["kind"])
+}
+
 func TestGraphStreamPayload_JSONContract(t *testing.T) {
 	ts := time.Date(2026, 2, 12, 10, 0, 0, 0, time.UTC)
 	payload := GraphStreamPayload{
