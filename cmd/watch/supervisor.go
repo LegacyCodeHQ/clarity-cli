@@ -39,7 +39,7 @@ func requireMainWorktree(cwd string) (string, error) {
 	}
 	if kind != git.WorktreeKindMain {
 		return "", fmt.Errorf("clarity watch must be run from the repository's main worktree, not a linked one; " +
-			"run it from there instead — this worktree will appear automatically as a tab")
+			"run it from there instead — this worktree will appear automatically as a tab\n")
 	}
 	return git.GetWorktreeRoot(cwd)
 }
