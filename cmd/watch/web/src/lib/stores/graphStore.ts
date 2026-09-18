@@ -13,15 +13,29 @@ import {
   applySourceSelection,
   selectRepo,
   getViewModel,
+  DEFAULT_REPO_ID,
   type ViewerState,
   type ViewModel,
 } from '../viewer/viewerState';
+import { parseSelectionFromSearch, buildSearchFromState, type URLSelection } from '../viewer/urlSelection';
 import type { GraphStreamPayload } from '../protocol/viewerProtocol';
 
 function createGraphStore() {
+  // Read once at startup: the selection a refresh (or a shared/bookmarked
+  // link) should restore. It can't be validated against real data yet —
+  // repos/collections don't exist until the first SSE payload arrives — so
+  // it's applied on that first mergePayload call, not baked into
+  // initialState, and normalizeState's usual clamping falls back to Live if
+  // it turns out to reference a session/snapshot that no longer exists.
+  let pendingSelection: URLSelection | null =
+    typeof window !== 'undefined' ? parseSelectionFromSearch(window.location.search) : null;
+  if (pendingSelection && Object.keys(pendingSelection).length === 0) {
+    pendingSelection = null;
+  }
+
   const initialState: ViewerState = normalizeState({
     repos: [],
-    selectedRepoID: "primary",
+    selectedRepoID: pendingSelection?.repo ?? DEFAULT_REPO_ID,
     byRepo: {},
     workingSnapshots: [],
     pastCollections: [],
@@ -32,31 +46,71 @@ function createGraphStore() {
 
   const { subscribe, update } = writable<ViewerState>(initialState);
 
+  // Reflects the current selection into the URL (via replaceState, so
+  // scrubbing/switching sessions doesn't spam the back-button history) each
+  // time it changes, so a later refresh can restore it.
+  function syncURL(state: ViewerState) {
+    if (typeof window === 'undefined' || typeof history === 'undefined') {
+      return;
+    }
+    const search = buildSearchFromState(state);
+    if (search === window.location.search) {
+      return;
+    }
+    history.replaceState(history.state, '', `${window.location.pathname}${search}${window.location.hash}`);
+  }
+
+  function applyAndSync(fn: (state: ViewerState) => ViewerState) {
+    update((state) => {
+      const next = fn(state);
+      syncURL(next);
+      return next;
+    });
+  }
+
   return {
     subscribe,
 
     mergePayload: (payload: GraphStreamPayload) => {
-      update(state => mergePayload(state, payload));
+      applyAndSync((state) => {
+        if (!pendingSelection) {
+          return mergePayload(state, payload);
+        }
+        const seeded = mergePayload(
+          {
+            ...state,
+            selectedRepoID: pendingSelection.repo ?? state.selectedRepoID,
+            selectedCollectionID: pendingSelection.collectionID ?? null,
+            selectedCollectionSnapshotIndex: pendingSelection.snapshotIndex ?? 0,
+            liveSnapshotIndex: pendingSelection.collectionID === undefined
+              ? pendingSelection.snapshotIndex ?? null
+              : null,
+          },
+          payload,
+        );
+        pendingSelection = null;
+        return seeded;
+      });
     },
 
     onSliderInput: (rawValue: string) => {
-      update(state => applySliderInput(state, rawValue));
+      applyAndSync(state => applySliderInput(state, rawValue));
     },
 
     onTimelineStep: (delta: number) => {
-      update(state => applyTimelineStep(state, delta));
+      applyAndSync(state => applyTimelineStep(state, delta));
     },
 
     onJumpToLatest: () => {
-      update(state => applyLiveSelection(state));
+      applyAndSync(state => applyLiveSelection(state));
     },
 
     onSourceChange: (selected: string) => {
-      update(state => applySourceSelection(state, selected));
+      applyAndSync(state => applySourceSelection(state, selected));
     },
 
     onSelectRepo: (repoID: string) => {
-      update(state => selectRepo(state, repoID));
+      applyAndSync(state => selectRepo(state, repoID));
     },
 
     reset: () => {

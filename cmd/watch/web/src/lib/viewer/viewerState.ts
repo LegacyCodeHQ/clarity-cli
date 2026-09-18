@@ -66,7 +66,7 @@ export interface ViewModel {
 
 type TimeFormatter = (timestamp: string) => string;
 
-const DEFAULT_REPO_ID = "primary";
+export const DEFAULT_REPO_ID = "primary";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
