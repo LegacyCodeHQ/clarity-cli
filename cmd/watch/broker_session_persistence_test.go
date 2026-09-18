@@ -95,6 +95,28 @@ func TestBroker_ArchiveWorkingSetWithCommitHistory_ClosesSessionCommitted(t *tes
 	assert.Equal(t, 1, commitCount)
 }
 
+// TestBroker_ArchiveWorkingSet_BroadcastCollectionCarriesPersistedSessionID
+// proves the in-memory collection the SSE payload broadcasts is
+// recognizable as the very session that also lands in the persisted-history
+// listing (CLR-98's GET /sessions) — the frontend needs this to avoid
+// showing the current run's own closed sessions twice.
+func TestBroker_ArchiveWorkingSet_BroadcastCollectionCarriesPersistedSessionID(t *testing.T) {
+	b, db := newPersistedBroker(t)
+	b.publish("main", "digraph{a}")
+
+	ch := b.subscribe()
+	<-ch // drain the initial payload subscribe() seeds, sent before the archive below
+
+	b.archiveWorkingSetWithCommitHistory("main", []vcs.CommitSummary{{Hash: "aaa111", Subject: "first commit"}})
+	payload := <-ch
+
+	var wantSessionID int64
+	require.NoError(t, db.QueryRow(`SELECT id FROM sessions WHERE number = 1`).Scan(&wantSessionID))
+
+	require.Len(t, payload.PastCollections, 1)
+	assert.Equal(t, wantSessionID, payload.PastCollections[0].SessionID)
+}
+
 func TestBroker_ClearWorkingSet_ClosesSessionDiscarded(t *testing.T) {
 	b, db := newPersistedBroker(t)
 	b.publish("main", "digraph{a}")

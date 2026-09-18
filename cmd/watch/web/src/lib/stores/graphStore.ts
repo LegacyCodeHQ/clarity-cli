@@ -12,13 +12,36 @@ import {
   applyLiveSelection,
   applySourceSelection,
   selectWorktree,
+  setPersistedSessions,
+  applyPersistedSessionDetail,
   getViewModel,
   DEFAULT_WORKTREE_ID,
   type ViewerState,
   type ViewModel,
 } from '../viewer/viewerState';
 import { parseSelectionFromSearch, buildSearchFromState, type URLSelection } from '../viewer/urlSelection';
-import type { GraphStreamPayload } from '../protocol/viewerProtocol';
+import {
+  normalizePersistedSessionDetail,
+  type GraphStreamPayload,
+  type PersistedSessionSummary,
+} from '../protocol/viewerProtocol';
+
+// Fetches one persisted session's full content on demand (CLR-98/99) —
+// never called eagerly, only once the user selects a `session:<id>`
+// option. Returns null on any failure (network error, non-2xx, malformed
+// body); the caller treats that the same as "couldn't load."
+async function fetchPersistedSessionDetail(id: number) {
+  try {
+    const res = await fetch(`/sessions/${id}`);
+    if (!res.ok) {
+      return null;
+    }
+    return normalizePersistedSessionDetail(await res.json());
+  } catch (err) {
+    console.error('Failed to fetch session detail:', err);
+    return null;
+  }
+}
 
 function createGraphStore() {
   // Read once at startup: the selection a refresh (or a shared/bookmarked
@@ -106,11 +129,31 @@ function createGraphStore() {
     },
 
     onSourceChange: (selected: string) => {
+      // applySourceSelection's `session:<id>` branch only does the
+      // optimistic half (marks it selected + loading) — it can't fetch
+      // itself and stay pure. Kick off the fetch here and feed the result
+      // back through applyPersistedSessionDetail once it resolves.
       applyAndSync(state => applySourceSelection(state, selected));
+      if (selected.startsWith('session:')) {
+        const id = Number(selected.split(':')[1]);
+        if (Number.isFinite(id)) {
+          fetchPersistedSessionDetail(id).then((detail) => {
+            applyAndSync(state => applyPersistedSessionDetail(state, id, detail));
+          });
+        }
+      }
     },
 
     onSelectWorktree: (worktreeID: string) => {
       applyAndSync(state => selectWorktree(state, worktreeID));
+    },
+
+    // Replaces the eager, metadata-only persisted-session listing (CLR-98's
+    // GET /sessions), fetched once on attach — see App.svelte. Doesn't
+    // touch the URL: the listing alone never changes what's selected/
+    // rendered, only what getSourceOptions offers.
+    setPersistedSessions: (sessions: PersistedSessionSummary[]) => {
+      update(state => setPersistedSessions(state, sessions));
     },
 
     reset: () => {

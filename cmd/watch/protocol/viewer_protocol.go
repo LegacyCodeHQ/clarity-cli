@@ -107,6 +107,14 @@ type SnapshotCollection struct {
 	Timestamp     time.Time       `json:"timestamp"`
 	Snapshots     []GraphSnapshot `json:"snapshots"`
 	CommitHistory []CommitSummary `json:"commitHistory,omitempty"`
+	// SessionID is the persisted sessions.id this collection was archived
+	// into (see store.CloseSessionCommitted et al.), omitted when
+	// persistence is disabled or the archive-time write failed. Lets the
+	// client recognize a collection here as the very session that would
+	// otherwise also appear in the persisted-history listing (CLR-98's
+	// GET /sessions) — this run's own closed sessions must show up once,
+	// not twice.
+	SessionID int64 `json:"sessionId,omitempty"`
 }
 
 // PersistedSessionSummary is one entry in the eager, metadata-only

@@ -5,7 +5,7 @@
   import GraphContainer from './components/GraphContainer.svelte';
   import Timeline from './components/Timeline.svelte';
   import { graphStore } from './lib/stores/graphStore';
-  import { normalizeGraphStreamPayload } from './lib/protocol/viewerProtocol';
+  import { normalizeGraphStreamPayload, normalizePersistedSessionList } from './lib/protocol/viewerProtocol';
 
   interface Props {
     pageTitle: string;
@@ -37,8 +37,26 @@
     });
   }
 
+  // Fetches the eager, metadata-only persisted-session listing (CLR-98's
+  // GET /sessions) once on attach — cheap (no snapshot content), so unlike
+  // a session's actual detail this isn't deferred to a user click. A 404
+  // means persistence is disabled for this process; that's a normal,
+  // silent case, not an error to surface.
+  async function fetchPersistedSessions() {
+    try {
+      const res = await fetch('/sessions');
+      if (!res.ok) {
+        return;
+      }
+      graphStore.setPersistedSessions(normalizePersistedSessionList(await res.json()));
+    } catch (err) {
+      console.error('Failed to fetch persisted sessions:', err);
+    }
+  }
+
   onMount(() => {
     connectSSE();
+    fetchPersistedSessions();
   });
 
   onDestroy(() => {

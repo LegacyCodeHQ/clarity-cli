@@ -380,6 +380,7 @@ func (b *broker) archiveWorkingSetLocked(worktreeID string, s *worktreeState, co
 			Timestamp:     time.Now().UTC(),
 			Snapshots:     archivedSnapshots,
 			CommitHistory: toProtocolCommitHistory(commitHistory),
+			SessionID:     s.dbSessionID,
 		})
 		dbSessionID = s.dbSessionID
 		hadHistory = true
@@ -502,6 +503,7 @@ func (b *broker) collectPastLocked() []protocol.SnapshotCollection {
 				Timestamp:     cycle.Timestamp,
 				Snapshots:     snapshots,
 				CommitHistory: copyCommitHistory(cycle.CommitHistory),
+				SessionID:     cycle.SessionID,
 			})
 		}
 	}

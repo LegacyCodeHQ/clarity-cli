@@ -43,6 +43,50 @@ export interface Collection {
   timestamp: string;
   snapshots: Snapshot[];
   commitHistory: CommitSummary[];
+  // The persisted sessions.id this collection was archived into, when
+  // persistence is enabled. Lets the client recognize this collection as
+  // the same session that would otherwise also appear in the
+  // GET /sessions listing — this run's own closed sessions must not show
+  // up twice.
+  sessionId?: number;
+}
+
+// PersistedSessionSummary is one entry in the metadata-only listing of a
+// project's persisted session history (GET /sessions) — no snapshot
+// content. See PersistedSessionDetail for the full, on-demand fetch.
+export interface PersistedSessionSummary {
+  id: number;
+  worktreeId: string;
+  runId: number;
+  number: number;
+  createdAt: string;
+  // null for a still-open session — the current run's own live state for
+  // that worktree, not something history browsing should ever show.
+  closedAt: string | null;
+  closedReason: string;
+  snapshotCount: number;
+  commitCount: number;
+}
+
+export interface PersistedSnapshot {
+  position: number;
+  source: string;
+  format: string;
+  kind: string;
+  createdAt: string;
+}
+
+export interface PersistedCommit {
+  position: number;
+  hash: string;
+  subject: string;
+}
+
+// PersistedSessionDetail is the full content of one persisted session
+// (GET /sessions/{id}), fetched only once the user clicks into it.
+export interface PersistedSessionDetail extends PersistedSessionSummary {
+  snapshots: PersistedSnapshot[];
+  commits: PersistedCommit[];
 }
 
 export interface GraphStreamPayload {
@@ -124,7 +168,7 @@ function normalizeCollection(collection: unknown): Collection | null {
     return null;
   }
 
-  return {
+  const normalized: Collection = {
     id: Number.isFinite(c.id) ? (c.id as number) : 0,
     worktreeId: typeof c.worktreeId === "string" ? c.worktreeId : "",
     timestamp: typeof c.timestamp === "string" ? c.timestamp : new Date(0).toISOString(),
@@ -133,6 +177,95 @@ function normalizeCollection(collection: unknown): Collection | null {
       .filter((snapshot): snapshot is Snapshot => snapshot !== null),
     commitHistory: Array.isArray(c.commitHistory)
       ? c.commitHistory.map(normalizeCommitSummary).filter((commit): commit is CommitSummary => commit !== null)
+      : [],
+  };
+  if (typeof c.sessionId === "number" && c.sessionId > 0) {
+    normalized.sessionId = c.sessionId;
+  }
+  return normalized;
+}
+
+function normalizePersistedSessionSummary(raw: unknown): PersistedSessionSummary | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  if (!Number.isFinite(r.id) || typeof r.worktreeId !== "string" || r.worktreeId === "") {
+    return null;
+  }
+  return {
+    id: r.id as number,
+    worktreeId: r.worktreeId,
+    runId: Number.isFinite(r.runId) ? (r.runId as number) : 0,
+    number: Number.isFinite(r.number) ? (r.number as number) : 0,
+    createdAt: typeof r.createdAt === "string" ? r.createdAt : new Date(0).toISOString(),
+    closedAt: typeof r.closedAt === "string" ? r.closedAt : null,
+    closedReason: typeof r.closedReason === "string" ? r.closedReason : "",
+    snapshotCount: Number.isFinite(r.snapshotCount) ? (r.snapshotCount as number) : 0,
+    commitCount: Number.isFinite(r.commitCount) ? (r.commitCount as number) : 0,
+  };
+}
+
+/**
+ * Normalizes an untrusted GET /sessions JSON response.
+ */
+export function normalizePersistedSessionList(payload: unknown): PersistedSessionSummary[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+  return payload
+    .map(normalizePersistedSessionSummary)
+    .filter((summary): summary is PersistedSessionSummary => summary !== null);
+}
+
+function normalizePersistedSnapshot(raw: unknown): PersistedSnapshot | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  if (typeof r.source !== "string") {
+    return null;
+  }
+  return {
+    position: Number.isFinite(r.position) ? (r.position as number) : 0,
+    source: r.source,
+    format: typeof r.format === "string" && r.format !== "" ? r.format : "dot",
+    kind: typeof r.kind === "string" ? r.kind : "baseline",
+    createdAt: typeof r.createdAt === "string" ? r.createdAt : new Date(0).toISOString(),
+  };
+}
+
+function normalizePersistedCommit(raw: unknown): PersistedCommit | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  if (typeof r.hash !== "string" || r.hash === "") {
+    return null;
+  }
+  return {
+    position: Number.isFinite(r.position) ? (r.position as number) : 0,
+    hash: r.hash,
+    subject: typeof r.subject === "string" ? r.subject : "",
+  };
+}
+
+/**
+ * Normalizes an untrusted GET /sessions/{id} JSON response.
+ */
+export function normalizePersistedSessionDetail(payload: unknown): PersistedSessionDetail | null {
+  const summary = normalizePersistedSessionSummary(payload);
+  if (!summary) {
+    return null;
+  }
+  const r = payload as Record<string, unknown>;
+  return {
+    ...summary,
+    snapshots: Array.isArray(r.snapshots)
+      ? r.snapshots.map(normalizePersistedSnapshot).filter((s): s is PersistedSnapshot => s !== null)
+      : [],
+    commits: Array.isArray(r.commits)
+      ? r.commits.map(normalizePersistedCommit).filter((c): c is PersistedCommit => c !== null)
       : [],
   };
 }

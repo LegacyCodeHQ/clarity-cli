@@ -5,12 +5,24 @@ import {
   applyTimelineStep,
   applySourceSelection,
   formatSnapshotMeta,
+  getSourceOptions,
   getViewModel,
+  groupSourceOptions,
   mergePayload,
+  selectPersistedSession,
+  applyPersistedSessionDetail,
+  setPersistedSessions,
   selectWorktree,
+  type SourceOption,
   type ViewerState,
 } from './viewerState';
-import type { Snapshot, Collection, CommitSummary } from '../protocol/viewerProtocol';
+import type {
+  Snapshot,
+  Collection,
+  CommitSummary,
+  PersistedSessionSummary,
+  PersistedSessionDetail,
+} from '../protocol/viewerProtocol';
 
 const TIMESTAMP = "2026-02-12T10:00:00Z";
 
@@ -39,6 +51,32 @@ function collection(id: number, snapshots: Snapshot[], worktreeId = "main", comm
   };
 }
 
+function persistedSession(overrides: Partial<PersistedSessionSummary> = {}): PersistedSessionSummary {
+  return {
+    id: 1,
+    worktreeId: "main",
+    runId: 1,
+    number: 1,
+    createdAt: TIMESTAMP,
+    closedAt: "2026-02-12T11:00:00Z",
+    closedReason: "committed",
+    snapshotCount: 1,
+    commitCount: 1,
+    ...overrides,
+  };
+}
+
+function persistedDetail(overrides: Partial<PersistedSessionDetail> = {}): PersistedSessionDetail {
+  return {
+    ...persistedSession(),
+    snapshots: [
+      { position: 0, source: "digraph{a}", format: "dot", kind: "baseline", createdAt: TIMESTAMP },
+    ],
+    commits: [{ position: 0, hash: "aaa111", subject: "first" }],
+    ...overrides,
+  };
+}
+
 function baseState(): ViewerState {
   return {
     worktrees: [],
@@ -49,6 +87,11 @@ function baseState(): ViewerState {
     selectedCollectionID: null,
     selectedCollectionSnapshotIndex: 0,
     liveSnapshotIndex: null,
+    persistedSessions: [],
+    selectedPersistedSessionID: null,
+    persistedSessionDetail: null,
+    persistedSessionLoading: false,
+    persistedSessionSnapshotIndex: 0,
     format: "dot",
   };
 }
@@ -488,5 +531,222 @@ describe('formatSnapshotMeta', () => {
   it('renders snapshot position, id, and time', () => {
     const result = formatSnapshotMeta(snapshot(99), 1, 3, () => "11:11:11");
     expect(result).toBe("#2/3 | id 99 | 11:11:11");
+  });
+});
+
+describe('persisted session history (CLR-99)', () => {
+  const fmt = (ts: string) => ts;
+
+  describe('getSourceOptions — past-run block', () => {
+    it('filters to the selected worktree', () => {
+      const state: ViewerState = {
+        ...baseState(),
+        persistedSessions: [
+          persistedSession({ id: 1, worktreeId: "main" }),
+          persistedSession({ id: 2, worktreeId: "wt-a" }),
+        ],
+      };
+      const options = getSourceOptions(state, fmt);
+      const sessionValues = options.filter((o) => o.value.startsWith("session:")).map((o) => o.value);
+      expect(sessionValues).toEqual(["session:1"]);
+    });
+
+    it('excludes a still-open session — that is the live state, not history', () => {
+      const state: ViewerState = {
+        ...baseState(),
+        persistedSessions: [persistedSession({ id: 1, closedAt: null, closedReason: "" })],
+      };
+      const options = getSourceOptions(state, fmt);
+      expect(options.some((o) => o.value === "session:1")).toBe(false);
+    });
+
+    it('excludes a session already visible via pastCollections (same run, already shown)', () => {
+      const shown: Collection = { ...collection(5, [snapshot(1)]), sessionId: 1 };
+      const state: ViewerState = {
+        ...baseState(),
+        pastCollections: [shown],
+        persistedSessions: [persistedSession({ id: 1 })],
+      };
+      const options = getSourceOptions(state, fmt);
+      expect(options.some((o) => o.value === "session:1")).toBe(false);
+    });
+
+    it('groups sessions by run and sorts newest run/session first', () => {
+      const state: ViewerState = {
+        ...baseState(),
+        persistedSessions: [
+          persistedSession({ id: 1, runId: 1, number: 1, createdAt: "2026-02-10T00:00:00Z" }),
+          persistedSession({ id: 2, runId: 2, number: 1, createdAt: "2026-02-11T00:00:00Z" }),
+          persistedSession({ id: 3, runId: 2, number: 2, createdAt: "2026-02-11T01:00:00Z" }),
+        ],
+      };
+      const options = getSourceOptions(state, fmt).filter((o) => o.value.startsWith("session:"));
+      expect(options.map((o) => o.value)).toEqual(["session:3", "session:2", "session:1"]);
+      // Run 2's two sessions share a group label; run 1's is different.
+      expect(options[0]!.group).toBe(options[1]!.group);
+      expect(options[2]!.group).not.toBe(options[0]!.group);
+    });
+  });
+
+  describe('groupSourceOptions', () => {
+    it('groups consecutive options sharing a group label', () => {
+      const options: SourceOption[] = [
+        { value: "live", text: "Live" },
+        { value: "session:2", text: "#2", group: "Run A" },
+        { value: "session:1", text: "#1", group: "Run A" },
+        { value: "session:0", text: "#0", group: "Run B" },
+      ];
+      const blocks = groupSourceOptions(options);
+      expect(blocks).toEqual([
+        { group: null, options: [options[0]] },
+        { group: "Run A", options: [options[1], options[2]] },
+        { group: "Run B", options: [options[3]] },
+      ]);
+    });
+  });
+
+  describe('selectPersistedSession / applyPersistedSessionDetail', () => {
+    it('marks a session selected and loading, clearing any other selection', () => {
+      const state: ViewerState = { ...baseState(), selectedCollectionID: 5, liveSnapshotIndex: 2 };
+      const next = selectPersistedSession(state, 1);
+      expect(next.selectedPersistedSessionID).toBe(1);
+      expect(next.persistedSessionLoading).toBe(true);
+      expect(next.persistedSessionDetail).toBeNull();
+      expect(next.selectedCollectionID).toBeNull();
+      expect(next.liveSnapshotIndex).toBeNull();
+    });
+
+    it('applies a resolved detail, landing on the most recent snapshot', () => {
+      const selected = selectPersistedSession(baseState(), 1);
+      const detail = persistedDetail({
+        snapshots: [
+          { position: 0, source: "digraph{a}", format: "dot", kind: "baseline", createdAt: TIMESTAMP },
+          { position: 1, source: "digraph{a;b}", format: "dot", kind: "incremental", createdAt: TIMESTAMP },
+        ],
+      });
+      const next = applyPersistedSessionDetail(selected, 1, detail);
+      expect(next.persistedSessionLoading).toBe(false);
+      expect(next.persistedSessionDetail).toEqual(detail);
+      expect(next.persistedSessionSnapshotIndex).toBe(1);
+    });
+
+    it('ignores a stale response for a selection the user already moved on from', () => {
+      const selected = selectPersistedSession(baseState(), 1);
+      const movedOn = selectPersistedSession(selected, 2);
+      const next = applyPersistedSessionDetail(movedOn, 1, persistedDetail());
+      expect(next).toBe(movedOn);
+      expect(next.selectedPersistedSessionID).toBe(2);
+    });
+
+    it('clears the loading flag on a failed fetch without crashing', () => {
+      const selected = selectPersistedSession(baseState(), 1);
+      const next = applyPersistedSessionDetail(selected, 1, null);
+      expect(next.persistedSessionLoading).toBe(false);
+      expect(next.persistedSessionDetail).toBeNull();
+    });
+  });
+
+  describe('applySourceSelection — session:<id>', () => {
+    it('selects a persisted session optimistically', () => {
+      const next = applySourceSelection(baseState(), "session:3");
+      expect(next.selectedPersistedSessionID).toBe(3);
+      expect(next.persistedSessionLoading).toBe(true);
+    });
+
+    it('falls back to live for a malformed session id', () => {
+      const next = applySourceSelection(baseState(), "session:not-a-number");
+      expect(next.selectedPersistedSessionID).toBeNull();
+      expect(next.selectedCollectionID).toBeNull();
+    });
+
+    it('selecting live/frozen/collection clears a persisted-session selection', () => {
+      const state: ViewerState = { ...baseState(), ...selectPersistedSession(baseState(), 1) };
+
+      const live = applySourceSelection(state, "live");
+      expect(live.selectedPersistedSessionID).toBeNull();
+
+      const frozen = applySourceSelection(state, "frozen");
+      expect(frozen.selectedPersistedSessionID).toBeNull();
+
+      const withCollection: ViewerState = { ...state, pastCollections: [collection(5, [snapshot(1)])] };
+      const coll = applySourceSelection(withCollection, "collection:5");
+      expect(coll.selectedPersistedSessionID).toBeNull();
+    });
+  });
+
+  describe('applySliderInput / applyTimelineStep in persisted-session mode', () => {
+    function loadedState(): ViewerState {
+      const selected = selectPersistedSession(baseState(), 1);
+      return applyPersistedSessionDetail(selected, 1, persistedDetail({
+        snapshots: [
+          { position: 0, source: "digraph{a}", format: "dot", kind: "baseline", createdAt: TIMESTAMP },
+          { position: 1, source: "digraph{a;b}", format: "dot", kind: "incremental", createdAt: TIMESTAMP },
+          { position: 2, source: "digraph{a;b;c}", format: "dot", kind: "incremental", createdAt: TIMESTAMP },
+        ],
+      }));
+    }
+
+    it('scrubs within the loaded session via the slider', () => {
+      const next = applySliderInput(loadedState(), "0");
+      expect(next.persistedSessionSnapshotIndex).toBe(0);
+    });
+
+    it('clamps out-of-range slider input', () => {
+      const next = applySliderInput(loadedState(), "99");
+      expect(next.persistedSessionSnapshotIndex).toBe(2);
+    });
+
+    it('steps forward and backward', () => {
+      const start = applySliderInput(loadedState(), "1");
+      expect(applyTimelineStep(start, 1).persistedSessionSnapshotIndex).toBe(2);
+      expect(applyTimelineStep(start, -1).persistedSessionSnapshotIndex).toBe(0);
+    });
+
+    it('is a no-op while still loading (no snapshots yet)', () => {
+      const loading = selectPersistedSession(baseState(), 1);
+      expect(applySliderInput(loading, "0").persistedSessionSnapshotIndex).toBe(0);
+      expect(applyTimelineStep(loading, 1).persistedSessionSnapshotIndex).toBe(0);
+    });
+  });
+
+  describe('getViewModel — persisted-session mode', () => {
+    it('renders a loading placeholder while the fetch is in flight', () => {
+      const state = selectPersistedSession(baseState(), 1);
+      const vm = getViewModel(state, fmt);
+      expect(vm.sourceValue).toBe("session:1");
+      expect(vm.renderDot).toBeNull();
+      expect(vm.timeline.sliderDisabled).toBe(true);
+      expect(vm.timeline.modeText).toBe("Loading session…");
+    });
+
+    it('renders the selected snapshot once loaded', () => {
+      const selected = selectPersistedSession(baseState(), 1);
+      const state = applyPersistedSessionDetail(selected, 1, persistedDetail());
+      const vm = getViewModel(state, fmt);
+      expect(vm.renderDot).toBe("digraph{a}");
+      expect(vm.renderFormat).toBe("dot");
+      expect(vm.timeline.metaText).toContain("1 snapshots");
+    });
+
+    it('renders an empty-session message when the session has no snapshots', () => {
+      const selected = selectPersistedSession(baseState(), 1);
+      const state = applyPersistedSessionDetail(selected, 1, persistedDetail({ snapshots: [] }));
+      const vm = getViewModel(state, fmt);
+      expect(vm.renderDot).toBeNull();
+      expect(vm.timeline.metaText).toBe("Session is empty");
+    });
+  });
+
+  describe('setPersistedSessions', () => {
+    it('replaces the listing without touching the current selection', () => {
+      const state: ViewerState = {
+        ...baseState(),
+        pastCollections: [collection(5, [snapshot(1)])],
+        selectedCollectionID: 5,
+      };
+      const next = setPersistedSessions(state, [persistedSession()]);
+      expect(next.persistedSessions).toHaveLength(1);
+      expect(next.selectedCollectionID).toBe(5);
+    });
   });
 });

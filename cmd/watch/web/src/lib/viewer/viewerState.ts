@@ -8,6 +8,8 @@ import type {
   Collection,
   GraphStreamPayload,
   WorktreeDescriptor,
+  PersistedSessionSummary,
+  PersistedSessionDetail,
 } from '../protocol/viewerProtocol';
 
 /**
@@ -34,6 +36,24 @@ export interface ViewerState {
   selectedCollectionSnapshotIndex: number;
   liveSnapshotIndex: number | null;
 
+  // Persisted session history (CLR-98/99): a project-wide, metadata-only
+  // listing fetched once on attach (GET /sessions) — every worktree, every
+  // past `clarity watch` run. Selecting one of these is a third,
+  // mutually-exclusive mode alongside the live working set and an
+  // in-memory collection; see selectedPersistedSessionID.
+  persistedSessions: PersistedSessionSummary[];
+  // Non-null exactly when a past-run session is the active selection.
+  // Mutually exclusive with selectedCollectionID (selecting one clears the
+  // other — see applySourceSelection/selectWorktree/applyLiveSelection).
+  selectedPersistedSessionID: number | null;
+  // The fetched detail (snapshots + commits) for selectedPersistedSessionID,
+  // null while loading or when nothing is selected — GET /sessions/{id} is
+  // only called on demand, never eagerly, so this starts empty even once
+  // selectedPersistedSessionID is set (see persistedSessionLoading).
+  persistedSessionDetail: PersistedSessionDetail | null;
+  persistedSessionLoading: boolean;
+  persistedSessionSnapshotIndex: number;
+
   // Session-global render format ("dot" or "mermaid") from the latest payload.
   format: string;
 }
@@ -41,6 +61,13 @@ export interface ViewerState {
 export interface SourceOption {
   value: string;
   text: string;
+  // Options sharing the same group render under one <optgroup> (see
+  // SourceSelector.svelte) — used to cluster a past run's sessions
+  // together. Consecutive options must share a group for this to render
+  // correctly; getSourceOptions guarantees that ordering. Absent for the
+  // live/frozen/in-memory-collection options, which stay ungrouped exactly
+  // as before this field existed.
+  group?: string;
 }
 
 export interface TimelineViewModel {
@@ -164,6 +191,13 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
     liveSnapshotIndex: state.liveSnapshotIndex === null || Number.isFinite(state.liveSnapshotIndex)
       ? state.liveSnapshotIndex ?? null
       : null,
+    persistedSessions: Array.isArray(state.persistedSessions) ? state.persistedSessions : [],
+    selectedPersistedSessionID: state.selectedPersistedSessionID ?? null,
+    persistedSessionDetail: state.persistedSessionDetail ?? null,
+    persistedSessionLoading: state.persistedSessionLoading ?? false,
+    persistedSessionSnapshotIndex: Number.isFinite(state.persistedSessionSnapshotIndex)
+      ? state.persistedSessionSnapshotIndex!
+      : 0,
     format: state.format ?? "dot",
   };
 
@@ -175,6 +209,13 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
   if (next.selectedCollectionID !== null && !selectedCollection) {
     next.selectedCollectionID = null;
     next.selectedCollectionSnapshotIndex = 0;
+  }
+
+  if (next.selectedPersistedSessionID !== null) {
+    const snapshots = next.persistedSessionDetail?.snapshots ?? [];
+    next.persistedSessionSnapshotIndex = snapshots.length > 0
+      ? clamp(next.persistedSessionSnapshotIndex, 0, snapshots.length - 1)
+      : 0;
   }
 
   if (
@@ -282,11 +323,80 @@ export function selectWorktree(state: ViewerState, worktreeID: string): ViewerSt
     selectedCollectionID: null,
     selectedCollectionSnapshotIndex: 0,
     liveSnapshotIndex: null,
+    selectedPersistedSessionID: null,
+    persistedSessionDetail: null,
+    persistedSessionLoading: false,
+  });
+}
+
+/**
+ * Replaces the eager, metadata-only persisted-session listing (GET
+ * /sessions). Doesn't touch any current selection — the listing is only
+ * ever consulted by getSourceOptions, never used to drive rendering
+ * directly (see selectPersistedSession/applyPersistedSessionDetail for
+ * that).
+ */
+export function setPersistedSessions(state: ViewerState, sessions: PersistedSessionSummary[]): ViewerState {
+  return normalizeState({ ...state, persistedSessions: sessions });
+}
+
+/**
+ * The optimistic half of selecting a past-run session: marks it as
+ * selected and loading, clearing any other selection, before the caller
+ * (graphStore, which owns the actual fetch — this module stays pure) has
+ * resolved GET /sessions/{id}. See applyPersistedSessionDetail for the
+ * other half.
+ */
+export function selectPersistedSession(state: ViewerState, id: number): ViewerState {
+  return normalizeState({
+    ...state,
+    selectedCollectionID: null,
+    selectedCollectionSnapshotIndex: 0,
+    liveSnapshotIndex: null,
+    selectedPersistedSessionID: id,
+    persistedSessionDetail: null,
+    persistedSessionLoading: true,
+    persistedSessionSnapshotIndex: 0,
+  });
+}
+
+/**
+ * Applies a resolved GET /sessions/{id} fetch. Ignored if the selection has
+ * already moved on to something else by the time the fetch resolves (a
+ * stale response arriving after the user picked a different source) — id
+ * must still match selectedPersistedSessionID. detail is null on a failed
+ * fetch, which still clears the loading flag so the UI doesn't spin
+ * forever.
+ */
+export function applyPersistedSessionDetail(
+  state: ViewerState,
+  id: number,
+  detail: PersistedSessionDetail | null,
+): ViewerState {
+  if (state.selectedPersistedSessionID !== id) {
+    return state;
+  }
+  const snapshots = detail?.snapshots ?? [];
+  return normalizeState({
+    ...state,
+    persistedSessionDetail: detail,
+    persistedSessionLoading: false,
+    persistedSessionSnapshotIndex: snapshots.length > 0 ? snapshots.length - 1 : 0,
   });
 }
 
 export function applySliderInput(state: ViewerState, rawValue: string): ViewerState {
   const next = normalizeState(state);
+
+  if (next.selectedPersistedSessionID !== null) {
+    const snapshots = next.persistedSessionDetail?.snapshots ?? [];
+    if (snapshots.length === 0) {
+      return next;
+    }
+    next.persistedSessionSnapshotIndex = clamp(Number(rawValue || "0"), 0, snapshots.length - 1);
+    return next;
+  }
+
   if (next.selectedCollectionID === null) {
     if (next.workingSnapshots.length === 0) {
       return next;
@@ -312,6 +422,14 @@ export function applyTimelineStep(state: ViewerState, delta: number): ViewerStat
     return next;
   }
 
+  if (next.selectedPersistedSessionID !== null) {
+    const total = next.persistedSessionDetail?.snapshots.length ?? 0;
+    if (total <= 1) {
+      return next;
+    }
+    return applySliderInput(next, String(next.persistedSessionSnapshotIndex + delta));
+  }
+
   if (next.selectedCollectionID === null) {
     const total = next.workingSnapshots.length;
     if (total <= 1) {
@@ -335,6 +453,9 @@ export function applyLiveSelection(state: ViewerState): ViewerState {
     liveSnapshotIndex: null,
     selectedCollectionID: null,
     selectedCollectionSnapshotIndex: 0,
+    selectedPersistedSessionID: null,
+    persistedSessionDetail: null,
+    persistedSessionLoading: false,
   });
 }
 
@@ -348,7 +469,20 @@ export function applySourceSelection(state: ViewerState, selected: string): View
       liveSnapshotIndex: null,
       selectedCollectionID: null,
       selectedCollectionSnapshotIndex: 0,
+      selectedPersistedSessionID: null,
+      persistedSessionDetail: null,
+      persistedSessionLoading: false,
     });
+  }
+  if (selected.startsWith("session:")) {
+    const id = Number(selected.split(":")[1]);
+    if (!Number.isFinite(id)) {
+      return applyLiveSelection(state);
+    }
+    // Optimistic only — the caller (graphStore) owns fetching GET
+    // /sessions/{id} and feeding the result back through
+    // applyPersistedSessionDetail once it resolves.
+    return selectPersistedSession(state, id);
   }
   if (!selected.startsWith("collection:")) {
     return applyLiveSelection(state);
@@ -368,6 +502,9 @@ export function applySourceSelection(state: ViewerState, selected: string): View
     ...state,
     selectedCollectionID: selectedID,
     selectedCollectionSnapshotIndex: snapshots.length > 0 ? snapshots.length - 1 : 0,
+    selectedPersistedSessionID: null,
+    persistedSessionDetail: null,
+    persistedSessionLoading: false,
   });
 }
 
@@ -402,12 +539,94 @@ export function getSourceOptions(state: ViewerState, timeFormatter: TimeFormatte
     };
   });
 
-  return [...liveOptions, ...frozenOptions, ...collectionOptions];
+  return [...liveOptions, ...frozenOptions, ...collectionOptions, ...getPersistedSessionOptions(state, timeFormatter)];
+}
+
+/**
+ * The past-runs block of the dropdown (CLR-99): every persisted session
+ * for the selected worktree, excluding the current run's own still-open
+ * session (that's the live working set, not history) and excluding
+ * anything already visible via pastCollections (see
+ * protocol.SnapshotCollection.SessionID / Collection.sessionId) — the
+ * current run's own closed sessions must show up once, not twice.
+ *
+ * Sorted by run (newest first) then session number (newest first) within
+ * a run, so consecutive options share a `group` label — required for
+ * SourceSelector.svelte's <optgroup> rendering to group correctly.
+ */
+function getPersistedSessionOptions(state: ViewerState, timeFormatter: TimeFormatter): SourceOption[] {
+  const alreadyShown = new Set(
+    state.pastCollections
+      .map((c) => c.sessionId)
+      .filter((id): id is number => typeof id === "number" && id > 0),
+  );
+
+  const sessions = state.persistedSessions
+    .filter((s) => s.worktreeId === state.selectedWorktreeID)
+    .filter((s) => s.closedAt !== null)
+    .filter((s) => !alreadyShown.has(s.id))
+    .sort((a, b) => b.runId - a.runId || b.number - a.number);
+
+  // A run's own started_at isn't in the summary (only its id) — the
+  // earliest session recorded under a run is a reasonable, honest stand-in
+  // for when that run's visible history begins.
+  const runStartTimes = new Map<number, string>();
+  for (const s of sessions) {
+    const existing = runStartTimes.get(s.runId);
+    if (!existing || s.createdAt < existing) {
+      runStartTimes.set(s.runId, s.createdAt);
+    }
+  }
+
+  return sessions.map((s) => {
+    const detail = s.closedReason === "committed"
+      ? `${s.commitCount} commit${s.commitCount === 1 ? "" : "s"}`
+      : s.closedReason || "closed";
+    return {
+      value: `session:${s.id}`,
+      text: `#${s.number} (${detail}, ${timeFormatter(s.createdAt)})`,
+      group: `Run started ${timeFormatter(runStartTimes.get(s.runId)!)}`,
+    };
+  });
+}
+
+export interface SourceOptionBlock {
+  // null for the ungrouped live/frozen/in-memory-collection options —
+  // rendered as plain top-level <option>s rather than inside an
+  // <optgroup> (see SourceSelector.svelte).
+  group: string | null;
+  options: SourceOption[];
+}
+
+/**
+ * Groups consecutive SourceOptions sharing the same `group` label into
+ * blocks, for SourceSelector.svelte to render as <optgroup>s. Options must
+ * already be in group-consecutive order — getSourceOptions guarantees
+ * this — since HTML <optgroup> can't represent a group split across two
+ * non-adjacent ranges.
+ */
+export function groupSourceOptions(options: SourceOption[]): SourceOptionBlock[] {
+  const blocks: SourceOptionBlock[] = [];
+  for (const option of options) {
+    const group = option.group ?? null;
+    const last = blocks[blocks.length - 1];
+    if (last && last.group === group) {
+      last.options.push(option);
+    } else {
+      blocks.push({ group, options: [option] });
+    }
+  }
+  return blocks;
 }
 
 export function getViewModel(state: ViewerState, timeFormatter: TimeFormatter = formatTime): ViewModel {
   const normalized = normalizeState(state);
   const allowsLive = selectedWorktreeAllowsLive(normalized);
+
+  if (normalized.selectedPersistedSessionID !== null) {
+    return getPersistedSessionViewModel(normalized, allowsLive, timeFormatter);
+  }
+
   const sourceValue = normalized.selectedCollectionID === null
     ? allowsLive
       ? "live"
@@ -477,6 +696,72 @@ export function getViewModel(state: ViewerState, timeFormatter: TimeFormatter = 
           timeFormatter,
         )}`,
       sessionStartIndex: findSessionStartIndex(snapshots),
+    },
+  };
+}
+
+/**
+ * The view model for a selected past-run session (CLR-99) — a third mode
+ * alongside the live working set and an in-memory collection. Renders a
+ * loading placeholder while GET /sessions/{id} is in flight
+ * (persistedSessionLoading), since unlike the other two modes this one's
+ * content isn't available synchronously from state alone.
+ */
+function getPersistedSessionViewModel(
+  state: ViewerState,
+  allowsLive: boolean,
+  timeFormatter: TimeFormatter,
+): ViewModel {
+  const sourceValue = `session:${state.selectedPersistedSessionID}`;
+  const sourceOptions = getSourceOptions(state, timeFormatter);
+
+  if (state.persistedSessionLoading || !state.persistedSessionDetail) {
+    return {
+      state,
+      sourceValue,
+      sourceOptions,
+      renderDot: null,
+      renderFormat: state.format,
+      timeline: {
+        modeText: "Loading session…",
+        sliderDisabled: true,
+        sliderMax: "0",
+        sliderValue: "0",
+        liveButtonDisabled: !allowsLive,
+        metaText: state.persistedSessionLoading ? "Loading…" : "Failed to load session",
+        sessionStartIndex: null,
+      },
+    };
+  }
+
+  const detail = state.persistedSessionDetail;
+  const snapshots = detail.snapshots;
+  const total = snapshots.length;
+  const index = state.persistedSessionSnapshotIndex;
+  const current = total > 0 ? snapshots[index]! : null;
+
+  return {
+    state,
+    sourceValue,
+    sourceOptions,
+    renderDot: current?.source ?? null,
+    // Every persisted snapshot in a session was captured under the same
+    // `clarity watch --format` flag, so the first snapshot's format
+    // represents the whole session; fall back to the live session's own
+    // format for an empty session.
+    renderFormat: snapshots[0]?.format || state.format,
+    timeline: {
+      modeText: `Persisted session #${detail.number}`,
+      sliderDisabled: total <= 1,
+      sliderMax: total > 0 ? String(total - 1) : "0",
+      sliderValue: total > 0 ? String(index) : "0",
+      liveButtonDisabled: !allowsLive,
+      metaText: total === 0
+        ? "Session is empty"
+        : `${total} snapshots | #${index + 1}/${total} | ${timeFormatter(current!.createdAt)}`,
+      // Persisted snapshots don't carry the in-process sessionStart marker
+      // (that's a live-payload-only concept — see Snapshot.sessionStart).
+      sessionStartIndex: null,
     },
   };
 }
