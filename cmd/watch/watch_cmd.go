@@ -13,6 +13,7 @@ import (
 
 	"github.com/LegacyCodeHQ/clarity/cmd/show/formatters"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const maxPortBindAttempts = 20
@@ -110,12 +111,19 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 		}
 	}()
 
+	watchURL := fmt.Sprintf("http://localhost:%d", actualPort)
+
 	fmt.Fprintf(cmd.OutOrStdout(), "Watching %s\n", repoPath)
 	if actualPort != opts.port {
 		fmt.Fprintf(cmd.OutOrStdout(), "Port %d in use, using %d\n", opts.port, actualPort)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Serving at http://localhost:%d\n", actualPort)
-	fmt.Fprintf(cmd.OutOrStdout(), "Press Ctrl+C to stop\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "Serving at %s\n", watchURL)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Fprintf(cmd.OutOrStdout(), "Press Enter to open in your browser, or Ctrl+C to stop\n")
+		go openOnEnter(ctx, os.Stdin, cmd.OutOrStdout(), watchURL, openBrowser)
+	} else {
+		fmt.Fprintf(cmd.OutOrStdout(), "Press Ctrl+C to stop\n")
+	}
 
 	err = runSupervisor(ctx, repoPath, opts, b, formatter)
 
