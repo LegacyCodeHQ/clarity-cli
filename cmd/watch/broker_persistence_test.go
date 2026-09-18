@@ -37,8 +37,11 @@ func TestBroker_RegisterWorktree_WithPersistence_PersistsRow(t *testing.T) {
 	projectID, err := store.EnsureProject(db, "origin-a")
 	require.NoError(t, err)
 
+	runID, err := store.OpenRun(db, projectID, 1)
+	require.NoError(t, err)
+
 	b := newBroker()
-	b.enablePersistence(db, projectID)
+	b.enablePersistence(db, projectID, runID)
 	b.registerWorktree(protocol.WorktreeDescriptor{
 		ID:    "main",
 		Path:  "/repo",
@@ -60,8 +63,11 @@ func TestBroker_MarkWorktreeFinished_WithPersistence_SetsDisposedAt(t *testing.T
 	projectID, err := store.EnsureProject(db, "origin-a")
 	require.NoError(t, err)
 
+	runID, err := store.OpenRun(db, projectID, 1)
+	require.NoError(t, err)
+
 	b := newBroker()
-	b.enablePersistence(db, projectID)
+	b.enablePersistence(db, projectID, runID)
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 
 	b.markWorktreeFinished("main")
@@ -76,8 +82,11 @@ func TestBroker_CloseWorktree_WithPersistence_SetsHiddenAt(t *testing.T) {
 	projectID, err := store.EnsureProject(db, "origin-a")
 	require.NoError(t, err)
 
+	runID, err := store.OpenRun(db, projectID, 1)
+	require.NoError(t, err)
+
 	b := newBroker()
-	b.enablePersistence(db, projectID)
+	b.enablePersistence(db, projectID, runID)
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	b.markWorktreeFinished("main")
 

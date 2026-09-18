@@ -21,8 +21,11 @@ func TestBroker_Restart_MatchingState_ResumesOrphanedSession(t *testing.T) {
 	db := openPersistenceTestDB(t)
 
 	orphanSessionID := crashMidSession(t, db, "digraph{a}")
+	var origRunID int64
+	require.NoError(t, db.QueryRow(`SELECT run_id FROM sessions WHERE id = ?`, orphanSessionID).Scan(&origRunID))
 
 	b2, _ := attachBroker(t, db)
+	require.NotEqual(t, origRunID, b2.runID, "the resuming process must have opened its own, distinct run")
 	b2.publish("main", "digraph{a}")
 
 	var sessionCount int
@@ -30,8 +33,10 @@ func TestBroker_Restart_MatchingState_ResumesOrphanedSession(t *testing.T) {
 	assert.Equal(t, 1, sessionCount, "a matching restart must resume, not create a second session")
 
 	var closedAt sql.NullTime
-	require.NoError(t, db.QueryRow(`SELECT closed_at FROM sessions WHERE id = ?`, orphanSessionID).Scan(&closedAt))
+	var runID int64
+	require.NoError(t, db.QueryRow(`SELECT closed_at, run_id FROM sessions WHERE id = ?`, orphanSessionID).Scan(&closedAt, &runID))
 	assert.False(t, closedAt.Valid)
+	assert.Equal(t, origRunID, runID, "a resumed session keeps the run_id of the run that opened it, not the run that resumed it")
 
 	var snapshotCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM snapshots WHERE session_id = ?`, orphanSessionID).Scan(&snapshotCount))
@@ -89,8 +94,12 @@ func attachBroker(t *testing.T, db *sql.DB) (*broker, string) {
 	t.Helper()
 	projectID, err := store.EnsureProject(db, "origin-a")
 	require.NoError(t, err)
+	// Each call opens its own watch_runs row, exactly as two independent
+	// process launches would — nothing here is shared with a prior call.
+	runID, err := store.OpenRun(db, projectID, 1)
+	require.NoError(t, err)
 	b := newBroker()
-	b.enablePersistence(db, projectID)
+	b.enablePersistence(db, projectID, runID)
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	return b, projectID
 }

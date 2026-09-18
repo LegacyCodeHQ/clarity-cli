@@ -58,12 +58,16 @@ type broker struct {
 	// clients so the viewer knows how to render each snapshot's DOT payload. An
 	// empty value is treated as "dot".
 	format string
-	// dbStore and projectID enable persisting worktree lifecycle events
-	// (see enablePersistence). dbStore is nil by default, which makes every
-	// persistence call in this file a no-op — existing tests constructing a
-	// broker with newBroker() are unaffected.
+	// dbStore, projectID, and runID enable persisting worktree lifecycle
+	// events (see enablePersistence). dbStore is nil by default, which
+	// makes every persistence call in this file a no-op — existing tests
+	// constructing a broker with newBroker() are unaffected.
 	dbStore   *sql.DB
 	projectID string
+	// runID is this process's watch_runs row (see store.OpenRun), stamped
+	// onto every session this broker opens fresh (never onto one it
+	// resumes — see store.OpenOrResumeSession).
+	runID int64
 }
 
 func newBroker() *broker {
@@ -75,12 +79,15 @@ func newBroker() *broker {
 }
 
 // enablePersistence turns on shadow-writing worktree lifecycle events
-// (registration, disposal, hiding) to db under projectID. It must be called
-// before any worktree is registered. Persistence failures are logged, never
-// fatal — clarity watch's live behavior does not depend on the database.
-func (b *broker) enablePersistence(db *sql.DB, projectID string) {
+// (registration, disposal, hiding) and sessions to db, under projectID and
+// this process's watch_runs row runID (see store.OpenRun). It must be
+// called before any worktree is registered. Persistence failures are
+// logged, never fatal — clarity watch's live behavior does not depend on
+// the database.
+func (b *broker) enablePersistence(db *sql.DB, projectID string, runID int64) {
 	b.dbStore = db
 	b.projectID = projectID
+	b.runID = runID
 }
 
 func (b *broker) subscribe() chan protocol.GraphStreamPayload {
@@ -260,14 +267,14 @@ func (b *broker) publish(worktreeID, dot string) {
 	s.hasState = true
 
 	b.broadcastLocked()
-	dbStore, format := b.dbStore, b.format
+	dbStore, format, runID := b.dbStore, b.format, b.runID
 	needsNewSession := dbStore != nil && s.dbSessionID == 0
 	b.mu.Unlock()
 
 	if dbStore == nil {
 		return
 	}
-	b.persistSnapshot(dbStore, worktreeID, s, needsNewSession, dot, format, sessionStart, timestamp)
+	b.persistSnapshot(dbStore, worktreeID, s, needsNewSession, dot, format, sessionStart, timestamp, runID)
 }
 
 // persistSnapshot writes one snapshot to the database, opening a session
@@ -276,7 +283,7 @@ func (b *broker) publish(worktreeID, dot string) {
 // behavior does not depend on the database.
 func (b *broker) persistSnapshot(
 	dbStore *sql.DB, worktreeID string, s *worktreeState,
-	needsNewSession bool, dot, format string, sessionStart bool, timestamp time.Time,
+	needsNewSession bool, dot, format string, sessionStart bool, timestamp time.Time, runID int64,
 ) {
 	if needsNewSession {
 		// OpenOrResumeSession is restart hydration: if a prior process run
@@ -284,7 +291,7 @@ func (b *broker) persistSnapshot(
 		// candidate. When dot matches that session's last recorded
 		// snapshot exactly, the gap was invisible to what we track, so the
 		// session is resumed rather than starting a fresh one.
-		sessionID, nextPosition, matched, err := store.OpenOrResumeSession(dbStore, worktreeID, dot)
+		sessionID, nextPosition, matched, err := store.OpenOrResumeSession(dbStore, worktreeID, dot, runID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "open persisted session for %s: %v\n", worktreeID, err)
 			return

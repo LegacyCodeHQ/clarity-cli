@@ -12,8 +12,9 @@ import (
 func TestOpenOrResumeSession_NoOpenSession_BehavesLikeOpenSession(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
-	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a}")
+	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a}", runID)
 	require.NoError(t, err)
 
 	assert.False(t, matched)
@@ -29,15 +30,16 @@ func TestOpenOrResumeSession_NoOpenSession_BehavesLikeOpenSession(t *testing.T) 
 func TestOpenOrResumeSession_OrphanWithMatchingSource_Resumes(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
 	// Simulate a prior process run: opened a session, wrote two snapshots,
 	// then crashed before ever closing it.
-	orphanID, err := OpenSession(db, "main")
+	orphanID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 	require.NoError(t, AppendSnapshot(db, orphanID, 0, "digraph{a}", "dot", "baseline", time.Now().UTC()))
 	require.NoError(t, AppendSnapshot(db, orphanID, 1, "digraph{a;b}", "dot", "incremental", time.Now().UTC()))
 
-	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a;b}")
+	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a;b}", runID)
 	require.NoError(t, err)
 
 	assert.True(t, matched, "identical rebuilt graph must resume the orphaned session")
@@ -56,12 +58,13 @@ func TestOpenOrResumeSession_OrphanWithMatchingSource_Resumes(t *testing.T) {
 func TestOpenOrResumeSession_OrphanWithDifferentSource_ClosesStaleAndOpensNew(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
-	orphanID, err := OpenSession(db, "main")
+	orphanID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 	require.NoError(t, AppendSnapshot(db, orphanID, 0, "digraph{a}", "dot", "baseline", time.Now().UTC()))
 
-	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a;b;c}")
+	sessionID, nextPosition, matched, err := OpenOrResumeSession(db, "main", "digraph{a;b;c}", runID)
 	require.NoError(t, err)
 
 	assert.False(t, matched)
@@ -84,14 +87,15 @@ func TestOpenOrResumeSession_OrphanWithDifferentSource_ClosesStaleAndOpensNew(t 
 func TestOpenOrResumeSession_OrphanWithNoSnapshots_ClosesStaleAndOpensNew(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
 	// A session that exists but never got a single snapshot written — as
 	// if the process crashed between OpenSession and the first
 	// AppendSnapshot. Nothing to compare against, so it can't be resumed.
-	orphanID, err := OpenSession(db, "main")
+	orphanID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
-	sessionID, _, matched, err := OpenOrResumeSession(db, "main", "digraph{a}")
+	sessionID, _, matched, err := OpenOrResumeSession(db, "main", "digraph{a}", runID)
 	require.NoError(t, err)
 
 	assert.False(t, matched)
@@ -105,19 +109,20 @@ func TestOpenOrResumeSession_OrphanWithNoSnapshots_ClosesStaleAndOpensNew(t *tes
 func TestOpenOrResumeSession_OnlyLatestOpenSessionIsCandidate(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
 	// A pre-existing anomaly: an older open session that isn't the most
 	// recent one for this worktree (shouldn't normally happen, but the
 	// function must not get confused by it).
-	older, err := OpenSession(db, "main")
+	older, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 	require.NoError(t, AppendSnapshot(db, older, 0, "digraph{old}", "dot", "baseline", time.Now().UTC()))
 
-	latest, err := OpenSession(db, "main")
+	latest, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 	require.NoError(t, AppendSnapshot(db, latest, 0, "digraph{new}", "dot", "baseline", time.Now().UTC()))
 
-	sessionID, _, matched, err := OpenOrResumeSession(db, "main", "digraph{new}")
+	sessionID, _, matched, err := OpenOrResumeSession(db, "main", "digraph{new}", runID)
 	require.NoError(t, err)
 
 	assert.True(t, matched)

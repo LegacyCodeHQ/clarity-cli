@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/LegacyCodeHQ/clarity/cmd/show/formatters"
+	"github.com/LegacyCodeHQ/clarity/cmd/watch/store"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -129,7 +130,22 @@ func runWatch(cmd *cobra.Command, opts *watchOptions) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "session history persistence disabled: %v\n", persistErr)
 	} else {
 		defer persistDB.Close()
-		b.enablePersistence(persistDB, projectID)
+		// A run's boundary is this process's hold on the repo lock above —
+		// opened now that persistence and the lock are both in place,
+		// closed on the way out (a clean shutdown leaves ended_at set; a
+		// crash leaves it NULL, same "NULL means unclean exit" convention
+		// as an orphaned session's own closed_at).
+		runID, runErr := store.OpenRun(persistDB, projectID, os.Getpid())
+		if runErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "session history persistence disabled: %v\n", runErr)
+		} else {
+			defer func() {
+				if err := store.CloseRun(persistDB, runID); err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "close watch run: %v\n", err)
+				}
+			}()
+			b.enablePersistence(persistDB, projectID, runID)
+		}
 	}
 
 	srv := newServer(b, actualPort, worktreePath)

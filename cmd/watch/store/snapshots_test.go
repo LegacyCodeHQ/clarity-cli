@@ -11,7 +11,8 @@ import (
 func TestAppendSnapshot_InsertsRow(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	now := time.Now().UTC().Truncate(time.Second)
@@ -31,7 +32,8 @@ func TestAppendSnapshot_InsertsRow(t *testing.T) {
 func TestAppendSnapshot_MultipleCalls_EachInsertsIndependently(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	now := time.Now().UTC()

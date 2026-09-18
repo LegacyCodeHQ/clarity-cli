@@ -18,6 +18,18 @@ func seedProject(t *testing.T, db *sql.DB) string {
 	return id
 }
 
+// seedRun opens a watch_runs row against the shared "origin-a" test
+// project (EnsureProject is idempotent, so this shares a row with any
+// seedWorktree call against the same db) and returns its id — the minimum
+// a test needs to call OpenSession/OpenOrResumeSession directly.
+func seedRun(t *testing.T, db *sql.DB) int64 {
+	t.Helper()
+	projectID := seedProject(t, db)
+	runID, err := OpenRun(db, projectID, 1)
+	require.NoError(t, err)
+	return runID
+}
+
 func worktreeRow(t *testing.T, db *sql.DB, id string) (
 	projectID, path, kind string,
 	lastKnownLabel sql.NullString,

@@ -18,8 +18,11 @@ func newPersistedBroker(t *testing.T) (*broker, *sql.DB) {
 	projectID, err := store.EnsureProject(db, "origin-a")
 	require.NoError(t, err)
 
+	runID, err := store.OpenRun(db, projectID, 1)
+	require.NoError(t, err)
+
 	b := newBroker()
-	b.enablePersistence(db, projectID)
+	b.enablePersistence(db, projectID, runID)
 	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Kind: protocol.WorktreeKindMain, Active: true})
 	return b, db
 }

@@ -19,8 +19,9 @@ func seedWorktree(t *testing.T, db *sql.DB, id string) {
 func TestOpenSession_FirstCall_CreatesSessionNumberOne(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
-	id, err := OpenSession(db, "main")
+	id, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
@@ -38,10 +39,11 @@ func TestOpenSession_FirstCall_CreatesSessionNumberOne(t *testing.T) {
 func TestOpenSession_RepeatedCalls_AlwaysCreateNewSessionsIncrementingNumber(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 
-	first, err := OpenSession(db, "main")
+	first, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
-	second, err := OpenSession(db, "main")
+	second, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, first, second, "OpenSession never resumes a prior session")
@@ -55,11 +57,12 @@ func TestOpenSession_RepeatedCalls_AlwaysCreateNewSessionsIncrementingNumber(t *
 func TestOpenSession_DifferentWorktrees_IndependentNumbering(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
+	runID := seedRun(t, db)
 	seedWorktree(t, db, "wt-a")
 
-	mainID, err := OpenSession(db, "main")
+	mainID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
-	otherID, err := OpenSession(db, "wt-a")
+	otherID, err := OpenSession(db, "wt-a", runID)
 	require.NoError(t, err)
 
 	var mainNumber, otherNumber int
@@ -72,7 +75,8 @@ func TestOpenSession_DifferentWorktrees_IndependentNumbering(t *testing.T) {
 func TestCloseSessionCommitted_SetsClosedReasonAndInsertsCommits(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	commits := []CommitRecord{
@@ -104,7 +108,8 @@ func TestCloseSessionCommitted_SetsClosedReasonAndInsertsCommits(t *testing.T) {
 func TestCloseSessionCommitted_NoCommits_Errors(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	err = CloseSessionCommitted(db, sessionID, nil)
@@ -118,7 +123,8 @@ func TestCloseSessionCommitted_NoCommits_Errors(t *testing.T) {
 func TestCloseSessionDiscarded_SetsClosedReasonNoCommits(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	require.NoError(t, CloseSessionDiscarded(db, sessionID))
@@ -139,7 +145,8 @@ func TestCloseSessionDiscarded_SetsClosedReasonNoCommits(t *testing.T) {
 func TestCloseSessionWorktreeRemoved_SetsClosedReasonNoCommits(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	require.NoError(t, CloseSessionWorktreeRemoved(db, sessionID))
@@ -152,7 +159,8 @@ func TestCloseSessionWorktreeRemoved_SetsClosedReasonNoCommits(t *testing.T) {
 func TestCloseSessionStale_SetsClosedReasonNoCommits(t *testing.T) {
 	db := openMigratedTestDB(t)
 	seedWorktree(t, db, "main")
-	sessionID, err := OpenSession(db, "main")
+	runID := seedRun(t, db)
+	sessionID, err := OpenSession(db, "main", runID)
 	require.NoError(t, err)
 
 	require.NoError(t, CloseSessionStale(db, sessionID))

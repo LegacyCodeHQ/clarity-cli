@@ -71,18 +71,20 @@ func TestMigrate_FreshDatabase_CreatesExpectedSchema(t *testing.T) {
 
 	require.NoError(t, Migrate(db))
 
-	wantTables := []string{"projects", "worktrees", "sessions", "commits", "snapshots", "schema_migrations"}
+	wantTables := []string{"projects", "worktrees", "sessions", "commits", "snapshots", "watch_runs", "schema_migrations"}
 	assert.ElementsMatch(t, wantTables, tableNames(t, db),
 		"migration must produce exactly the tables in the ER diagram, plus golang-migrate's own schema_migrations")
 
 	assert.ElementsMatch(t, []string{"id", "repo_origin", "created_at"}, columnNames(t, db, "projects"))
 	wantWorktreeColumns := []string{"id", "project_id", "path", "kind", "last_known_label", "first_seen_at", "disposed_at", "hidden_at"}
 	assert.ElementsMatch(t, wantWorktreeColumns, columnNames(t, db, "worktrees"))
-	wantSessionColumns := []string{"id", "worktree_id", "number", "created_at", "closed_at", "closed_reason"}
+	wantSessionColumns := []string{"id", "worktree_id", "run_id", "number", "created_at", "closed_at", "closed_reason"}
 	assert.ElementsMatch(t, wantSessionColumns, columnNames(t, db, "sessions"))
 	assert.ElementsMatch(t, []string{"id", "session_id", "position", "hash", "subject"}, columnNames(t, db, "commits"))
 	wantSnapshotColumns := []string{"id", "session_id", "position", "source", "format", "kind", "created_at"}
 	assert.ElementsMatch(t, wantSnapshotColumns, columnNames(t, db, "snapshots"))
+	wantWatchRunColumns := []string{"id", "project_id", "pid", "started_at", "ended_at"}
+	assert.ElementsMatch(t, wantWatchRunColumns, columnNames(t, db, "watch_runs"))
 }
 
 func TestMigrate_ReapplyIsSafeNoOp(t *testing.T) {

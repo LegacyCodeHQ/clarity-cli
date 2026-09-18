@@ -22,7 +22,11 @@ type CommitRecord struct {
 // OpenSession creates a new open session (closed_at NULL) for worktreeID,
 // numbered one past the highest number ever used for that worktree —
 // closed or still open, so a stale open session left behind by an earlier
-// process run is never renumbered or reused — and returns its id.
+// process run is never renumbered or reused — and returns its id. runID is
+// the calling process's watch_runs row (see OpenRun), stamped once and
+// never touched again: a session's run_id always names the run that opened
+// it, even if a later run resumes it (see OpenOrResumeSession) — resuming
+// is a continuation, not a re-parenting.
 //
 // Each call always creates a fresh session; it never looks for or resumes
 // a previously-open one. Deciding what to do with a session left open by a
@@ -33,9 +37,9 @@ type CommitRecord struct {
 // on a unique-constraint conflict against idx_sessions_worktree_id_number,
 // so it stays correct under concurrent writers regardless of what CLR-91
 // concludes about process-level coordination.
-func OpenSession(db *sql.DB, worktreeID string) (int64, error) {
+func OpenSession(db *sql.DB, worktreeID string, runID int64) (int64, error) {
 	for attempt := 0; attempt < maxOpenSessionAttempts; attempt++ {
-		id, err := tryOpenSession(db, worktreeID)
+		id, err := tryOpenSession(db, worktreeID, runID)
 		if err == nil {
 			return id, nil
 		}
@@ -48,15 +52,15 @@ func OpenSession(db *sql.DB, worktreeID string) (int64, error) {
 	return 0, fmt.Errorf("open session for worktree %s: too many conflicting concurrent writers", worktreeID)
 }
 
-func tryOpenSession(db *sql.DB, worktreeID string) (int64, error) {
+func tryOpenSession(db *sql.DB, worktreeID string, runID int64) (int64, error) {
 	var maxNumber sql.NullInt64
 	if err := db.QueryRow(`SELECT MAX(number) FROM sessions WHERE worktree_id = ?`, worktreeID).Scan(&maxNumber); err != nil {
 		return 0, fmt.Errorf("compute next session number: %w", err)
 	}
 	number := maxNumber.Int64 + 1 // NULL (no rows yet) scans as 0 -> first number is 1.
 
-	insertSQL := `INSERT INTO sessions (worktree_id, number, created_at) VALUES (?, ?, ?)`
-	res, err := db.Exec(insertSQL, worktreeID, number, time.Now().UTC())
+	insertSQL := `INSERT INTO sessions (worktree_id, run_id, number, created_at) VALUES (?, ?, ?, ?)`
+	res, err := db.Exec(insertSQL, worktreeID, runID, number, time.Now().UTC())
 	if err != nil {
 		return 0, err
 	}
@@ -135,6 +139,9 @@ func closeSessionWithoutCommit(db *sql.DB, sessionID int64, reason string) error
 
 // OpenOrResumeSession is the entry point for the first snapshot of a
 // worktree's lifetime in this process — the restart-hydration decision.
+// runID is this process's watch_runs row, used only if a fresh session
+// ends up being opened (see OpenSession) — a resumed session keeps the
+// run_id of the run that originally opened it, not runID.
 //
 // If no session was left open for worktreeID, this is exactly OpenSession:
 // a fresh session opens, matched is false, nextPosition is 0.
@@ -150,7 +157,7 @@ func closeSessionWithoutCommit(db *sql.DB, sessionID int64, reason string) error
 // should go. If it doesn't match, the orphaned session is closed via
 // CloseSessionStale (never resumed, never silently left open) and a fresh
 // session opens normally.
-func OpenOrResumeSession(db *sql.DB, worktreeID, currentSource string) (sessionID int64, nextPosition int, matched bool, err error) {
+func OpenOrResumeSession(db *sql.DB, worktreeID, currentSource string, runID int64) (sessionID int64, nextPosition int, matched bool, err error) {
 	openID, found, err := latestOpenSession(db, worktreeID)
 	if err != nil {
 		return 0, 0, false, err
@@ -168,7 +175,7 @@ func OpenOrResumeSession(db *sql.DB, worktreeID, currentSource string) (sessionI
 		}
 	}
 
-	newID, err := OpenSession(db, worktreeID)
+	newID, err := OpenSession(db, worktreeID, runID)
 	if err != nil {
 		return 0, 0, false, err
 	}
