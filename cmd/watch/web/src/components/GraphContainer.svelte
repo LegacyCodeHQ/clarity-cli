@@ -101,7 +101,7 @@
           </svg>
           <div>
             <p class="text-muted-foreground font-medium mb-1">Waiting for changes</p>
-            <p class="text-muted-foreground/60 text-xs max-w-xs">Make changes to your files to see the dependency graph appear here</p>
+            <p class="text-muted-foreground/60 text-xs max-w-xs">The graph appears here automatically as you edit files</p>
           </div>
         </div>
       </div>
