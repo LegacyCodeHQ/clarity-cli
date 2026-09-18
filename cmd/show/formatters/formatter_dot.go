@@ -49,7 +49,7 @@ func (f *dotFormatter) Format(g depgraph.FileDependencyGraph, opts RenderOptions
 	// Helper function to get color for an extension
 	getColorForExtension := func(ext string) string {
 		if color, ok := extensionColors[ext]; ok {
-			return color
+			return dotColorLiteral(color)
 		}
 		// If extension not found (e.g., empty extension), return white as default
 		return "white"
@@ -294,4 +294,15 @@ func (f *dotFormatter) assignExtensionColors(filePaths []string) map[string]stri
 		currentExtensions[ext] = f.extensionColors[ext]
 	}
 	return currentExtensions
+}
+
+// dotColorLiteral returns color as a DOT attribute value. Named palette colors
+// are valid bare identifiers, but the "#rrggbb" values generated beyond the
+// curated palette (CLR-72) start with "#", which DOT does not accept unquoted;
+// emitting one bare made graphviz reject the whole graph (CLR-76).
+func dotColorLiteral(color string) string {
+	if strings.HasPrefix(color, "#") {
+		return fmt.Sprintf("%q", color)
+	}
+	return color
 }

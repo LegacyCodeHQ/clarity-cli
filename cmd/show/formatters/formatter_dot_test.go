@@ -543,3 +543,26 @@ func findFillColorForLabel(dotOutput, label string) (string, bool) {
 	}
 	return "", false
 }
+
+func TestDependencyGraph_ToDOT_GeneratedColorsAreQuoted(t *testing.T) {
+	// Regression test: colors generated beyond the curated palette are hex
+	// strings ("#rrggbb"). A bare "#" is not a valid DOT identifier, so an
+	// unquoted fillcolor=#rrggbb makes graphviz reject the whole graph with
+	// a syntax error, which the watch viewer surfaces as "Render error".
+	numTypes := len(extensionColorPalette) + 3
+	adjacency := make(map[string][]string)
+	for i := 0; i < numTypes; i++ {
+		path := fmt.Sprintf("/project/file%02d.ext%02d", i, i)
+		adjacency[path] = []string{}
+	}
+	graph := testFileGraph(t, adjacency, nil)
+
+	formatter := dotFormatter{}
+	output, err := formatter.Format(graph, RenderOptions{})
+	require.NoError(t, err)
+
+	require.NotContains(t, output, "fillcolor=#",
+		"hex fill colors must be quoted so graphviz can parse the graph")
+	require.Regexp(t, `fillcolor="#[0-9a-f]{6}"`, output,
+		"expected at least one generated hex color to be emitted, quoted")
+}
