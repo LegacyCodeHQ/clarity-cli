@@ -23,7 +23,7 @@
     "autoprefixer": "^10.4.24",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.564.0",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.28",
     "svelte": "^5.55.7",
     "svelte-check": "^4.1.1",
     "tailwind-merge": "^3.4.0",
