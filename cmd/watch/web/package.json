@@ -36,6 +36,6 @@
   },
   "dependencies": {
     "@hpcc-js/wasm": "^2.28.0",
-    "mermaid": "^11.15.0"
+    "mermaid": "^11.16.1"
   }
 }
