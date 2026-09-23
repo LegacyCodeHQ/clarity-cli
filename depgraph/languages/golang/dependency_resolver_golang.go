@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -315,27 +316,82 @@ func (r *ProjectImportResolver) getModuleInfoCached(moduleRoot string) goModuleI
 	return info
 }
 
+// buildGoPackageExportIndices builds the per-directory export index used to
+// resolve project imports. Each directory (Go package) is independent, so
+// the AST parsing this requires (via getOrAnalyzeFile) is fanned out across
+// a worker pool the same way BuildDependencyGraphWithResolver and
+// BuildIntraPackageDependenciesWithSymbolLookup do. Every file belongs to
+// exactly one directory in r.dirToFiles, so workers never contend over the
+// same analysisCache entry; only the shared result map needs a mutex.
 func (r *ProjectImportResolver) buildGoPackageExportIndices() map[string]GoPackageExportIndex {
-	goPackageExportIndices := make(map[string]GoPackageExportIndex)
+	type dirFiles struct {
+		dir   string
+		files []string
+	}
+
+	dirs := make([]dirFiles, 0, len(r.dirToFiles))
 	for dir, files := range r.dirToFiles {
-		exportIndex := make(GoPackageExportIndex)
-		for _, filePath := range files {
-			if filepath.Ext(filePath) != ".go" || strings.HasSuffix(filePath, "_test.go") {
-				continue
+		dirs = append(dirs, dirFiles{dir: dir, files: files})
+	}
+
+	workerCount := runtime.GOMAXPROCS(0)
+	if workerCount < 1 {
+		workerCount = 1
+	}
+	if workerCount > len(dirs) {
+		workerCount = len(dirs)
+	}
+	if workerCount < 1 {
+		workerCount = 1
+	}
+
+	goPackageExportIndices := make(map[string]GoPackageExportIndex, len(dirs))
+	jobs := make(chan dirFiles)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for range workerCount {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for entry := range jobs {
+				exportIndex := r.buildPackageExportIndex(entry.files)
+				if len(exportIndex) == 0 {
+					continue
+				}
+				mu.Lock()
+				goPackageExportIndices[entry.dir] = exportIndex
+				mu.Unlock()
 			}
-			analysis, err := r.getOrAnalyzeFile(filePath)
-			if err != nil || analysis == nil || analysis.ExportInfo == nil {
-				continue
-			}
-			for symbol := range analysis.ExportInfo.Exports {
-				exportIndex[symbol] = append(exportIndex[symbol], filePath)
-			}
+		}()
+	}
+
+	for _, entry := range dirs {
+		jobs <- entry
+	}
+	close(jobs)
+	wg.Wait()
+
+	return goPackageExportIndices
+}
+
+// buildPackageExportIndex builds the export index for a single package
+// directory's files. Called from exactly one goroutine per directory.
+func (r *ProjectImportResolver) buildPackageExportIndex(files []string) GoPackageExportIndex {
+	exportIndex := make(GoPackageExportIndex)
+	for _, filePath := range files {
+		if filepath.Ext(filePath) != ".go" || strings.HasSuffix(filePath, "_test.go") {
+			continue
 		}
-		if len(exportIndex) > 0 {
-			goPackageExportIndices[dir] = exportIndex
+		analysis, err := r.getOrAnalyzeFile(filePath)
+		if err != nil || analysis == nil || analysis.ExportInfo == nil {
+			continue
+		}
+		for symbol := range analysis.ExportInfo.Exports {
+			exportIndex[symbol] = append(exportIndex[symbol], filePath)
 		}
 	}
-	return goPackageExportIndices
+	return exportIndex
 }
 
 func (r *ProjectImportResolver) getOrAnalyzeFile(filePath string) (*GoFileAnalysis, error) {
