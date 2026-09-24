@@ -74,8 +74,8 @@ func TestSupportedLanguages(t *testing.T) {
 			}
 		case "TypeScript":
 			foundTypeScript = true
-			if len(language.Extensions) != 2 {
-				t.Fatalf("TypeScript extension count = %d, want 2", len(language.Extensions))
+			if len(language.Extensions) != 4 {
+				t.Fatalf("TypeScript extension count = %d, want 4", len(language.Extensions))
 			}
 		case "Zig":
 			foundZig = true

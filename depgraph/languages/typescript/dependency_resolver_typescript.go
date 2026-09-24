@@ -14,6 +14,15 @@ func ResolveTypeScriptProjectImports(
 	suppliedFiles map[string]bool,
 	contentReader vcs.ContentReader,
 ) ([]string, error) {
+	if ext == ".json" {
+		return ResolvePackageJSONScriptPaths(absPath, suppliedFiles, contentReader)
+	}
+	if ext == ".sh" {
+		// Shell scripts are resolution targets (package.json -> foo.sh), not
+		// sources; they don't themselves import project files.
+		return nil, nil
+	}
+
 	content, err := contentReader(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)

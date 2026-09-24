@@ -15,7 +15,7 @@
 ◐ Scala       .scala
 ○ Svelte      .svelte
 ◐ Swift       .swift
-◐ TypeScript  .ts, .tsx
+◐ TypeScript  .ts, .tsx, .json, .sh
 ◐ Zig         .zig
 
 ------------------------------------------------------
