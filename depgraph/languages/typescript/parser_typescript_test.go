@@ -590,6 +590,43 @@ func TestResolveTypeScriptImportPath_AliasResolvedViaTsconfigPaths(t *testing.T)
 	assert.Contains(t, resolved, dbFile)
 }
 
+// TestResolveTypeScriptImportPath_CustomAliasPrefixResolvedViaTsconfigPaths
+// (CLR-104) exercises a tsconfig with more than one path alias, none of them
+// "@/". resolveTypeScriptBasePaths special-cases the literal "@/" prefix
+// before ever consulting cfg.resolveAlias(); any other alias declared in
+// compilerOptions.paths (e.g. Electron's common "@main/*" / "@renderer/*"
+// split) falls through to workspace-package and baseUrl-join fallbacks that
+// don't match it, so the import silently fails to resolve and the edge
+// disappears from the dependency graph.
+func TestResolveTypeScriptImportPath_CustomAliasPrefixResolvedViaTsconfigPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mainDir := filepath.Join(tmpDir, "src", "main")
+	require.NoError(t, os.MkdirAll(mainDir, 0755))
+	controllerFile := filepath.Join(mainDir, "auth-controller.ts")
+	require.NoError(t, os.WriteFile(controllerFile, []byte("export class AuthController {}"), 0644))
+
+	tsconfig := `{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/shared/*"],
+      "@main/*": ["src/main/*"]
+    }
+  }
+}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte(tsconfig), 0644))
+
+	sourceFile := filepath.Join(mainDir, "main.ts")
+	require.NoError(t, os.WriteFile(sourceFile, []byte(""), 0644))
+
+	suppliedFiles := map[string]bool{controllerFile: true}
+
+	resolved := ResolveTypeScriptImportPath(sourceFile, "@main/auth-controller", suppliedFiles)
+	assert.Contains(t, resolved, controllerFile,
+		"expected @main/auth-controller to resolve via tsconfig paths, not just the @/ alias")
+}
+
 // TestResolveTypeScriptImportPath_BaseUrlBareImport exercises the convention
 // used by Superset and many other frontends: a tsconfig with `baseUrl: "."`
 // and no `paths` entry for `src/*`, where test files import production code

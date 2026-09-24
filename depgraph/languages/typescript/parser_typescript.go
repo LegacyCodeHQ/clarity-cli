@@ -510,24 +510,6 @@ func resolveTypeScriptBasePaths(sourceFile, importPath string) []string {
 		return []string{filepath.Clean(filepath.Join(sourceDir, importPath))}
 	}
 
-	if !strings.HasPrefix(importPath, "@/") {
-		var bases []string
-		// Could be an npm workspace package (e.g. "@tanstack/query-core" or
-		// "lodash-es" inside a yarn/pnpm workspace).
-		bases = append(bases, resolveWorkspaceBasePaths(sourceFile, importPath)...)
-		// Bare specifiers resolve against tsconfig baseUrl. This is the
-		// convention used by Superset and others where `src/...` is reachable
-		// without a `paths` entry because baseUrl points at the project root.
-		if cfg := loadTsConfigFor(sourceFile); cfg != nil && cfg.baseURL != "" {
-			bases = append(bases, filepath.Clean(filepath.Join(cfg.baseURL, importPath)))
-		}
-		// A bare specifier names an npm package; it must NOT be joined naively
-		// against the source dir (that turned `import 'mermaid'` into the sibling
-		// mermaid.ts). Legitimate bare-to-local resolution only happens via
-		// workspace packages or tsconfig baseUrl, both handled above.
-		return bases
-	}
-
 	var bases []string
 	seen := make(map[string]bool)
 	add := func(p string) {
@@ -537,11 +519,35 @@ func resolveTypeScriptBasePaths(sourceFile, importPath string) []string {
 		}
 	}
 
-	// 1. tsconfig.json / jsconfig.json paths (canonical mapping).
-	if cfg := loadTsConfigFor(sourceFile); cfg != nil {
+	// 1. tsconfig.json / jsconfig.json paths (canonical mapping). Applies to
+	// any alias pattern declared in compilerOptions.paths — not just "@/*" —
+	// so project-specific aliases like "@main/*" / "@renderer/*" resolve the
+	// same way "@/*" does.
+	cfg := loadTsConfigFor(sourceFile)
+	if cfg != nil {
 		for _, p := range cfg.resolveAlias(importPath) {
 			add(p)
 		}
+	}
+
+	if !strings.HasPrefix(importPath, "@/") {
+		// Could be an npm workspace package (e.g. "@tanstack/query-core" or
+		// "lodash-es" inside a yarn/pnpm workspace).
+		for _, p := range resolveWorkspaceBasePaths(sourceFile, importPath) {
+			add(p)
+		}
+		// Bare specifiers resolve against tsconfig baseUrl. This is the
+		// convention used by Superset and others where `src/...` is reachable
+		// without a `paths` entry because baseUrl points at the project root.
+		if cfg != nil && cfg.baseURL != "" {
+			add(filepath.Clean(filepath.Join(cfg.baseURL, importPath)))
+		}
+		// A bare specifier names an npm package; it must NOT be joined naively
+		// against the source dir (that turned `import 'mermaid'` into the sibling
+		// mermaid.ts). Legitimate bare-to-local resolution only happens via
+		// tsconfig paths, workspace packages, or tsconfig baseUrl, all handled
+		// above.
+		return bases
 	}
 
 	rest := strings.TrimPrefix(importPath, "@/")
