@@ -15,7 +15,7 @@ func (Provider) Extensions() []string {
 	// .json and .sh aren't TypeScript — they ride along so package.json's
 	// "scripts" field can be resolved to the shell scripts it invokes (see
 	// package_scripts.go). ResolveProjectImports special-cases both.
-	return []string{".ts", ".tsx", ".json", ".sh"}
+	return []string{".ts", ".tsx", ".mts", ".cts", ".json", ".sh"}
 }
 
 func (Provider) Maturity() moduleapi.MaturityLevel {

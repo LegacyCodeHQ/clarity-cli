@@ -858,6 +858,29 @@ export function validateName(name: string): boolean {
 	assert.Empty(t, validatorDeps)
 }
 
+func TestBuildDependencyGraph_TypeScriptModuleFiles(t *testing.T) {
+	for _, extension := range []string{".mts", ".cts"} {
+		t.Run(extension, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "vite.config"+extension)
+			identityPath := filepath.Join(tmpDir, "app-identity.ts")
+
+			err := os.WriteFile(configPath, []byte("import { resolveAppIdentity } from './app-identity';\n"), 0644)
+			require.NoError(t, err)
+			err = os.WriteFile(identityPath, []byte("export const resolveAppIdentity = () => 'app';\n"), 0644)
+			require.NoError(t, err)
+
+			graph, err := depgraph.BuildDependencyGraph(
+				[]string{configPath, identityPath},
+				vcs.FilesystemContentReader())
+			require.NoError(t, err)
+
+			adj := mustAdjacency(t, graph)
+			assert.Equal(t, []string{identityPath}, adj[configPath])
+		})
+	}
+}
+
 func TestBuildDependencyGraph_TypeScriptWithTSX(t *testing.T) {
 	// Create temporary directory with TypeScript and TSX files
 	tmpDir := t.TempDir()
