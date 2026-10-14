@@ -40,6 +40,7 @@ func ExtractSwiftReferenceLocations(sourceCode []byte) []SwiftReferenceLocation 
 		if isSwiftReferenceNode(n) &&
 			!isQualifiedSwiftMemberName(n, sourceCode) &&
 			!isSwiftDeclarationName(n) &&
+			!isSwiftParameterReference(n, sourceCode) &&
 			!isImplicitSwiftCatchError(n, sourceCode) {
 			name := strings.TrimSpace(n.Content(sourceCode))
 			if name != "" && !declared[name] {
@@ -55,7 +56,8 @@ func ExtractSwiftReferenceLocations(sourceCode []byte) []SwiftReferenceLocation 
 			memberNode := firstDescendant(suffix, "simple_identifier", "identifier")
 			if target != nil && memberNode != nil {
 				qualifier := strings.TrimSpace(target.Content(sourceCode))
-				if qualifier == "Self" || isLikelySwiftTypeName(qualifier) {
+				if !isSwiftParameterReference(target, sourceCode) &&
+					(qualifier == "Self" || isLikelySwiftTypeName(qualifier)) {
 					result = append(result, SwiftReferenceLocation{
 						Name:      strings.TrimSpace(memberNode.Content(sourceCode)),
 						Qualifier: qualifier,

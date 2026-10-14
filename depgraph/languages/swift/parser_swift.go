@@ -191,6 +191,7 @@ func ExtractSwiftReferencedSymbols(sourceCode []byte) []string {
 		if isSwiftReferenceNode(n) &&
 			!isQualifiedSwiftMemberName(n, sourceCode) &&
 			!isSwiftDeclarationName(n) &&
+			!isSwiftParameterReference(n, sourceCode) &&
 			!isImplicitSwiftCatchError(n, sourceCode) {
 			name := strings.TrimSpace(n.Content(sourceCode))
 			if name != "" && !declared[name] && !seen[name] {
@@ -241,7 +242,8 @@ func ExtractSwiftQualifiedReferences(sourceCode []byte) []SwiftQualifiedReferenc
 			if target != nil {
 				qualifier = strings.TrimSpace(target.Content(sourceCode))
 			}
-			if member != "" && (qualifier == "Self" || isLikelySwiftTypeName(qualifier)) {
+			if member != "" && !isSwiftParameterReference(target, sourceCode) &&
+				(qualifier == "Self" || isLikelySwiftTypeName(qualifier)) {
 				ref := SwiftQualifiedReference{Qualifier: qualifier, Member: member}
 				if !seen[ref] {
 					seen[ref] = true
@@ -354,6 +356,8 @@ func isSwiftDeclarationName(node *sitter.Node) bool {
 	switch parent.Type() {
 	case "enum_entry":
 		return true
+	case "parameter", "lambda_parameter":
+		return node.Type() == "simple_identifier" || node.Type() == "identifier"
 	default:
 		return false
 	}
@@ -752,4 +756,55 @@ func isLikelySwiftTypeName(name string) bool {
 	}
 	r := name[0]
 	return r >= 'A' && r <= 'Z'
+}
+
+// isSwiftParameterReference recognizes value references bound by an enclosing
+// callable's parameters. Keep this scoped to its body: a default value or a
+// different function can still refer to a same-named global declaration.
+func isSwiftParameterReference(node *sitter.Node, sourceCode []byte) bool {
+	if node == nil || (node.Type() != "simple_identifier" && node.Type() != "identifier") {
+		return false
+	}
+	name := strings.TrimSpace(node.Content(sourceCode))
+	for scope := node.Parent(); scope != nil; scope = scope.Parent() {
+		body, parameters := swiftCallableScope(scope)
+		if body == nil || node.StartByte() < body.StartByte() || node.EndByte() > body.EndByte() {
+			continue
+		}
+		for _, parameter := range parameters {
+			bound := parameter.ChildByFieldName("name")
+			if bound != nil && strings.TrimSpace(bound.Content(sourceCode)) == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func swiftCallableScope(node *sitter.Node) (*sitter.Node, []*sitter.Node) {
+	var body, container *sitter.Node
+	parameterType := "parameter"
+	switch node.Type() {
+	case "function_declaration", "init_declaration":
+		body, container = node.ChildByFieldName("body"), node
+	case "subscript_declaration":
+		body, container = firstDirectChildOfType(node, "computed_property"), node
+	case "lambda_literal":
+		body = firstDirectChildOfType(node, "statements")
+		container = firstDescendant(node.ChildByFieldName("type"), "lambda_function_type_parameters")
+		parameterType = "lambda_parameter"
+	default:
+		return nil, nil
+	}
+	if body == nil || container == nil {
+		return nil, nil
+	}
+	var parameters []*sitter.Node
+	for i := 0; i < int(container.ChildCount()); i++ {
+		child := container.Child(i)
+		if child != nil && child.Type() == parameterType {
+			parameters = append(parameters, child)
+		}
+	}
+	return body, parameters
 }

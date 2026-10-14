@@ -105,3 +105,64 @@ struct GraphFileNode: Identifiable, Hashable {
 	types := ParseSwiftTopLevelTypeNames([]byte(source))
 	assert.Contains(t, types, "GraphFileNode")
 }
+
+func TestSwiftParameterReferencesAreScoped(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+	}{
+		{"single name", `func sample(pcm: Data) { _ = pcm.count }`},
+		{"external label", `func sample(of pcm: Data) { _ = pcm.count }`},
+		{"unlabeled", `func sample(_ pcm: Data) { _ = pcm.count }`},
+		{"initializer", `struct Sample { init(pcm: Data) { _ = pcm.count } }`},
+		{"subscript", `struct Sample { subscript(pcm: Int) -> Int { pcm } }`},
+		{"closure", `func sample() { use { pcm in pcm.count } }`},
+		{"typed closure", `func sample() { use { (pcm: Data) in pcm.count } }`},
+		{"captured parameter", `func sample(pcm: Data) { use { pcm.count } }`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			source := []byte(tc.source)
+			assert.NotContains(t, ExtractSwiftReferencedSymbols(source), "pcm")
+			for _, ref := range ExtractSwiftReferenceLocations(source) {
+				assert.NotEqual(t, "pcm", ref.Name)
+			}
+		})
+	}
+}
+
+func TestSwiftParameterShadowingPreservesExternalReferences(t *testing.T) {
+	source := []byte(`func sample(of pcm: PCM = pcm()) { _ = pcm.count }
+func other() { _ = pcm() }
+`)
+	assert.Contains(t, ExtractSwiftReferencedSymbols(source), "pcm")
+	assert.Contains(t, ExtractSwiftReferencedSymbols(source), "PCM", "parameter types remain dependencies")
+	var lines []int
+	for _, ref := range ExtractSwiftReferenceLocations(source) {
+		if ref.Name == "pcm" {
+			lines = append(lines, ref.Line)
+		}
+	}
+	assert.Equal(t, []int{1, 2}, lines, "only the default value and the other function reference the global helper")
+}
+
+func TestSwiftParameterLabelsAreNotReferences(t *testing.T) {
+	source := []byte(`func sample(pcm buffer: Data) { _ = buffer.count }`)
+	assert.NotContains(t, ExtractSwiftReferencedSymbols(source), "pcm")
+	assert.NotContains(t, ExtractSwiftReferencedSymbols(source), "buffer")
+	for _, ref := range ExtractSwiftReferenceLocations(source) {
+		assert.NotEqual(t, "pcm", ref.Name)
+		assert.NotEqual(t, "buffer", ref.Name)
+	}
+}
+
+func TestSwiftParameterTypeLikeNameIsNotATypeQualifier(t *testing.T) {
+	source := []byte(`func sample(PCM: Buffer) { _ = PCM.count }`)
+	assert.NotContains(t, ExtractSwiftReferencedSymbols(source), "PCM")
+	assert.Contains(t, ExtractSwiftReferencedSymbols(source), "Buffer")
+	assert.Empty(t, ExtractSwiftQualifiedReferences(source))
+	for _, ref := range ExtractSwiftReferenceLocations(source) {
+		assert.NotEqual(t, "PCM", ref.Name)
+		assert.NotEqual(t, "PCM", ref.Qualifier)
+	}
+}

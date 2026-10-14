@@ -535,3 +535,31 @@ public private(set) var sharedCount = 0
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{statePath}, imports)
 }
+
+func TestResolveSwiftProjectImports_ParameterDoesNotReferenceTestHelper(t *testing.T) {
+	tmpDir := t.TempDir()
+	appPath := filepath.Join(tmpDir, "Murmur", "AudioLevel.swift")
+	helperPath := filepath.Join(tmpDir, "MurmurTests", "ListeningFakes.swift")
+	require.NoError(t, os.MkdirAll(filepath.Dir(appPath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(helperPath), 0o755))
+	source := []byte(`import Foundation
+
+enum AudioLevel {
+    static func sampleCount(of pcm: Data) -> Int {
+        pcm.count / 2
+    }
+}
+`)
+	require.NoError(t, os.WriteFile(appPath, source, 0o644))
+	require.NoError(t, os.WriteFile(helperPath, []byte(`import Foundation
+func pcm(seconds: Double) -> Data { Data() }
+`), 0o644))
+
+	imports, err := ResolveSwiftProjectImports(appPath, appPath,
+		map[string]bool{appPath: true, helperPath: true}, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+	assert.Empty(t, imports, "a parameter reference must not create a dependency on a same-named test helper")
+	for _, ref := range ExtractSwiftReferenceLocations(source) {
+		assert.NotEqual(t, "pcm", ref.Name, "dependency evidence must exclude the parameter too")
+	}
+}
