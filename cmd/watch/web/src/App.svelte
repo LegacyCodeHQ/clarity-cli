@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Header from './components/Header.svelte';
-  import WorktreeTabs from './components/WorktreeTabs.svelte';
   import GraphContainer from './components/GraphContainer.svelte';
   import Timeline from './components/Timeline.svelte';
   import { graphStore } from './lib/stores/graphStore';
@@ -68,7 +67,6 @@
 
 <div class="h-screen flex flex-col bg-background">
   <Header {pageTitle} {connected} />
-  <WorktreeTabs />
   <GraphContainer />
   <Timeline />
 </div>
