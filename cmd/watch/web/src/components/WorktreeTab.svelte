@@ -44,7 +44,7 @@
       selected
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
         : "hover:bg-tab-hover hover:text-foreground active:bg-tab-pressed",
-      !selected && !removed && "text-muted-foreground",
+      !selected && !removed && "text-foreground/70",
       removed && "text-destructive hover:text-destructive"
     )}
   >

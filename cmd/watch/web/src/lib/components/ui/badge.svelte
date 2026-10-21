@@ -13,7 +13,7 @@
 
   const variants = {
     default: "border-transparent bg-primary text-primary-foreground",
-    outline: "border-muted-foreground/50 text-muted-foreground",
+    outline: "border-foreground/35 text-foreground/70",
   };
 </script>
 

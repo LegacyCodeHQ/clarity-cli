@@ -126,7 +126,7 @@
       class={cn("flex h-full min-w-0 flex-1 items-center gap-2 px-2 outline-none", isRemoved && "italic")}
       onclick={() => choose(worktree.id)}
     >
-      <Icon size={16} class={cn("shrink-0", !isRemoved && "text-muted-foreground")} />
+      <Icon size={16} class={cn("shrink-0", !isRemoved && "text-foreground/70")} />
       <span class="truncate">{worktree.label || worktree.id}</span>
       <span class="flex-1"></span>
       {#if status !== "none"}
@@ -157,7 +157,7 @@
       "focus-visible:outline-2 focus-visible:outline-ring",
       open
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
-        : "text-muted-foreground hover:bg-tab-hover hover:text-foreground active:bg-tab-pressed"
+        : "text-foreground/70 hover:bg-tab-hover hover:text-foreground active:bg-tab-pressed"
     )}
     onclick={toggle}
   >
