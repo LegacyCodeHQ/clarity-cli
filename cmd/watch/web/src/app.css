@@ -57,6 +57,7 @@
   --color-tab-active-border: #3a3f4b;
   --color-tab-hover: #ffffff0f;
   --color-pressed: #2e323c;
+  --color-count: #ffffff17;
   --color-connected: #5cc38a;
   --color-reconnecting: #e0b050;
 }
@@ -83,6 +84,7 @@
   --color-tab-active-border: light-dark(transparent, #3a3f4b);
   --color-tab-hover: light-dark(#ffffff8c, #ffffff0f);
   --color-pressed: light-dark(#e1e1db, #2e323c);
+  --color-count: light-dark(#00000012, #ffffff17);
   --color-connected: light-dark(#1f7a4d, #5cc38a);
   --color-reconnecting: light-dark(#98620f, #e0b050);
 }
