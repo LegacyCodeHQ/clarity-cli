@@ -49,32 +49,30 @@
       removed && "text-destructive hover:text-destructive"
     )}
   >
-    <!-- The dot sits in a strip on the tab's left: 8px from the edge and 8px
-         from the icon. The strip only exists while the dot shows, so a tab
-         without one stays tight, and the tab eases open and shut as it comes
-         and goes. -->
-    <span
-      aria-hidden={status !== "unseen"}
-      class={cn(
-        "absolute top-1/2 left-2 flex -translate-y-1/2 transition-opacity duration-150",
-        status === "unseen" ? "opacity-100" : "opacity-0"
-      )}
-    >
-      <NewDot />
-    </span>
     <button
       type="button"
       role="tab"
       aria-selected={selected}
       class={cn(
-        "flex h-full min-w-0 flex-1 items-center outline-none transition-[padding] duration-150",
-        status === "unseen" ? "pl-5.5" : "pl-3",
+        "flex h-full min-w-0 flex-1 items-center pl-3 outline-none",
         trailing ? "pr-2" : "pr-3",
         removed && "italic"
       )}
       onclick={onselect}
     >
-      <Icon size={16} class="mr-2 shrink-0" />
+      <!-- The unseen dot is part of the icon: it sits on its top-right corner,
+           and the icon is cut away around it (3px dot, 2px gap) so the gap
+           matches whatever the tab's background is. It takes no room, so a tab
+           is the same size with or without it. -->
+      <span class="relative mr-2 flex size-4 shrink-0">
+        <Icon
+          size={16}
+          class={cn(status === "unseen" && "[mask-image:radial-gradient(circle_at_13px_3px,transparent_5px,#000_5.5px)]")}
+        />
+        {#if status === "unseen"}
+          <NewDot class="absolute top-0 right-0" />
+        {/if}
+      </span>
       <span class="truncate">{label}</span>
       {#if hasBadge}
         <Tooltip text={badgeText} class="ml-2 shrink-0">
