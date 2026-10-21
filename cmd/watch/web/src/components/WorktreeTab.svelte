@@ -49,18 +49,26 @@
       removed && "text-destructive hover:text-destructive"
     )}
   >
-    <!-- The dot lives in the tab's left padding: 8px from the edge and 8px from
-         the icon. The padding is always there, so the dot appearing or going
-         moves nothing. -->
-    {#if status === "unseen"}
-      <NewDot class="absolute top-1/2 left-2 -translate-y-1/2" />
-    {/if}
+    <!-- The dot sits in a strip on the tab's left: 8px from the edge and 8px
+         from the icon. The strip only exists while the dot shows, so a tab
+         without one stays tight, and the tab eases open and shut as it comes
+         and goes. -->
+    <span
+      aria-hidden={status !== "unseen"}
+      class={cn(
+        "absolute top-1/2 left-2 flex -translate-y-1/2 transition-opacity duration-150",
+        status === "unseen" ? "opacity-100" : "opacity-0"
+      )}
+    >
+      <NewDot />
+    </span>
     <button
       type="button"
       role="tab"
       aria-selected={selected}
       class={cn(
-        "flex h-full min-w-0 flex-1 items-center pl-5.5 outline-none",
+        "flex h-full min-w-0 flex-1 items-center outline-none transition-[padding] duration-150",
+        status === "unseen" ? "pl-5.5" : "pl-3",
         trailing ? "pr-2" : "pr-3",
         removed && "italic"
       )}
