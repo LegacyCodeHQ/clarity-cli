@@ -29,6 +29,10 @@ export interface ViewerState {
   // worktree. A tab whose latest snapshot is newer than this has changes the
   // user has not looked at yet. Viewing a worktree catches it up.
   seenSnapshotID: Record<string, number>;
+  // The worktree the user just opened while it still had unseen changes, or
+  // null. Its badge keeps looking unseen while it stays selected and only
+  // clears when the user moves on, so opening a tab never flashes the badge.
+  unseenOnEntry: string | null;
 
   // Effective view for the selected worktree — derived from
   // byWorktree[selectedWorktreeID] on every state update so downstream
@@ -182,6 +186,9 @@ export function getWorktreeChangeStatus(state: ViewerState, worktreeID: string):
   if (!worktree || !worktree.active || worktree.changedFiles <= 0) {
     return "none";
   }
+  if (state.unseenOnEntry === worktreeID && state.selectedWorktreeID === worktreeID) {
+    return "unseen";
+  }
   const latest = latestWorkingSnapshotID(state, worktreeID);
   return latest > (state.seenSnapshotID[worktreeID] ?? 0) ? "unseen" : "seen";
 }
@@ -209,6 +216,7 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
     selectedWorktreeID,
     byWorktree,
     seenSnapshotID: { ...(state.seenSnapshotID ?? {}) },
+    unseenOnEntry: state.unseenOnEntry === selectedWorktreeID ? selectedWorktreeID : null,
     workingSnapshots: projected.workingSnapshots,
     pastCollections: projected.pastCollections,
     selectedCollectionID: state.selectedCollectionID ?? null,
@@ -354,6 +362,7 @@ export function selectWorktree(state: ViewerState, worktreeID: string): ViewerSt
   return normalizeState({
     ...state,
     selectedWorktreeID: worktreeID,
+    unseenOnEntry: getWorktreeChangeStatus(state, worktreeID) === "unseen" ? worktreeID : null,
     selectedCollectionID: null,
     selectedCollectionSnapshotIndex: 0,
     liveSnapshotIndex: null,

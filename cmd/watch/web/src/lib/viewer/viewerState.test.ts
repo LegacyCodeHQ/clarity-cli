@@ -84,6 +84,7 @@ function baseState(): ViewerState {
     selectedWorktreeID: "main",
     byWorktree: {},
     seenSnapshotID: {},
+    unseenOnEntry: null,
     workingSnapshots: [],
     pastCollections: [],
     selectedCollectionID: null,
@@ -767,8 +768,18 @@ describe('getWorktreeChangeStatus', () => {
     expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("unseen");
   });
 
-  it('marks a worktree seen once it is selected', () => {
-    const state = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+  it('keeps a just-opened worktree looking unseen until the user moves on', () => {
+    const opened = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    expect(getWorktreeChangeStatus(opened, "wt-feat")).toBe("unseen");
+
+    const left = selectWorktree(opened, "main");
+    expect(getWorktreeChangeStatus(left, "wt-feat")).toBe("seen");
+  });
+
+  it('does not make a seen worktree look unseen when it is opened', () => {
+    let state = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    state = selectWorktree(state, "main");
+    state = selectWorktree(state, "wt-feat");
     expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("seen");
   });
 
