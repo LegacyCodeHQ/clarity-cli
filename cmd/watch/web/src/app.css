@@ -1,4 +1,25 @@
 @import "tailwindcss";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+@import "@fontsource/jetbrains-mono/latin-600.css";
+
+/* Inter, Latin only: the package's own stylesheets pull in every script. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter Variable";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../node_modules/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 @theme {
   /* VS Code / Zed inspired minimal color scheme */
@@ -22,6 +43,41 @@
   --color-input: #3c3c3c;
   --color-ring: #569cd6;
   --radius: 0.25rem;
+
+  /* Top chrome: type. Spacing and radii use Tailwind's 4px scale. */
+  --font-ui: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-caption: 0.6875rem; /* 11px: badges and tooltips */
+  --text-body: 0.8125rem; /* 13px: tab labels and menu rows */
+
+  /* Top chrome: colors that have no shadcn name. Neutral Paper (light) and
+     Graphite (dark) follow the OS through light-dark(). */
+  --color-tab-active: light-dark(#ffffff, #2e323c);
+  --color-tab-active-border: light-dark(transparent, #3a3f4b);
+  --color-tab-hover: light-dark(#ffffff8c, #ffffff0f);
+  --color-tab-pressed: light-dark(#00000012, #00000059);
+  --color-connected: light-dark(#1f7a4d, #5cc38a);
+  --color-reconnecting: light-dark(#98620f, #e0b050);
+}
+
+/* Scope for the top chrome. Re-points the shadcn color names at the
+   Neutral Paper / Graphite palettes for everything inside it, leaving the rest
+   of the app on its current theme. */
+.chrome {
+  color-scheme: light dark;
+  font-family: var(--font-ui);
+  --color-background: light-dark(#f4f4f1, #14151a);
+  --color-foreground: light-dark(#1c1c1c, #e8e9ec);
+  --color-card: light-dark(#ffffff, #1b1d23);
+  --color-muted: light-dark(#e9e9e4, #242730);
+  --color-muted-foreground: light-dark(#6e6e69, #9096a3);
+  --color-border: light-dark(#d4d4cf, #2c2f38);
+  --color-input: light-dark(#d4d4cf, #343843);
+  --color-primary: light-dark(#2f6feb, #6ea8fe);
+  --color-primary-foreground: light-dark(#ffffff, #0b1220);
+  --color-accent: light-dark(#ecece8, #242730);
+  --color-ring: light-dark(#2f6feb, #6ea8fe);
+  --color-destructive: light-dark(#c0392b, #f2706a);
 }
 
 * {
