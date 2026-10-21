@@ -119,4 +119,40 @@ describe('computeTabLayout', () => {
     const gapped = computeTabLayout(tabs, 260, { minTabWidth: 100, overflowWidth: 60, gap: 4 });
     expect(gapped.visible.map((t) => t.id)).toEqual(['main']);
   });
+
+  it('keeps the tabs that were already visible when the selection changes', () => {
+    const base = [
+      tab('main', 200, { isMain: true }),
+      tab('a', 200, { status: 'seen' }),
+      tab('b', 200, { status: 'unseen' }),
+    ];
+    const room = 360; // main plus one more tab next to the menu button
+    const first = computeTabLayout(
+      base.map((t) => (t.id === 'a' ? { ...t, selected: true } : t)),
+      room,
+      OPTIONS
+    );
+    expect(first.visible.map((t) => t.id)).toEqual(['main', 'a']);
+
+    // Selecting main makes 'a' just another seen tab, and 'b' (unseen) would
+    // normally take its place. It must not.
+    const second = computeTabLayout(
+      base.map((t) => (t.id === 'main' ? { ...t, selected: true } : t)),
+      room,
+      { ...OPTIONS, sticky: new Set(first.visible.map((t) => t.id)) }
+    );
+    expect(second.visible.map((t) => t.id)).toEqual(['main', 'a']);
+    expect(second.overflow).toEqual(['b']);
+  });
+
+  it('still brings a selected hidden tab into view, evicting the lowest-ranked visible one', () => {
+    const tabs = [
+      tab('main', 200, { isMain: true }),
+      tab('a', 200, { status: 'seen' }),
+      tab('b', 200, { status: 'unseen', selected: true }),
+    ];
+    const layout = computeTabLayout(tabs, 360, { ...OPTIONS, sticky: new Set(['main', 'a']) });
+    expect(layout.visible.map((t) => t.id)).toEqual(['main', 'b']);
+    expect(layout.overflow).toEqual(['a']);
+  });
 });

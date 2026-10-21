@@ -16,6 +16,9 @@
   let measurer = $state<HTMLElement | null>(null);
   let available = $state(Infinity);
   let widths = $state<Record<string, number>>({});
+  // The tabs shown last time. Deliberately not reactive: it only feeds the next
+  // layout, so the bar keeps its arrangement unless it has to change.
+  let lastVisible = new Set<string>();
 
   const worktrees = $derived($viewModel.state.worktrees);
   const selectedID = $derived($viewModel.state.selectedWorktreeID);
@@ -41,7 +44,7 @@
         status: statusFor(w.id),
       })),
       available - LIST_PADDING,
-      { overflowWidth: OVERFLOW_WIDTH, gap: TAB_GAP }
+      { overflowWidth: OVERFLOW_WIDTH, gap: TAB_GAP, sticky: lastVisible }
     );
   });
 
@@ -73,6 +76,10 @@
   $effect(() => {
     signature;
     measure();
+  });
+
+  $effect(() => {
+    lastVisible = new Set(layout.visible.map((slot) => slot.id));
   });
 
   onMount(() => {

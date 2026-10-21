@@ -37,6 +37,9 @@ export interface TabLayoutOptions {
   minTabWidth?: number;
   // Space between neighbouring tabs.
   gap?: number;
+  // Tabs that were visible last time. They collapse last, so selecting a tab
+  // or a change in someone's status does not reshuffle the bar.
+  sticky?: ReadonlySet<string>;
   // Width the "+N" button takes when it is shown.
   overflowWidth: number;
 }
@@ -54,6 +57,12 @@ function collapseRank(tab: LayoutTab): number {
     case 'unseen':
       return 3;
   }
+}
+
+// A tab that was already on screen outranks every tab that was not, so the
+// bar only changes when it has to.
+function stickyRank(tab: LayoutTab, sticky: ReadonlySet<string> | undefined): number {
+  return collapseRank(tab) + (sticky?.has(tab.id) ? 10 : 0);
 }
 
 /**
@@ -87,6 +96,7 @@ function visibleWithCap(tabs: LayoutTab[], cap: number): VisibleTab[] {
 export function computeTabLayout(tabs: LayoutTab[], available: number, options: TabLayoutOptions): TabLayout {
   const minWidth = options.minTabWidth ?? MIN_TAB_WIDTH;
   const gap = options.gap ?? 0;
+  const sticky = options.sticky;
 
   const everything = widthCap(tabs.map((t) => t.width), available, minWidth, gap);
   if (everything !== null) {
@@ -98,7 +108,7 @@ export function computeTabLayout(tabs: LayoutTab[], available: number, options: 
   const candidates = tabs
     .map((tab, index) => ({ tab, index }))
     .filter(({ tab }) => !tab.isMain && !tab.selected)
-    .sort((a, b) => collapseRank(a.tab) - collapseRank(b.tab) || b.index - a.index);
+    .sort((a, b) => stickyRank(a.tab, sticky) - stickyRank(b.tab, sticky) || b.index - a.index);
 
   const hidden = new Set<string>();
   const remaining = () => tabs.filter((t) => !hidden.has(t.id));
