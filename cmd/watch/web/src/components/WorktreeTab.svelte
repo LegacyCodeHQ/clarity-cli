@@ -49,9 +49,10 @@
       removed && "text-destructive hover:text-destructive"
     )}
   >
-    <!-- Sits in the tab's left padding, so it appearing never moves anything. -->
+    <!-- Sits in the space between the icon and the name, which every tab keeps
+         whether or not the dot shows, so it appearing never moves anything. -->
     {#if status === "unseen"}
-      <NewDot class="absolute top-1/2 left-[3px] -translate-y-1/2" />
+      <NewDot class="absolute top-1/2 left-8 -translate-y-1/2" />
     {/if}
     <button
       type="button"
@@ -65,7 +66,7 @@
       onclick={onselect}
     >
       <Icon size={16} class="shrink-0" />
-      <span class="truncate">{label}</span>
+      <span class="ml-1.5 truncate">{label}</span>
       {#if hasBadge}
         <Tooltip text={badgeText} class="shrink-0">
           <Badge>{worktree.changedFiles}</Badge>
