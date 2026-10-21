@@ -13,13 +13,13 @@
 
   const variants = {
     default: "border-transparent bg-primary text-primary-foreground",
-    outline: "border-input text-muted-foreground",
+    outline: "border-muted-foreground/50 text-muted-foreground",
   };
 </script>
 
 <span
   class={cn(
-    "inline-flex h-5 min-w-5 items-center justify-center rounded-md border px-1.5 text-caption leading-none font-semibold tabular-nums",
+    "inline-flex h-5 min-w-5 items-center justify-center rounded-md border-[1.5px] px-1.5 text-caption leading-none font-semibold tabular-nums",
     variants[variant],
     className
   )}
