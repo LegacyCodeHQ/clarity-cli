@@ -16,6 +16,9 @@ export interface WorktreeDescriptor {
   // False once the underlying git worktree is removed — the tab becomes a
   // frozen, closable record. A missing flag is treated as active.
   active: boolean;
+  // Uncommitted files (changed, added or deleted) in this worktree right now.
+  // Zero for a clean worktree; a missing field is treated as zero.
+  changedFiles: number;
 }
 
 export interface Snapshot {
@@ -115,6 +118,10 @@ function normalizeWorktree(worktree: unknown): WorktreeDescriptor | null {
     kind: r.kind === "main" ? "main" : "linked",
     // Treat a missing flag as active so older payloads keep their tabs pinned.
     active: r.active !== false,
+    changedFiles:
+      typeof r.changedFiles === "number" && Number.isFinite(r.changedFiles) && r.changedFiles > 0
+        ? Math.floor(r.changedFiles)
+        : 0,
   };
 }
 

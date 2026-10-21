@@ -98,9 +98,25 @@ describe('normalizeGraphStreamPayload', () => {
     });
 
     expect(normalized.worktrees).toEqual([
-      { id: "main", path: "/repo", label: "clarity-cli", kind: 'main', active: true },
-      { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked', active: true },
+      { id: "main", path: "/repo", label: "clarity-cli", kind: 'main', active: true, changedFiles: 0 },
+      { id: "wt-abc12345", path: "/tmp/feat", label: "clarity-cli (feat)", kind: 'linked', active: true, changedFiles: 0 },
     ]);
+  });
+
+  it('normalizes changedFiles, treating missing or invalid values as zero', () => {
+    const normalized = normalizeGraphStreamPayload({
+      worktrees: [
+        { id: "a", path: "/a", label: "a", kind: 'main', changedFiles: 7 },
+        { id: "b", path: "/b", label: "b", kind: 'linked' },
+        { id: "c", path: "/c", label: "c", kind: 'linked', changedFiles: -2 },
+        { id: "d", path: "/d", label: "d", kind: 'linked', changedFiles: "3" },
+        { id: "e", path: "/e", label: "e", kind: 'linked', changedFiles: 2.9 },
+      ],
+      workingSnapshots: [],
+      pastCollections: [],
+    });
+
+    expect((normalized.worktrees ?? []).map((w) => w.changedFiles)).toEqual([7, 0, 0, 0, 2]);
   });
 
   it('falls back to worktree id as label when label missing', () => {

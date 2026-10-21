@@ -369,8 +369,8 @@ describe('getViewModel', () => {
   it('omits the live source option when the selected worktree is deleted', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false, changedFiles: 0 },
       ],
       workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [collection(10, [snapshot(2, "digraph w {}", "wt-aaaaaaaa")], "wt-aaaaaaaa")],
@@ -387,8 +387,8 @@ describe('getViewModel', () => {
   it('shows the most recent snapshot of the most recent session when the worktree is deleted', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false, changedFiles: 0 },
       ],
       workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [
@@ -409,8 +409,8 @@ describe('getViewModel', () => {
   it('treats deleted worktree working snapshots as frozen instead of live', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: false, changedFiles: 0 },
       ],
       workingSnapshots: [
         snapshot(1, "digraph p {}", "main"),
@@ -451,8 +451,8 @@ describe('selectWorktree', () => {
   it('switches the active tab and reprojects working snapshots', () => {
     const state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true, changedFiles: 0 },
       ],
       workingSnapshots: [
         snapshot(1, "digraph p {}", "main"),
@@ -471,7 +471,7 @@ describe('selectWorktree', () => {
 
   it('ignores selection for unknown worktree id', () => {
     const state = mergePayload(baseState(), {
-      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true }],
+      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 }],
       workingSnapshots: [snapshot(1)],
       pastCollections: [],
     });
@@ -483,8 +483,8 @@ describe('selectWorktree', () => {
   it('falls back to main if the previously selected worktree disappears', () => {
     let state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true, changedFiles: 0 },
       ],
       workingSnapshots: [
         snapshot(1, "digraph p {}", "main"),
@@ -497,7 +497,7 @@ describe('selectWorktree', () => {
 
     // Simulate the worktree being removed: payload no longer lists it.
     const next = mergePayload(state, {
-      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true }],
+      worktrees: [{ id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 }],
       workingSnapshots: [snapshot(1, "digraph p {}", "main")],
       pastCollections: [],
     });
@@ -508,8 +508,8 @@ describe('selectWorktree', () => {
   it('resets timeline selection when switching tabs', () => {
     let state = mergePayload(baseState(), {
       worktrees: [
-        { id: "main", path: "/p", label: "main", kind: 'main', active: true },
-        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true },
+        { id: "main", path: "/p", label: "main", kind: 'main', active: true, changedFiles: 0 },
+        { id: "wt-aaaaaaaa", path: "/wt", label: "wt", kind: 'linked', active: true, changedFiles: 0 },
       ],
       workingSnapshots: [
         snapshot(1, "digraph p1 {}", "main"),
