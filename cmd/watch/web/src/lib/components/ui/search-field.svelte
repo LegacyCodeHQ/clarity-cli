@@ -28,7 +28,7 @@
 
 <div
   class={cn(
-    "flex h-8 items-center gap-2 rounded-md border border-input px-2 text-body transition-colors",
+    "flex h-8 items-center gap-2 rounded-md border border-input px-2 text-xs transition-colors",
     "hover:border-muted-foreground focus-within:border-ring focus-within:ring-1 focus-within:ring-ring",
     className
   )}

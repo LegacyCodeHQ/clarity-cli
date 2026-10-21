@@ -114,7 +114,7 @@
     role="presentation"
     data-index={index}
     class={cn(
-      "flex h-8 items-center rounded-md text-body font-medium",
+      "flex h-8 items-center rounded-md text-xs font-medium",
       index === highlighted && "bg-accent",
       "active:bg-pressed",
       isRemoved ? "text-destructive" : "text-foreground"
@@ -157,7 +157,7 @@
     aria-haspopup="menu"
     aria-expanded={open}
     class={cn(
-      "flex h-8 items-center gap-2 rounded-lg px-3 text-body font-medium transition-colors outline-none",
+      "flex h-8 items-center gap-2 rounded-lg px-3 text-xs font-medium transition-colors outline-none",
       "focus-visible:outline-2 focus-visible:outline-ring",
       open
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
@@ -185,7 +185,7 @@
       {/if}
       <div class="max-h-80 overflow-y-auto">
         {#if flat.length === 0}
-          <p class="flex h-8 items-center justify-center text-body text-muted-foreground">
+          <p class="flex h-8 items-center justify-center text-xs text-muted-foreground">
             No worktrees match “{query.trim()}”
           </p>
         {/if}

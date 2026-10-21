@@ -40,7 +40,7 @@
     role="presentation"
     style:max-width={maxWidth ? `${maxWidth}px` : undefined}
     class={cn(
-      "relative flex h-8 items-center rounded-lg text-body font-medium transition-colors",
+      "relative flex h-8 items-center rounded-lg text-xs font-medium transition-colors",
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring",
       selected
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
