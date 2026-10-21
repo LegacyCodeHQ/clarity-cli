@@ -43,7 +43,7 @@
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring",
       selected
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
-        : "hover:bg-tab-hover hover:text-foreground active:bg-tab-pressed",
+        : "hover:bg-tab-hover hover:text-foreground active:bg-tab-active active:text-foreground",
       !selected && !removed && "text-foreground/70",
       removed && "text-destructive hover:text-destructive"
     )}

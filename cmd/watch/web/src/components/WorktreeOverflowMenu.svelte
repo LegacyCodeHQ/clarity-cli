@@ -115,7 +115,7 @@
     class={cn(
       "flex h-8 items-center rounded-md text-body font-medium",
       index === highlighted && "bg-accent",
-      "active:bg-tab-pressed",
+      "active:bg-pressed",
       isRemoved ? "text-destructive" : "text-foreground"
     )}
     onmouseenter={() => (highlighted = index)}
@@ -157,7 +157,7 @@
       "focus-visible:outline-2 focus-visible:outline-ring",
       open
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
-        : "text-foreground/70 hover:bg-tab-hover hover:text-foreground active:bg-tab-pressed"
+        : "text-foreground/70 hover:bg-tab-hover hover:text-foreground active:bg-tab-active"
     )}
     onclick={toggle}
   >

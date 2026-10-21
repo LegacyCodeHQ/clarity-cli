@@ -56,7 +56,7 @@
   --color-tab-active: #2e323c;
   --color-tab-active-border: #3a3f4b;
   --color-tab-hover: #ffffff0f;
-  --color-tab-pressed: #00000059;
+  --color-pressed: #2e323c;
   --color-connected: #5cc38a;
   --color-reconnecting: #e0b050;
 }
@@ -82,7 +82,7 @@
   --color-tab-active: light-dark(#ffffff, #2e323c);
   --color-tab-active-border: light-dark(transparent, #3a3f4b);
   --color-tab-hover: light-dark(#ffffff8c, #ffffff0f);
-  --color-tab-pressed: light-dark(#00000012, #00000059);
+  --color-pressed: light-dark(#e1e1db, #2e323c);
   --color-connected: light-dark(#1f7a4d, #5cc38a);
   --color-reconnecting: light-dark(#98620f, #e0b050);
 }
