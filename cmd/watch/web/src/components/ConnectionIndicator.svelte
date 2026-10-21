@@ -1,16 +1,19 @@
 <script lang="ts">
+  import { cn } from "$lib/utils";
+  import Tooltip from "$lib/components/ui/tooltip.svelte";
+
   interface Props {
     connected: boolean;
   }
 
   let { connected }: Props = $props();
 
-  const statusText = $derived(
-    connected ? 'Connected' : 'Reconnecting…'
-  );
+  const statusText = $derived(connected ? "Connected" : "Reconnecting…");
 </script>
 
-<div
-  title={statusText}
-  class="w-2 h-2 rounded-full transition-all {connected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8),0_0_12px_rgba(34,197,94,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8),0_0_12px_rgba(239,68,68,0.4)]'}"
-></div>
+<Tooltip text={statusText}>
+  <span role="status" aria-label={statusText} class="relative flex size-4 items-center justify-center">
+    <span class={cn("absolute inset-0 rounded-full opacity-20", connected ? "bg-connected" : "bg-reconnecting")}></span>
+    <span class={cn("size-2 rounded-full", connected ? "bg-connected" : "bg-reconnecting")}></span>
+  </span>
+</Tooltip>
