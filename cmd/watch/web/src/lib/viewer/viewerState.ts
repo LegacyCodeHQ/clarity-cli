@@ -30,8 +30,8 @@ export interface ViewerState {
   // user has not looked at yet. Viewing a worktree catches it up.
   seenSnapshotID: Record<string, number>;
   // The worktree the user just opened while it still had unseen changes, or
-  // null. Its badge keeps looking unseen while it stays selected and only
-  // clears when the user moves on, so opening a tab never flashes the badge.
+  // null. It keeps looking unseen for a moment (UNSEEN_DWELL_MS) so the user can
+  // see which tab it was, and clears at once if they move on.
   unseenOnEntry: string | null;
 
   // Effective view for the selected worktree — derived from
@@ -174,6 +174,21 @@ function latestWorkingSnapshotID(state: Pick<ViewerState, "byWorktree">, worktre
 }
 
 export type WorktreeChangeStatus = "none" | "unseen" | "seen";
+
+// How long a just-opened tab keeps its unseen marker before it counts as read,
+// so the user can see which tab it was.
+export const UNSEEN_DWELL_MS = 1000;
+
+/**
+ * Drops the unseen marker from a worktree the user has opened and stayed on.
+ * Does nothing if they have moved on in the meantime.
+ */
+export function clearUnseenOnEntry(state: ViewerState, worktreeID: string): ViewerState {
+  if (state.unseenOnEntry !== worktreeID) {
+    return state;
+  }
+  return { ...state, unseenOnEntry: null };
+}
 
 /**
  * Whether a worktree tab should carry a change badge, and which kind.

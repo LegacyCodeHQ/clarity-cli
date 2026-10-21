@@ -8,6 +8,7 @@ import {
   getSourceOptions,
   getViewModel,
   getWorktreeChangeStatus,
+  clearUnseenOnEntry,
   groupSourceOptions,
   mergePayload,
   selectPersistedSession,
@@ -774,6 +775,20 @@ describe('getWorktreeChangeStatus', () => {
 
     const left = selectWorktree(opened, "main");
     expect(getWorktreeChangeStatus(left, "wt-feat")).toBe("seen");
+  });
+
+  it('counts a just-opened worktree as read once the user has stayed on it', () => {
+    const opened = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    expect(getWorktreeChangeStatus(opened, "wt-feat")).toBe("unseen");
+
+    const stayed = clearUnseenOnEntry(opened, "wt-feat");
+    expect(getWorktreeChangeStatus(stayed, "wt-feat")).toBe("seen");
+  });
+
+  it('ignores a dwell that fires after the user already moved on', () => {
+    const opened = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    const movedOn = selectWorktree(opened, "main");
+    expect(clearUnseenOnEntry(movedOn, "wt-feat")).toBe(movedOn);
   });
 
   it('does not make a seen worktree look unseen when it is opened', () => {

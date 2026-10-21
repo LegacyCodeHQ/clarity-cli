@@ -12,6 +12,8 @@ import {
   applyLiveSelection,
   applySourceSelection,
   selectWorktree,
+  clearUnseenOnEntry,
+  UNSEEN_DWELL_MS,
   setPersistedSessions,
   applyPersistedSessionDetail,
   getViewModel,
@@ -68,6 +70,7 @@ function createGraphStore() {
   });
 
   const { subscribe, update } = writable<ViewerState>(initialState);
+  let dwellTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Reflects the current selection into the URL (via replaceState, so
   // scrubbing/switching sessions doesn't spam the back-button history) each
@@ -146,6 +149,15 @@ function createGraphStore() {
 
     onSelectWorktree: (worktreeID: string) => {
       applyAndSync(state => selectWorktree(state, worktreeID));
+      // A tab opened with unseen changes counts as read once the user has
+      // stayed on it for a moment. Moving on first needs no timer: the next
+      // selection replaces the marker.
+      if (dwellTimer) {
+        clearTimeout(dwellTimer);
+      }
+      dwellTimer = setTimeout(() => {
+        update(state => clearUnseenOnEntry(state, worktreeID));
+      }, UNSEEN_DWELL_MS);
     },
 
     // Replaces the eager, metadata-only persisted-session listing (CLR-98's
