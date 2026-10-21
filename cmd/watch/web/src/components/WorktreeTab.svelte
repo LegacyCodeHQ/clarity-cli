@@ -40,7 +40,7 @@
     role="presentation"
     style:max-width={maxWidth ? `${maxWidth}px` : undefined}
     class={cn(
-      "flex h-8 items-center rounded-lg text-xs font-medium transition-colors",
+      "relative flex h-8 items-center rounded-lg text-xs font-medium transition-colors",
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring",
       selected
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
@@ -49,30 +49,24 @@
       removed && "text-destructive hover:text-destructive"
     )}
   >
+    <!-- The dot lives in the tab's left padding: 8px from the edge and 8px from
+         the icon. The padding is always there, so the dot appearing or going
+         moves nothing. -->
+    {#if status === "unseen"}
+      <NewDot class="absolute top-1/2 left-2 -translate-y-1/2" />
+    {/if}
     <button
       type="button"
       role="tab"
       aria-selected={selected}
       class={cn(
-        "flex h-full min-w-0 flex-1 items-center pl-3 outline-none",
+        "flex h-full min-w-0 flex-1 items-center pl-5.5 outline-none",
         trailing ? "pr-2" : "pr-3",
         removed && "italic"
       )}
       onclick={onselect}
     >
       <Icon size={16} class="mr-2 shrink-0" />
-      <!-- The unseen dot makes room for itself between the icon and the name
-           (8px after the icon, 4px before the name) and the tab eases open and
-           shut. Without a dot the name sits 8px from the icon. -->
-      <span
-        aria-hidden={status !== "unseen"}
-        class={cn(
-          "flex shrink-0 items-center overflow-hidden transition-[width] duration-150",
-          status === "unseen" ? "w-2.5" : "w-0"
-        )}
-      >
-        <NewDot class="mr-1" />
-      </span>
       <span class="truncate">{label}</span>
       {#if hasBadge}
         <Tooltip text={badgeText} class="ml-2 shrink-0">
