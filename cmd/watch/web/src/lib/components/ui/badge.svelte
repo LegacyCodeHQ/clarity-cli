@@ -3,24 +3,16 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    // "default" is filled and asks for attention. "outline" is quiet.
-    variant?: "default" | "outline";
     class?: string;
     children?: Snippet;
   }
 
-  let { variant = "default", class: className, children }: Props = $props();
-
-  const variants = {
-    default: "border-transparent bg-primary text-primary-foreground",
-    outline: "border-foreground/35 text-foreground/70",
-  };
+  let { class: className, children }: Props = $props();
 </script>
 
 <span
   class={cn(
-    "inline-flex h-5 min-w-5 items-center justify-center rounded-md border-[1.5px] px-1.5 text-caption leading-none font-semibold tabular-nums",
-    variants[variant],
+    "inline-flex h-5 min-w-5 items-center justify-center rounded-md border-[1.5px] border-foreground/35 px-1.5 text-caption leading-none font-semibold tabular-nums text-foreground/70",
     className
   )}
 >

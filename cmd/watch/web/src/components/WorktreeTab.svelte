@@ -5,6 +5,7 @@
   import X from "lucide-svelte/icons/x";
   import { cn } from "$lib/utils";
   import Badge from "$lib/components/ui/badge.svelte";
+  import NewDot from "$lib/components/ui/new-dot.svelte";
   import Tooltip from "$lib/components/ui/tooltip.svelte";
   import type { WorktreeDescriptor } from "$lib/protocol/viewerProtocol";
   import type { WorktreeChangeStatus } from "$lib/viewer/viewerState";
@@ -30,7 +31,7 @@
   const badgeText = $derived.by(() => {
     const n = worktree.changedFiles;
     const files = `${n} ${n === 1 ? "file" : "files"} changed`;
-    return status === "unseen" ? `${files}. New since you last looked.` : `${files}. You have seen these.`;
+    return status === "unseen" ? `${files}. New since you last looked.` : `${files}.`;
   });
 </script>
 
@@ -54,7 +55,7 @@
       aria-selected={selected}
       class={cn(
         "flex h-full min-w-0 flex-1 items-center gap-2 pl-3 outline-none",
-        trailing ? "pr-2" : "pr-3",
+        status === "unseen" ? "pr-3" : trailing ? "pr-2" : "pr-3",
         removed && "italic"
       )}
       onclick={onselect}
@@ -63,7 +64,10 @@
       <span class="truncate">{label}</span>
       {#if hasBadge}
         <Tooltip text={badgeText} class="shrink-0">
-          <Badge variant={status === "unseen" ? "default" : "outline"}>{worktree.changedFiles}</Badge>
+          <span class="flex items-center gap-1.5">
+            <Badge>{worktree.changedFiles}</Badge>
+            {#if status === "unseen"}<NewDot />{/if}
+          </span>
         </Tooltip>
       {/if}
     </button>

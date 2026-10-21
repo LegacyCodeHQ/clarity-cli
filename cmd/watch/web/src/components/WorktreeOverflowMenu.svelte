@@ -6,6 +6,7 @@
   import X from "lucide-svelte/icons/x";
   import { cn } from "$lib/utils";
   import Badge from "$lib/components/ui/badge.svelte";
+  import NewDot from "$lib/components/ui/new-dot.svelte";
   import SearchField from "$lib/components/ui/search-field.svelte";
   import type { WorktreeDescriptor } from "$lib/protocol/viewerProtocol";
   import type { WorktreeChangeStatus } from "$lib/viewer/viewerState";
@@ -130,7 +131,10 @@
       <span class="truncate">{worktree.label || worktree.id}</span>
       <span class="flex-1"></span>
       {#if status !== "none"}
-        <Badge variant={status === "unseen" ? "default" : "outline"}>{worktree.changedFiles}</Badge>
+        <span class="flex items-center gap-1.5">
+          <Badge>{worktree.changedFiles}</Badge>
+          {#if status === "unseen"}<NewDot />{/if}
+        </span>
       {/if}
     </button>
     {#if isRemoved}
@@ -163,7 +167,7 @@
   >
     <span>+{worktrees.length}</span>
     {#if hasUnseen}
-      <span class="size-1.5 rounded-full bg-primary" aria-label="Has unseen changes"></span>
+      <NewDot />
     {/if}
     <ChevronDown size={16} />
   </button>
