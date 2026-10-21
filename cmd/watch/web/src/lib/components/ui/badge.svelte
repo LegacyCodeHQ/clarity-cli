@@ -12,7 +12,7 @@
 
 <span
   class={cn(
-    "inline-flex h-4 min-w-4 items-center justify-center rounded-sm bg-count px-1 text-caption leading-none font-medium tabular-nums text-foreground/70",
+    "inline-flex h-4 min-w-4 items-center justify-center rounded-sm bg-count px-1 text-caption leading-none font-normal tabular-nums text-foreground/70",
     className
   )}
 >
