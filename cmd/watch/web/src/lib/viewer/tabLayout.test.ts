@@ -96,4 +96,27 @@ describe('computeTabLayout', () => {
     expect(layout.visible.map((t) => t.id)).toEqual(['main', 'a']);
     expect(layout.overflow).toEqual(['b', 'c', 'd']);
   });
+
+  it('counts the gap between tabs when deciding what fits', () => {
+    const tabs = [tab('main', 100, { isMain: true, selected: true }), tab('a', 100), tab('b', 100)];
+    const options = { minTabWidth: 50, overflowWidth: 60 };
+    // 300 of tab plus two 4px gaps does not fit in 304.
+    const tight = computeTabLayout(tabs, 304, { ...options, gap: 4 });
+    expect(tight.visible.every((t) => t.maxWidth !== undefined)).toBe(true);
+    const roomy = computeTabLayout(tabs, 308, { ...options, gap: 4 });
+    expect(roomy.visible).toEqual([{ id: 'main' }, { id: 'a' }, { id: 'b' }]);
+  });
+
+  it('keeps one gap between the last tab and the "+N" button', () => {
+    const tabs = [
+      tab('main', 100, { isMain: true, selected: true }),
+      tab('a', 100),
+      tab('b', 100),
+    ];
+    // Without a gap main + a + the 60px button fit in 260; with 4px gaps they need 264.
+    const noGap = computeTabLayout(tabs, 260, { minTabWidth: 100, overflowWidth: 60 });
+    expect(noGap.visible.map((t) => t.id)).toEqual(['main', 'a']);
+    const gapped = computeTabLayout(tabs, 260, { minTabWidth: 100, overflowWidth: 60, gap: 4 });
+    expect(gapped.visible.map((t) => t.id)).toEqual(['main']);
+  });
 });

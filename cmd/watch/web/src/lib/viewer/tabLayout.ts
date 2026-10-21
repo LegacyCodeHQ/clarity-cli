@@ -35,6 +35,8 @@ export interface TabLayout {
 
 export interface TabLayoutOptions {
   minTabWidth?: number;
+  // Space between neighbouring tabs.
+  gap?: number;
   // Width the "+N" button takes when it is shown.
   overflowWidth: number;
 }
@@ -59,8 +61,9 @@ function collapseRank(tab: LayoutTab): number {
  * below `minWidth`. Returns Infinity when no tab needs to shrink and null when
  * even the minimum width does not fit.
  */
-function widthCap(widths: number[], available: number, minWidth: number): number | null {
-  const sum = (cap: number) => widths.reduce((total, w) => total + Math.min(w, cap), 0);
+function widthCap(widths: number[], available: number, minWidth: number, gap: number): number | null {
+  const gaps = gap * Math.max(widths.length - 1, 0);
+  const sum = (cap: number) => widths.reduce((total, w) => total + Math.min(w, cap), gaps);
   if (sum(Infinity) <= available) return Infinity;
   if (sum(minWidth) > available) return null;
 
@@ -83,8 +86,9 @@ function visibleWithCap(tabs: LayoutTab[], cap: number): VisibleTab[] {
 
 export function computeTabLayout(tabs: LayoutTab[], available: number, options: TabLayoutOptions): TabLayout {
   const minWidth = options.minTabWidth ?? MIN_TAB_WIDTH;
+  const gap = options.gap ?? 0;
 
-  const everything = widthCap(tabs.map((t) => t.width), available, minWidth);
+  const everything = widthCap(tabs.map((t) => t.width), available, minWidth, gap);
   if (everything !== null) {
     return { visible: visibleWithCap(tabs, everything), overflow: [] };
   }
@@ -98,12 +102,13 @@ export function computeTabLayout(tabs: LayoutTab[], available: number, options: 
 
   const hidden = new Set<string>();
   const remaining = () => tabs.filter((t) => !hidden.has(t.id));
-  const room = available - options.overflowWidth;
+  // The "+N" button sits one gap after the last tab.
+  const room = available - options.overflowWidth - gap;
 
   for (const { tab } of candidates) {
     hidden.add(tab.id);
     const left = remaining();
-    const cap = widthCap(left.map((t) => t.width), room, minWidth);
+    const cap = widthCap(left.map((t) => t.width), room, minWidth, gap);
     if (cap !== null) {
       return {
         visible: visibleWithCap(left, cap),
