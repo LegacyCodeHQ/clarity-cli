@@ -25,6 +25,10 @@ export interface ViewerState {
   worktrees: WorktreeDescriptor[];
   selectedWorktreeID: string;
   byWorktree: Record<string, WorktreeBucket>;
+  // The newest working-snapshot id the user has already had on screen, per
+  // worktree. A tab whose latest snapshot is newer than this has changes the
+  // user has not looked at yet. Viewing a worktree catches it up.
+  seenSnapshotID: Record<string, number>;
 
   // Effective view for the selected worktree — derived from
   // byWorktree[selectedWorktreeID] on every state update so downstream
@@ -160,6 +164,28 @@ function projectBucketsForState(
   };
 }
 
+function latestWorkingSnapshotID(state: Pick<ViewerState, "byWorktree">, worktreeID: string): number {
+  const working = state.byWorktree[worktreeID]?.working ?? [];
+  return working.reduce((latest, snap) => Math.max(latest, snap.id), 0);
+}
+
+export type WorktreeChangeStatus = "none" | "unseen" | "seen";
+
+/**
+ * Whether a worktree tab should carry a change badge, and which kind.
+ * "none": nothing to look at (clean, or the worktree was removed).
+ * "unseen": it has changes the user has not looked at yet.
+ * "seen": it has changes, but the user has already viewed the latest.
+ */
+export function getWorktreeChangeStatus(state: ViewerState, worktreeID: string): WorktreeChangeStatus {
+  const worktree = state.worktrees.find((w) => w.id === worktreeID);
+  if (!worktree || !worktree.active || worktree.changedFiles <= 0) {
+    return "none";
+  }
+  const latest = latestWorkingSnapshotID(state, worktreeID);
+  return latest > (state.seenSnapshotID[worktreeID] ?? 0) ? "unseen" : "seen";
+}
+
 export function normalizeState(state: Partial<ViewerState>): ViewerState {
   const worktrees = Array.isArray(state.worktrees) ? state.worktrees : [];
   const selectedWorktreeID = resolveSelectedWorktreeID(worktrees, state.selectedWorktreeID ?? DEFAULT_WORKTREE_ID);
@@ -182,6 +208,7 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
     worktrees,
     selectedWorktreeID,
     byWorktree,
+    seenSnapshotID: { ...(state.seenSnapshotID ?? {}) },
     workingSnapshots: projected.workingSnapshots,
     pastCollections: projected.pastCollections,
     selectedCollectionID: state.selectedCollectionID ?? null,
@@ -203,6 +230,13 @@ export function normalizeState(state: Partial<ViewerState>): ViewerState {
 
   if (next.workingSnapshots.length === 0) {
     next.liveSnapshotIndex = null;
+  }
+
+  // Whatever worktree is on screen counts as seen, including snapshots that
+  // arrive while the user is looking at it.
+  const selectedLatest = latestWorkingSnapshotID(next, selectedWorktreeID);
+  if (selectedLatest > (next.seenSnapshotID[selectedWorktreeID] ?? 0)) {
+    next.seenSnapshotID = { ...next.seenSnapshotID, [selectedWorktreeID]: selectedLatest };
   }
 
   const selectedCollection = getSelectedCollection(next);

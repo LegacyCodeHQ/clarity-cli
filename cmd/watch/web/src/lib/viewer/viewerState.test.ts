@@ -7,6 +7,7 @@ import {
   formatSnapshotMeta,
   getSourceOptions,
   getViewModel,
+  getWorktreeChangeStatus,
   groupSourceOptions,
   mergePayload,
   selectPersistedSession,
@@ -82,6 +83,7 @@ function baseState(): ViewerState {
     worktrees: [],
     selectedWorktreeID: "main",
     byWorktree: {},
+    seenSnapshotID: {},
     workingSnapshots: [],
     pastCollections: [],
     selectedCollectionID: null,
@@ -748,5 +750,62 @@ describe('persisted session history (CLR-99)', () => {
       expect(next.persistedSessions).toHaveLength(1);
       expect(next.selectedCollectionID).toBe(5);
     });
+  });
+});
+
+describe('getWorktreeChangeStatus', () => {
+  const main = { id: "main", path: "/p", label: "main", kind: 'main' as const, active: true, changedFiles: 2 };
+  const feat = { id: "wt-feat", path: "/wt", label: "feat", kind: 'linked' as const, active: true, changedFiles: 3 };
+
+  function payload(worktrees = [main, feat], workingSnapshots = [snapshot(1, "digraph{}", "main"), snapshot(2, "digraph{}", "wt-feat")]) {
+    return { worktrees, workingSnapshots, pastCollections: [] };
+  }
+
+  it('treats the worktree on screen as seen and the others as unseen', () => {
+    const state = mergePayload(baseState(), payload());
+    expect(getWorktreeChangeStatus(state, "main")).toBe("seen");
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("unseen");
+  });
+
+  it('marks a worktree seen once it is selected', () => {
+    const state = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("seen");
+  });
+
+  it('turns a seen worktree unseen again when newer changes arrive while it is off screen', () => {
+    let state = selectWorktree(mergePayload(baseState(), payload()), "wt-feat");
+    state = selectWorktree(state, "main");
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("seen");
+
+    state = mergePayload(state, payload([main, { ...feat, changedFiles: 5 }], [
+      snapshot(1, "digraph{}", "main"),
+      snapshot(2, "digraph{}", "wt-feat"),
+      snapshot(3, "digraph{a}", "wt-feat"),
+    ]));
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("unseen");
+  });
+
+  it('keeps the selected worktree seen as new snapshots arrive', () => {
+    let state = mergePayload(baseState(), payload());
+    state = mergePayload(state, payload([main, feat], [
+      snapshot(1, "digraph{}", "main"),
+      snapshot(4, "digraph{b}", "main"),
+      snapshot(2, "digraph{}", "wt-feat"),
+    ]));
+    expect(getWorktreeChangeStatus(state, "main")).toBe("seen");
+  });
+
+  it('has no status for a clean worktree', () => {
+    const state = mergePayload(baseState(), payload([main, { ...feat, changedFiles: 0 }]));
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("none");
+  });
+
+  it('has no status for a removed worktree', () => {
+    const state = mergePayload(baseState(), payload([main, { ...feat, active: false }]));
+    expect(getWorktreeChangeStatus(state, "wt-feat")).toBe("none");
+  });
+
+  it('has no status for an unknown worktree', () => {
+    expect(getWorktreeChangeStatus(mergePayload(baseState(), payload()), "nope")).toBe("none");
   });
 });
