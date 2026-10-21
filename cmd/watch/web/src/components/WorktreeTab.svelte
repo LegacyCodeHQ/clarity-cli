@@ -40,7 +40,7 @@
     role="presentation"
     style:max-width={maxWidth ? `${maxWidth}px` : undefined}
     class={cn(
-      "flex h-8 items-center rounded-lg text-body font-medium transition-colors",
+      "relative flex h-8 items-center rounded-lg text-body font-medium transition-colors",
       "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring",
       selected
         ? "bg-tab-active text-foreground shadow-xs ring-1 ring-tab-active-border ring-inset"
@@ -49,13 +49,17 @@
       removed && "text-destructive hover:text-destructive"
     )}
   >
+    <!-- Sits in the tab's left padding, so it appearing never moves anything. -->
+    {#if status === "unseen"}
+      <NewDot class="absolute top-1/2 left-[3px] -translate-y-1/2" />
+    {/if}
     <button
       type="button"
       role="tab"
       aria-selected={selected}
       class={cn(
         "flex h-full min-w-0 flex-1 items-center gap-2 pl-3 outline-none",
-        status === "unseen" ? "pr-3" : trailing ? "pr-2" : "pr-3",
+        trailing ? "pr-2" : "pr-3",
         removed && "italic"
       )}
       onclick={onselect}
@@ -64,10 +68,7 @@
       <span class="truncate">{label}</span>
       {#if hasBadge}
         <Tooltip text={badgeText} class="shrink-0">
-          <span class="flex items-center gap-1.5">
-            <Badge>{worktree.changedFiles}</Badge>
-            {#if status === "unseen"}<NewDot />{/if}
-          </span>
+          <Badge>{worktree.changedFiles}</Badge>
         </Tooltip>
       {/if}
     </button>
