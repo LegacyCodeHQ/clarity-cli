@@ -241,3 +241,58 @@ func TestBroker_CloseWorktree_UnknownWorktreeReturnsFalse(t *testing.T) {
 
 	assert.Equal(t, closeNotFound, b.closeWorktree("wt-missing"), "closing an unknown worktree should report not found")
 }
+
+func TestBroker_SetChangedFiles_BroadcastsCountOnTab(t *testing.T) {
+	b := newBroker()
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Label: "repo", Kind: protocol.WorktreeKindMain, Active: true})
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+	<-ch // initial payload
+
+	b.setChangedFiles("main", 3)
+
+	select {
+	case got := <-ch:
+		require.Len(t, got.Worktrees, 1)
+		assert.Equal(t, 3, got.Worktrees[0].ChangedFiles)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for the updated count")
+	}
+}
+
+func TestBroker_SetChangedFiles_UnchangedCountDoesNotBroadcast(t *testing.T) {
+	b := newBroker()
+	b.registerWorktree(protocol.WorktreeDescriptor{ID: "main", Path: "/repo", Label: "repo", Kind: protocol.WorktreeKindMain, Active: true})
+	b.setChangedFiles("main", 2)
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+	<-ch // initial payload
+
+	b.setChangedFiles("main", 2)
+
+	select {
+	case <-ch:
+		t.Fatal("an unchanged count must not trigger a broadcast")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestBroker_SetChangedFiles_UnknownWorktreeIsIgnored(t *testing.T) {
+	b := newBroker()
+	b.setChangedFiles("nope", 5)
+	assert.Empty(t, b.worktrees)
+}
+
+func TestBroker_RegisterWorktree_ReRegisterKeepsChangedFiles(t *testing.T) {
+	b := newBroker()
+	desc := protocol.WorktreeDescriptor{ID: "wt-1", Path: "/wt", Label: "feat/a", Kind: protocol.WorktreeKindLinked, Active: true}
+	b.registerWorktree(desc)
+	b.setChangedFiles("wt-1", 4)
+
+	desc.Label = "feat/renamed"
+	b.registerWorktree(desc)
+
+	require.Len(t, b.worktrees, 1)
+	assert.Equal(t, "feat/renamed", b.worktrees[0].Label)
+	assert.Equal(t, 4, b.worktrees[0].ChangedFiles)
+}

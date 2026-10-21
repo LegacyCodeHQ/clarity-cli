@@ -1333,3 +1333,29 @@ func runGit(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %v failed: %s", args, out)
 }
+
+func TestCountUncommittedFiles_CountsChangedAddedAndDeleted(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package main\n"), 0o644))
+	for _, args := range [][]string{{"git", "add", "."}, {"git", "commit", "-m", "files"}} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "cmd %v failed: %s", args, out)
+	}
+
+	clean, err := countUncommittedFiles(dir)
+	require.NoError(t, err)
+	assert.Equal(t, 0, clean)
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\n\nvar x = 1\n"), 0o644))
+	require.NoError(t, os.Remove(filepath.Join(dir, "b.go")))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "c.go"), []byte("package main\n"), 0o644))
+
+	got, err := countUncommittedFiles(dir)
+	require.NoError(t, err)
+	assert.Equal(t, 3, got, "one modified, one deleted, one untracked")
+}

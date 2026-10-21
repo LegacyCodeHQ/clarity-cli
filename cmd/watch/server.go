@@ -116,6 +116,9 @@ func (b *broker) unsubscribe(ch chan protocol.GraphStreamPayload) {
 func (b *broker) registerWorktree(desc protocol.WorktreeDescriptor) {
 	b.mu.Lock()
 	if idx, ok := b.worktreeIndex[desc.ID]; ok {
+		// The change count is owned by the watcher (see setChangedFiles), not
+		// by whoever re-registers the path/label, so it survives the update.
+		desc.ChangedFiles = b.worktrees[idx].ChangedFiles
 		b.worktrees[idx] = desc
 	} else {
 		b.worktreeIndex[desc.ID] = len(b.worktrees)
@@ -131,6 +134,19 @@ func (b *broker) registerWorktree(desc protocol.WorktreeDescriptor) {
 			fmt.Fprintf(os.Stderr, "persist worktree %s: %v\n", desc.ID, err)
 		}
 	}
+}
+
+// setChangedFiles records how many uncommitted files a worktree has and
+// broadcasts the new tab set when the number actually changed.
+func (b *broker) setChangedFiles(worktreeID string, count int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	idx, ok := b.worktreeIndex[worktreeID]
+	if !ok || b.worktrees[idx].ChangedFiles == count {
+		return
+	}
+	b.worktrees[idx].ChangedFiles = count
+	b.broadcastLocked()
 }
 
 // unregisterWorktree removes a worktree and its snapshot history outright.

@@ -185,6 +185,22 @@ func buildGraph(worktreePath string, opts *watchOptions, formatter formatters.Fo
 
 var errNoUncommittedChanges = fmt.Errorf("no uncommitted changes")
 
+// countUncommittedFiles returns how many files in the worktree are changed,
+// added or deleted relative to HEAD. It deliberately ignores the graph scope
+// flags (--reach, --module, ...): the tab badge reports the worktree's own
+// state, not what the graph happens to show.
+func countUncommittedFiles(worktreePath string) (int, error) {
+	changed, err := git.GetUncommittedFiles(worktreePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get uncommitted files: %w", err)
+	}
+	deleted, err := git.GetUncommittedDeletedFiles(worktreePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get deleted uncommitted files: %w", err)
+	}
+	return len(unionWatchPaths(changed, deleted)), nil
+}
+
 func validateWatchGraphOptions(opts *watchOptions) error {
 	opts.reach = strings.ToLower(strings.TrimSpace(opts.reach))
 	switch opts.reach {

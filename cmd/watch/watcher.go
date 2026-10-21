@@ -187,6 +187,7 @@ func publishCurrentGraph(worktreeID, worktreePath string, opts *watchOptions, b 
 
 	dot, err := buildGraph(worktreePath, opts, formatter)
 	if errors.Is(err, errNoUncommittedChanges) {
+		b.setChangedFiles(worktreeID, 0)
 		b.clearWorkingSet(worktreeID)
 		return
 	}
@@ -202,6 +203,9 @@ func publishCurrentGraph(worktreeID, worktreePath string, opts *watchOptions, b 
 		}
 		fmt.Fprintf(os.Stderr, "graph rebuild error: %v\n", err)
 		return
+	}
+	if changed, countErr := countUncommittedFiles(worktreePath); countErr == nil {
+		b.setChangedFiles(worktreeID, changed)
 	}
 	b.publish(worktreeID, dot)
 }

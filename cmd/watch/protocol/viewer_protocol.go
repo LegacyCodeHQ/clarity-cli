@@ -61,6 +61,10 @@ type WorktreeDescriptor struct {
 	// as a frozen, read-only record and becomes user-closable. The main
 	// worktree stays active for the life of the watch session.
 	Active bool `json:"active"`
+	// ChangedFiles is the number of uncommitted files (changed, added or
+	// deleted) in the worktree right now. Zero for a clean worktree. It lets
+	// the viewer badge a tab without parsing every snapshot's graph.
+	ChangedFiles int `json:"changedFiles"`
 }
 
 // GraphSnapshot is the atom in the watch protocol timeline.
