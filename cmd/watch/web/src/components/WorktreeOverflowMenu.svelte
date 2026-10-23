@@ -31,6 +31,9 @@
   let trigger = $state<HTMLButtonElement | null>(null);
   let menu = $state<HTMLElement | null>(null);
   let searchInput = $state<HTMLInputElement | null>(null);
+  let listEl = $state<HTMLElement | null>(null);
+  // A long list fades out at the bottom edge while there is more to scroll to.
+  let fadeBottom = $state(false);
 
   const showSearch = $derived(worktrees.length > SEARCH_THRESHOLD);
   const matches = $derived(
@@ -90,6 +93,16 @@
     }
   }
 
+  function updateFade() {
+    fadeBottom = !!listEl && listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight > 1;
+  }
+
+  $effect(() => {
+    open;
+    flat;
+    queueMicrotask(updateFade);
+  });
+
   // Keep the keyboard highlight in view when the list scrolls.
   $effect(() => {
     if (highlighted >= 0) {
@@ -127,14 +140,24 @@
       class={cn("flex h-full min-w-0 flex-1 items-center gap-2 px-2 outline-none", isRemoved && "italic")}
       onclick={() => choose(worktree.id)}
     >
-      <Icon size={16} class={cn("shrink-0", !isRemoved && "text-foreground/70")} />
+      <!-- Same convention as the tabs: the unseen dot sits on the icon's corner and
+           the icon is cut away around it, so it works on any row background. -->
+      <span class="relative flex size-4 shrink-0">
+        <Icon
+          size={16}
+          class={cn(
+            !isRemoved && "text-foreground/70",
+            status === "unseen" && "[mask-image:radial-gradient(circle_at_13px_3px,transparent_5px,#000_5.5px)]"
+          )}
+        />
+        {#if status === "unseen"}
+          <NewDot class="absolute top-0 right-0" />
+        {/if}
+      </span>
       <span class="truncate">{worktree.label || worktree.id}</span>
       <span class="flex-1"></span>
       {#if status !== "none"}
-        <span class="flex items-center gap-1.5">
-          <Badge>{worktree.changedFiles}</Badge>
-          {#if status === "unseen"}<NewDot />{/if}
-        </span>
+        <Badge>{worktree.changedFiles}</Badge>
       {/if}
     </button>
     {#if isRemoved}
@@ -183,9 +206,16 @@
       {#if showSearch}
         <SearchField bind:value={query} bind:input={searchInput} placeholder="Find worktree…" class="mb-2" />
       {/if}
-      <div class="max-h-80 overflow-y-auto">
+      <div
+        bind:this={listEl}
+        onscroll={updateFade}
+        class={cn(
+          "max-h-60 overflow-y-auto",
+          fadeBottom && "[mask-image:linear-gradient(to_bottom,#000_calc(100%-40px),transparent)]"
+        )}
+      >
         {#if flat.length === 0}
-          <p class="flex h-8 items-center justify-center text-xs text-muted-foreground">
+          <p class="flex h-12 items-center justify-center text-xs text-muted-foreground">
             No worktrees match “{query.trim()}”
           </p>
         {/if}
