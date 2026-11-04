@@ -2,7 +2,7 @@ module github.com/LegacyCodeHQ/clarity
 
 go 1.25.11
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/dominikbraun/graph v0.23.0
