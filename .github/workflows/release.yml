@@ -94,7 +94,7 @@ jobs:
           apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=120)
           sudo env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" update
           sudo env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install --yes --no-install-recommends \
-            gcc-mingw-w64-x86-64 gcc-aarch64-linux-gnu \
+            gcc-mingw-w64-x86-64 gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
             clang llvm-dev libxml2-dev uuid-dev libssl-dev bash patch make tar \
             xz-utils bzip2 gzip sed cpio libbz2-dev
 
@@ -119,6 +119,15 @@ jobs:
 
       - name: Add OSXCross to PATH
         run: echo "/tmp/osxcross/target/bin" >> $GITHUB_PATH
+
+      - name: Verify target C headers and linkers
+        run: |
+          for compiler in gcc aarch64-linux-gnu-gcc x86_64-w64-mingw32-gcc o64-clang oa64-clang; do
+            echo "Checking $compiler"
+            printf '%s\n' '#include <stdlib.h>' '#include <stdint.h>' '#include <stdio.h>' '#include <errno.h>' \
+              'int main(void) { return 0; }' | \
+              "$compiler" -x c - -o "$RUNNER_TEMP/clarity-${compiler}-check"
+          done
 
       - name: Select curated release notes when available
         id: release-notes
