@@ -12,7 +12,7 @@ func modulePath(name string) (string, bool) {
 	quoted := false
 	for _, r := range name {
 		switch {
-		case r == '«':
+		case r == '«' && !quoted:
 			quoted = true
 		case r == '»':
 			quoted = false
