@@ -1,0 +1,14 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+
+  "Main.lean" [label="Main.lean", style=filled, fillcolor=lightgreen];
+  "MyLib.lean" [label="MyLib.lean", style=filled, fillcolor=lightgreen];
+  "MyLib/Basic.lean" [label="MyLib/Basic.lean", style=filled, fillcolor=lightgreen];
+  "Tests/Basic.lean" [label="Tests/Basic.lean", style=filled, fillcolor=lightgreen];
+
+  "Main.lean" -> "MyLib.lean";
+  "Main.lean" -> "MyLib/Basic.lean";
+  "MyLib.lean" -> "MyLib/Basic.lean";
+  "Tests/Basic.lean" -> "MyLib/Basic.lean";
+}

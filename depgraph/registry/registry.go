@@ -10,6 +10,7 @@ import (
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/java"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/javascript"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/kotlin"
+	"github.com/LegacyCodeHQ/clarity/depgraph/languages/lean"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/markdown"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/python"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/ruby"
@@ -32,6 +33,7 @@ var providers = []moduleapi.Provider{
 	javascript.Provider{},
 	java.Provider{},
 	kotlin.Provider{},
+	lean.Provider{},
 	markdown.Provider{},
 	python.Provider{},
 	ruby.Provider{},

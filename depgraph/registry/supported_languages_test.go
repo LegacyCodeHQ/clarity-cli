@@ -1,6 +1,21 @@
 package registry
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/LegacyCodeHQ/clarity/depgraph/moduleapi"
+	"github.com/stretchr/testify/require"
+)
+
+func TestLeanSupport(t *testing.T) {
+	provider, ok := ProviderForExtension(".lean")
+	require.True(t, ok)
+	require.Equal(t, "Lean 4", provider.Name())
+	require.Equal(t, moduleapi.MaturityBasicTests, provider.Maturity())
+	require.True(t, IsSupportedLanguageExtension(".lean"))
+	require.True(t, IsTestFile("/project/Tests/Basic.lean", nil))
+	require.False(t, IsTestFile("/project/MyLib/Theorems.lean", nil))
+}
 
 func TestSupportedLanguages(t *testing.T) {
 	languages := SupportedLanguages()

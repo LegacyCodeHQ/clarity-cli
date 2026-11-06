@@ -210,6 +210,7 @@ Clarity supports dependency extraction for:
 - Go
 - Java, Kotlin, Scala
 - JavaScript, TypeScript, Svelte
+- Lean 4
 - Markdown
 - Python, Ruby
 - Rust
