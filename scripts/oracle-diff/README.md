@@ -65,6 +65,22 @@ Validated on 2026-11-06 with no differences: Quint's official examples (77 files
 24 edges, 25 test files), `fabric/quint-specs` (12 files, 4 edges, 4 test files),
 and `murumur/Specifications/Quint` (14 files, 20 edges, 11 test files).
 
+Fresh public clones were also checked on 2026-11-06 with Quint 0.33.0's reference
+parser. All nodes, explicit file edges, and test classifications matched:
+
+| Repository / scope | Revision | Files | Edges | Test files |
+| --- | --- | ---: | ---: | ---: |
+| [quint-co/quint](https://github.com/quint-co/quint), `examples` | `07d7a1a69c2093b5bc656caf3b5dfefa0d766cd0` | 77 | 24 | 25 |
+| [informalsystems/tendermint-spec](https://github.com/informalsystems/tendermint-spec), whole tree | `1aaf8dbf992be03a7ac1e2fbbd333d1f929d20de` | 4 | 6 | 2 |
+| [informalsystems/mysticeti-spec](https://github.com/informalsystems/mysticeti-spec), whole tree | `fbfad309f7ee6ea2d2ad66bd6e93c4dc155427f8` | 9 | 14 | 4 |
+
+Additional CLI checks passed: whole-tree rendering of all 197 `.qnt` files in
+the official Quint repository (including intentionally invalid parser fixtures),
+Git HEAD graphs matching working-tree graphs for both consensus specs, and
+depth-two dependency traversal from `tendermint_tests.qnt`. The 197-file run is
+a robustness smoke check, not a reference-parser equivalence claim for invalid
+fixtures. No integration fixes were needed for these repositories.
+
 # Rust oracle diff
 
 Cross-checks Clarity's Rust dependency graph against
