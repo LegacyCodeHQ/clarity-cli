@@ -42,7 +42,9 @@ prelude imports do not create edges.
 Executable `lakefile.lean` configuration, `LEAN_PATH`, compiled `.olean` files,
 and dependency package search paths are not evaluated. An uninterpreted Lake
 configuration still establishes a package boundary and uses its directory as
-the default source root. This is source import analysis, not Lean
+the default source root. If both config formats exist, `lakefile.lean` takes
+precedence, matching Lake; the dormant TOML file supplies neither source roots
+nor test-driver classification. This is source import analysis, not Lean
 elaboration or declaration-level proof dependency analysis. Syntax errors in
 declarations do not discard successfully parsed imports from the header.
 Test detection uses `test`/`tests` directories (case insensitive), `_test.lean`,

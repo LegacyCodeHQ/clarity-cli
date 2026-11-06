@@ -92,14 +92,29 @@ func TestResolveLeanLakeNestedPackageBoundary(t *testing.T) {
 	require.Empty(t, got)
 }
 
+func TestResolveLeanLakeLeanConfigTakesPrecedenceOverTomlSourceRoots(t *testing.T) {
+	reader := leanConfigReader(map[string]string{
+		"/project/lakefile.lean": "import Lake\nopen Lake DSL\npackage sample\nlean_lib Lib\n",
+		"/project/lakefile.toml": "name = 'sample'\nsrcDir = 'alternate'\n[[lean_lib]]\nname = 'Lib'\n",
+		"/project/Main.lean":     "import Lib.Basic\n",
+	})
+	got, err := ResolveLeanProjectImports("/project/Main.lean", map[string]bool{
+		"/project/Lib/Basic.lean":           true,
+		"/project/alternate/Lib/Basic.lean": true,
+	}, reader)
+	require.NoError(t, err)
+	require.Equal(t, []string{"/project/Lib/Basic.lean"}, got)
+}
+
 func TestResolveLeanProjectImportsPrefersNearestRoot(t *testing.T) {
 	files := map[string]bool{
 		"/project/MyLib/Basic.lean":        true,
 		"/project/nested/MyLib/Basic.lean": true,
 	}
-	got, err := ResolveLeanProjectImports("/project/nested/Main.lean", files, func(string) ([]byte, error) {
-		return []byte("import MyLib.Basic\n"), nil
+	reader := leanConfigReader(map[string]string{
+		"/project/nested/Main.lean": "import MyLib.Basic\n",
 	})
+	got, err := ResolveLeanProjectImports("/project/nested/Main.lean", files, reader)
 	require.NoError(t, err)
 	require.Equal(t, []string{"/project/nested/MyLib/Basic.lean"}, got)
 }

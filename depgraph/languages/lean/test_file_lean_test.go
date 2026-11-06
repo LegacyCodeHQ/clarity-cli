@@ -77,6 +77,14 @@ func TestLakeTestDriverPackageBoundaries(t *testing.T) {
 	require.True(t, (Provider{}).IsTestFile("/project/tests/Basic.lean", nil))
 }
 
+func TestLakeLeanConfigTakesPrecedenceOverTomlTestDriver(t *testing.T) {
+	reader := leanConfigReader(map[string]string{
+		"/project/lakefile.lean": "import Lake\nopen Lake DSL\npackage sample\nlean_lib Lib\n",
+		"/project/lakefile.toml": "testDriver = 'WrongTest'\n[[lean_lib]]\nname = 'WrongTest'\n",
+	})
+	require.False(t, (Provider{}).IsTestFile("/project/WrongTest/Basic.lean", reader))
+}
+
 func leanConfigReader(files map[string]string) vcs.ContentReader {
 	return func(path string) ([]byte, error) {
 		if content, ok := files[path]; ok {

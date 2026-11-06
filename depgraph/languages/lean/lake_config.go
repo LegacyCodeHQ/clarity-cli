@@ -27,15 +27,17 @@ type lakeTarget struct {
 // nil config is a package whose configuration we cannot statically interpret.
 func findLakePackage(absPath string, contentReader vcs.ContentReader) (string, *lakeConfig) {
 	for dir := filepath.Dir(absPath); ; dir = filepath.Dir(dir) {
+		// Lake prefers Lean configuration when both formats are present. We do
+		// not evaluate it, and must not apply a dormant TOML configuration.
+		if _, err := contentReader(filepath.Join(dir, "lakefile.lean")); err == nil {
+			return dir, nil
+		}
 		if content, err := contentReader(filepath.Join(dir, "lakefile.toml")); err == nil {
 			var config lakeConfig
 			if toml.Unmarshal(content, &config) != nil {
 				return dir, nil
 			}
 			return dir, &config
-		}
-		if _, err := contentReader(filepath.Join(dir, "lakefile.lean")); err == nil {
-			return dir, nil
 		}
 		if filepath.Dir(dir) == dir {
 			return "", nil
