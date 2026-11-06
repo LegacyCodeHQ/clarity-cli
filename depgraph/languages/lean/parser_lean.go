@@ -1,6 +1,7 @@
 package lean
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -9,10 +10,12 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+var leanLanguage = tree_sitter_lean.GetLanguage()
+
 var leanParserPool = sync.Pool{
 	New: func() any {
 		parser := sitter.NewParser()
-		parser.SetLanguage(tree_sitter_lean.GetLanguage())
+		parser.SetLanguage(leanLanguage)
 		return parser
 	},
 }
@@ -20,6 +23,13 @@ var leanParserPool = sync.Pool{
 // ParseImports extracts explicit module imports, preserving source order.
 // Syntax errors in declarations do not discard the file's import header.
 func ParseImports(sourceCode []byte) ([]string, error) {
+	if !bytes.Contains(sourceCode, []byte("import")) {
+		return nil, nil
+	}
+	sourceCode = leanImportHeader(sourceCode)
+	if len(sourceCode) == 0 {
+		return nil, nil
+	}
 	parser, _ := leanParserPool.Get().(*sitter.Parser)
 	if parser == nil {
 		return nil, fmt.Errorf("failed to acquire Lean parser")

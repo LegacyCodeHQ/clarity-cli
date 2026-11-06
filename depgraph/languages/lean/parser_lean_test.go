@@ -1,10 +1,36 @@
 package lean
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestParseManyLeanImports(t *testing.T) {
+	var source strings.Builder
+	var expected []string
+	for i := 0; i < 300; i++ {
+		name := fmt.Sprintf("Library.Module%d", i)
+		fmt.Fprintf(&source, "import %s\n", name)
+		expected = append(expected, name)
+	}
+	got, err := ParseImports([]byte(source.String()))
+	require.NoError(t, err)
+	require.Equal(t, expected, got)
+}
+
+func TestLeanImportsSurviveErrorRoot(t *testing.T) {
+	// A partial nested do block can make tree-sitter recover with an ERROR root
+	// instead of module. The valid file header must still contribute imports.
+	source := []byte("import Library.Basic\ndef inspect : IO (Array Nat) := do\n" +
+		"  let (first?, second?, third?) ← readValues?\n" +
+		"  let result ← input.values.flatMapM fun value => do")
+	got, err := ParseImports(source)
+	require.NoError(t, err)
+	require.Equal(t, []string{"Library.Basic"}, got)
+}
 
 func TestParseImports(t *testing.T) {
 	tests := []struct {
@@ -36,6 +62,27 @@ func TestParseImports(t *testing.T) {
 			source: "import MyLib.Basic\nsyntax \"custom\" : term\n" +
 				"def broken := @@@ custom\n",
 			want: []string{"MyLib.Basic"},
+		},
+		{
+			name: "header comments and quoted comment markers",
+			source: "module\nprelude\npublic /- outer /- nested -/ -/ meta import all MyLib.«not--a/-comment»\n" +
+				"import Other-- adjacent line comment\nimport Third/- adjacent block comment -/\n" +
+				"public meta section\ndef text := \"import Fake.Body\"\n",
+			want: []string{"MyLib.«not--a/-comment»", "Other", "Third"},
+		},
+		{
+			name:   "quoted identifiers containing spaces and opening guillemets",
+			source: "import MyLib.«with space»\nimport MyLib.«left«angle»\ndef f := 1\n",
+			want:   []string{"MyLib.«with space»", "MyLib.«left«angle»"},
+		},
+		{
+			name:   "unfinished header retains complete preceding imports",
+			source: "import MyLib.Basic\nimport /- unfinished",
+			want:   []string{"MyLib.Basic"},
+		},
+		{
+			name:   "import text occurs only in declarations",
+			source: "def text := \"import Fake.Body\"\n",
 		},
 		{name: "empty"},
 		{name: "prelude", source: "prelude\ndef x := 1\n"},

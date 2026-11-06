@@ -14,7 +14,8 @@ func (Provider) Extensions() []string { return []string{".lean"} }
 func (Provider) Maturity() moduleapi.MaturityLevel { return moduleapi.MaturityBasicTests }
 
 func (Provider) NewResolver(ctx *moduleapi.Context, contentReader vcs.ContentReader) moduleapi.Resolver {
-	return resolver{ctx: ctx, contentReader: contentReader}
+	lookup := &lakeLookup{reader: contentReader}
+	return resolver{ctx: ctx, contentReader: contentReader, sourceRoots: lookup.sourceRoots}
 }
 
 func (Provider) IsTestFile(filePath string, contentReader vcs.ContentReader) bool {
@@ -24,10 +25,11 @@ func (Provider) IsTestFile(filePath string, contentReader vcs.ContentReader) boo
 type resolver struct {
 	ctx           *moduleapi.Context
 	contentReader vcs.ContentReader
+	sourceRoots   func(string) []string
 }
 
 func (r resolver) ResolveProjectImports(absPath, _, _ string) ([]string, error) {
-	return ResolveLeanProjectImports(absPath, r.ctx.SuppliedFiles, r.contentReader)
+	return resolveLeanProjectImports(absPath, r.ctx.SuppliedFiles, r.contentReader, r.sourceRoots)
 }
 
 func (resolver) FinalizeGraph(_ moduleapi.Graph) error { return nil }

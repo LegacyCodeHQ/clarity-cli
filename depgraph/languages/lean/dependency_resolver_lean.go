@@ -11,6 +11,12 @@ import (
 // files. Lake packages use declared source roots; standalone files use ancestors
 // of the importing file, nearest first. LEAN_PATH is not evaluated.
 func ResolveLeanProjectImports(absPath string, suppliedFiles map[string]bool, contentReader vcs.ContentReader) ([]string, error) {
+	return resolveLeanProjectImports(absPath, suppliedFiles, contentReader, func(path string) []string {
+		return leanSourceRoots(path, contentReader)
+	})
+}
+
+func resolveLeanProjectImports(absPath string, suppliedFiles map[string]bool, contentReader vcs.ContentReader, sourceRoots func(string) []string) ([]string, error) {
 	content, err := contentReader(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", absPath, err)
@@ -19,10 +25,13 @@ func ResolveLeanProjectImports(absPath string, suppliedFiles map[string]bool, co
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse imports in %s: %w", absPath, err)
 	}
+	if len(imports) == 0 {
+		return nil, nil
+	}
 
 	var dependencies []string
 	seen := make(map[string]bool)
-	roots := leanSourceRoots(absPath, contentReader)
+	roots := sourceRoots(absPath)
 	for _, name := range imports {
 		relativePath, ok := modulePath(name)
 		if !ok {

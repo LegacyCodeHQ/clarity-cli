@@ -27,17 +27,8 @@ type lakeTarget struct {
 // nil config is a package whose configuration we cannot statically interpret.
 func findLakePackage(absPath string, contentReader vcs.ContentReader) (string, *lakeConfig) {
 	for dir := filepath.Dir(absPath); ; dir = filepath.Dir(dir) {
-		// Lake prefers Lean configuration when both formats are present. We do
-		// not evaluate it, and must not apply a dormant TOML configuration.
-		if _, err := contentReader(filepath.Join(dir, "lakefile.lean")); err == nil {
-			return dir, nil
-		}
-		if content, err := contentReader(filepath.Join(dir, "lakefile.toml")); err == nil {
-			var config lakeConfig
-			if toml.Unmarshal(content, &config) != nil {
-				return dir, nil
-			}
-			return dir, &config
+		if config, found := readLakePackage(dir, contentReader); found {
+			return dir, config
 		}
 		if filepath.Dir(dir) == dir {
 			return "", nil
@@ -45,33 +36,56 @@ func findLakePackage(absPath string, contentReader vcs.ContentReader) (string, *
 	}
 }
 
+func readLakePackage(dir string, contentReader vcs.ContentReader) (*lakeConfig, bool) {
+	// Lake prefers Lean configuration when both formats are present. We do
+	// not evaluate it, and must not apply a dormant TOML configuration.
+	if _, err := contentReader(filepath.Join(dir, "lakefile.lean")); err == nil {
+		return nil, true
+	}
+	if content, err := contentReader(filepath.Join(dir, "lakefile.toml")); err == nil {
+		var config lakeConfig
+		if toml.Unmarshal(content, &config) != nil {
+			return nil, true
+		}
+		return &config, true
+	}
+	return nil, false
+}
+
 func leanSourceRoots(absPath string, contentReader vcs.ContentReader) []string {
 	packageDir, config := findLakePackage(absPath, contentReader)
 	if packageDir != "" {
-		// Even an uninterpreted Lake configuration establishes a package boundary;
-		// do not mistake arbitrary nested directories for Lean include paths.
-		if config == nil {
-			return []string{packageDir}
-		}
-		packageRoot := filepath.Join(packageDir, config.SrcDir)
-		roots := []string{packageRoot}
-		seen := map[string]bool{packageRoot: true}
-		addTarget := func(target lakeTarget) {
-			root := filepath.Join(packageRoot, target.SrcDir)
-			if !seen[root] {
-				seen[root] = true
-				roots = append(roots, root)
-			}
-		}
-		for _, target := range config.Libraries {
-			addTarget(target)
-		}
-		for _, target := range config.Executables {
-			addTarget(target)
-		}
-		return roots
+		return lakeSourceRoots(packageDir, config)
 	}
+	return ancestorSourceRoots(absPath)
+}
 
+func lakeSourceRoots(packageDir string, config *lakeConfig) []string {
+	// Even an uninterpreted Lake configuration establishes a package boundary;
+	// do not mistake arbitrary nested directories for Lean include paths.
+	if config == nil {
+		return []string{packageDir}
+	}
+	packageRoot := filepath.Join(packageDir, config.SrcDir)
+	roots := []string{packageRoot}
+	seen := map[string]bool{packageRoot: true}
+	addTarget := func(target lakeTarget) {
+		root := filepath.Join(packageRoot, target.SrcDir)
+		if !seen[root] {
+			seen[root] = true
+			roots = append(roots, root)
+		}
+	}
+	for _, target := range config.Libraries {
+		addTarget(target)
+	}
+	for _, target := range config.Executables {
+		addTarget(target)
+	}
+	return roots
+}
+
+func ancestorSourceRoots(absPath string) []string {
 	// Standalone sources have no declared root; retain the ancestor heuristic.
 	var roots []string
 	for dir := filepath.Dir(absPath); ; dir = filepath.Dir(dir) {
