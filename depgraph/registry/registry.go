@@ -13,6 +13,7 @@ import (
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/lean"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/markdown"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/python"
+	"github.com/LegacyCodeHQ/clarity/depgraph/languages/quint"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/ruby"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/rust"
 	"github.com/LegacyCodeHQ/clarity/depgraph/languages/scala"
@@ -36,6 +37,7 @@ var providers = []moduleapi.Provider{
 	lean.Provider{},
 	markdown.Provider{},
 	python.Provider{},
+	quint.Provider{},
 	ruby.Provider{},
 	rust.Provider{},
 	scala.Provider{},

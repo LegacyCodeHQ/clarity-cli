@@ -11,6 +11,7 @@
 ◐ Lean 4      .lean
 ◐ Markdown    .md, .markdown
 ● Python      .py
+◐ Quint       .qnt
 ◐ Ruby        .rb
 ● Rust        .rs
 ◐ Scala       .scala

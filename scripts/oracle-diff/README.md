@@ -40,6 +40,31 @@ false local edges for external `Lean.*` imports in Batteries. The regression
 tests reproduce both before the resolver fix. The same fix honors configured
 source roots and prevents resolution from escaping a nested package.
 
+# Quint reference-parser check
+
+`quint_import_diff.cjs` compares Clarity with the actual Quint ANTLR phase-one
+parser. It checks all supplied `.qnt` nodes, explicit `from` import/instance
+edges, and local test-definition coloring. It never evaluates specifications or
+downloads dependencies. Provide a freshly built Clarity binary and the directory
+of an installed `@informalsystems/quint` package (validated with 0.33.0):
+
+```sh
+node scripts/oracle-diff/quint_import_diff.cjs /path/to/quint --scope examples \
+  --clarity /tmp/clarity-quint \
+  --quint-package /path/to/node_modules/@informalsystems/quint
+```
+
+The report is JSON; reference parse errors and missing or unexpected nodes,
+edges, or test classifications produce a nonzero exit code. File discovery uses
+Git's tracked and unignored untracked files. This checks the working tree, not
+historical snapshots. It checks syntax and explicit file dependencies, not name
+resolution, typechecking, execution, or module-only dependencies that depend on
+the enclosing entry point's transitive source context.
+
+Validated on 2026-11-06 with no differences: Quint's official examples (77 files,
+24 edges, 25 test files), `fabric/quint-specs` (12 files, 4 edges, 4 test files),
+and `murumur/Specifications/Quint` (14 files, 20 edges, 11 test files).
+
 # Rust oracle diff
 
 Cross-checks Clarity's Rust dependency graph against

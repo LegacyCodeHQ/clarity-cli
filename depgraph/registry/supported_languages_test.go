@@ -17,6 +17,16 @@ func TestLeanSupport(t *testing.T) {
 	require.False(t, IsTestFile("/project/MyLib/Theorems.lean", nil))
 }
 
+func TestQuintSupport(t *testing.T) {
+	provider, ok := ProviderForExtension(".qnt")
+	require.True(t, ok)
+	require.Equal(t, "Quint", provider.Name())
+	require.Equal(t, moduleapi.MaturityBasicTests, provider.Maturity())
+	require.True(t, IsSupportedLanguageExtension(".qnt"))
+	require.True(t, IsTestFile("/project/counterTest.qnt", nil))
+	require.False(t, IsTestFile("/project/counter.qnt", nil))
+}
+
 func TestSupportedLanguages(t *testing.T) {
 	languages := SupportedLanguages()
 	if len(languages) == 0 {

@@ -1,0 +1,8 @@
+Copyright 2026-present, Legacy Code Headquarters (OPC) Private Limited.
+
+This product is licensed under the Apache License, Version 2.0.
+
+The recognition tables in src/quint_033_atn.h are generated from the Quint
+0.33.0 ANTLR parser and grammar, copyright 2021-2025 Informal Systems and
+Quint contributors, licensed under the Apache License, Version 2.0.
+Source: https://github.com/informalsystems/quint/tree/v0.33.0

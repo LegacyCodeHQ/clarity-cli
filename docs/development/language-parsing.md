@@ -57,6 +57,28 @@ boundaries. This classification does not evaluate `lakefile.lean`, custom
 library `globs`, scripts, or test drivers in other packages, and does not mark
 production modules merely because the test driver imports them.
 
+### Quint
+
+Quint (`.qnt`) uses [LegacyCodeHQ/tree-sitter-quint](https://github.com/LegacyCodeHQ/tree-sitter-quint)
+0.33.0. The Apache-2.0 parser, scanner, recognition tables, and attribution
+notices are pinned under `internal/tree_sitter/quint/`. The parser is regenerated
+for ABI 14 to match Clarity's Go runtime; normal builds need no Quint or Node
+installation. See the vendored README for reproduction details.
+
+File dependencies come from explicit `from` clauses in named, wildcard, aliased,
+and instantiated imports. Paths resolve relative to the importing file, with
+`.qnt` appended unconditionally, matching Quint 0.33. String contents are literal;
+backslashes are not unescaped. Only supplied project files produce edges.
+Imports without `from` and exports refer to already loaded modules; Clarity
+does not guess sibling filenames or infer additional edges for module references
+through a transitive import context. Multiple modules in one file stay one node.
+
+Test detection uses `Test.qnt`, `Tests.qnt`, `_test.qnt`, `_tests.qnt`, `test_`
+prefixes, and `test`/`tests` directories. It also recognizes top-level definitions
+whose names end in `Test`, matching the default `quint test` name filter.
+Comments, strings, local definitions, and `run` witnesses without a `Test` suffix
+do not by themselves mark a file as a test. Quint support starts at Basic Tests.
+
 ### Supporting Additional Languages
 
 1. Create a new language directory under `internal/tree_sitter/` and build and copy the appropriate tree-sitter files.

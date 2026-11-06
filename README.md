@@ -213,6 +213,7 @@ Clarity supports dependency extraction for:
 - Lean 4
 - Markdown
 - Python, Ruby
+- Quint
 - Rust
 - Swift
 - Zig
