@@ -3,6 +3,43 @@ cross-check Clarity's dependency graph for one language against an
 independent, non-Clarity tool. See CLR-23 for why this exists and CLR-64 for
 the Python pass. Jump to [Python oracle diff](#python-oracle-diff) below.
 
+## Lean static import check
+
+`lean_import_diff.py` independently scans Lean import headers, skips nested
+comments, and maps names to files using a package's declarative Lake source
+roots. It compares nodes, local import edges, and library test-driver coloring
+against a freshly built Clarity binary. It needs Python 3.11+ and Git, and never
+executes repository code or downloads Lean toolchains/dependencies.
+
+```sh
+go build -o /tmp/clarity-lean ./main.go
+python3 scripts/oracle-diff/lean_import_diff.py /tmp/batteries /tmp/aesop /tmp/quote4 \
+  --clarity /tmp/clarity-lean --snapshot
+```
+
+The script prints JSON and exits nonzero for missing or unexpected nodes, edges,
+or test classifications. `--snapshot` also checks Clarity's Git HEAD reader.
+Use clean checkouts with a root `lakefile.toml`. Nested packages containing Lean
+sources, ambiguous
+module paths, and non-library test drivers fail explicitly. Library test coloring
+is checked against declared roots, not custom `globs` or path-name heuristics.
+This is an independent **static check**, not a Lean compiler oracle: it checks
+explicit source imports, not proof elaboration, notation expansion, or `.olean`
+dependency loading. External dependencies are intentionally outside its scope.
+
+Validated on 2026-11-06, with no remaining differences in working trees or HEAD:
+
+| Repository | Revision | Lean files | Local edges | Test files |
+| --- | --- | ---: | ---: | ---: |
+| [batteries](https://github.com/leanprover-community/batteries) | `b10a69d76de0195db7f9a961d09a83b4fc77fd02` | 275 | 453 | 76 |
+| [aesop](https://github.com/leanprover-community/aesop) | `7d11bfa88558f8d3d90afdf6bd877ed70001498d` | 250 | 401 | 112 |
+| [quote4](https://github.com/leanprover-community/quote4) | `b0256621cb88178e9ad932a53633077b3029e621` | 28 | 35 | 14 |
+
+This found import shadowing in Aesop (104 missing and 103 wrong edges) and eight
+false local edges for external `Lean.*` imports in Batteries. The regression
+tests reproduce both before the resolver fix. The same fix honors configured
+source roots and prevents resolution from escaping a nested package.
+
 # Rust oracle diff
 
 Cross-checks Clarity's Rust dependency graph against
