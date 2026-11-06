@@ -24,6 +24,7 @@ func TestGraphLeanLakeTestDriver(t *testing.T) {
 		"Dxn.lean":           "def value := 1\n",
 		"DxnTest.lean":       "import DxnTest.Basic\n",
 		"DxnTest/Basic.lean": "import Dxn\nexample : value = 1 := rfl\n",
+		"DxnTest/Dxn.lean":   "import Dxn\n",
 	}
 	for name, content := range files {
 		path := filepath.Join(project, name)
@@ -33,6 +34,8 @@ func TestGraphLeanLakeTestDriver(t *testing.T) {
 	output := internal.GraphSubcommandInputWithRepo(t, project, project)
 	require.Contains(t, output, `"DxnTest.lean" [label="DxnTest.lean", style=filled, fillcolor=lightgreen]`)
 	require.Contains(t, output, `"DxnTest/Basic.lean" [label="Basic.lean", style=filled, fillcolor=lightgreen]`)
-	require.Contains(t, output, `"Dxn.lean" [label="Dxn.lean", style=filled, fillcolor=white]`)
+	require.Regexp(t, `(?m)^  "Dxn\.lean" \[label="[^"]+", style=filled, fillcolor=white\];$`, output)
 	require.Contains(t, output, `"DxnTest/Basic.lean" -> "Dxn.lean"`)
+	require.Contains(t, output, `"DxnTest/Dxn.lean" -> "Dxn.lean"`)
+	require.NotContains(t, output, `"DxnTest/Basic.lean" -> "DxnTest/Dxn.lean"`)
 }

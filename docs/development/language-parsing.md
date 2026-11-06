@@ -31,13 +31,18 @@ for ABI 14 to match the Go runtime. See that directory's README for reproduction
 
 The language provider extracts explicit imports, including `public`, `meta`, and
 `all` modifiers, and supports Unicode and `«quoted»` module-name components.
-It maps module names to `.lean` paths relative to ancestors of the importing
-file, preferring the nearest matching root among supplied project files.
-This covers standard project layouts and source trees rooted in a common `src`
-directory. External imports and implicit prelude imports do not create edges.
+It maps module names to `.lean` paths under the nearest Lake package's source
+roots, honoring package and target `srcDir` in `lakefile.toml`. This prevents a
+sibling file such as `AesopTest/Aesop.lean` from shadowing the module `Aesop`,
+and prevents external `Lean.Expr` from matching `Batteries/Lean/Expr.lean`.
+Nested Lake packages form boundaries; standalone sources without a Lake package
+use an ancestor-directory heuristic, nearest first. External imports and implicit
+prelude imports do not create edges.
 
-Lake configuration, `LEAN_PATH`, compiled `.olean` files, and imports across
-separate source roots are not resolved. This is source import analysis, not Lean
+Executable `lakefile.lean` configuration, `LEAN_PATH`, compiled `.olean` files,
+and dependency package search paths are not evaluated. An uninterpreted Lake
+configuration still establishes a package boundary and uses its directory as
+the default source root. This is source import analysis, not Lean
 elaboration or declaration-level proof dependency analysis. Syntax errors in
 declarations do not discard successfully parsed imports from the header.
 Test detection uses `test`/`tests` directories (case insensitive), `_test.lean`,
