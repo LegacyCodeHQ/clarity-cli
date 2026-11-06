@@ -17,8 +17,8 @@ func (Provider) NewResolver(ctx *moduleapi.Context, contentReader vcs.ContentRea
 	return resolver{ctx: ctx, contentReader: contentReader}
 }
 
-func (Provider) IsTestFile(filePath string, _ vcs.ContentReader) bool {
-	return IsTestFile(filePath)
+func (Provider) IsTestFile(filePath string, contentReader vcs.ContentReader) bool {
+	return IsTestFile(filePath) || isLakeTestFile(filePath, contentReader)
 }
 
 type resolver struct {

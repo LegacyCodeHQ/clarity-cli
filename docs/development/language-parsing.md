@@ -42,6 +42,13 @@ elaboration or declaration-level proof dependency analysis. Syntax errors in
 declarations do not discard successfully parsed imports from the header.
 Test detection uses `test`/`tests` directories (case insensitive), `_test.lean`,
 and `test_` prefixes; theorem and example declarations are ordinary code.
+It also reads the nearest `lakefile.toml` through the source content reader:
+the configured `testDriver` library's root modules and submodules are tests,
+as is an executable driver's root module. Library `roots`, executable `root`,
+and package/target `srcDir` overrides are honored. Nested Lake packages form
+boundaries. This classification does not evaluate `lakefile.lean`, custom
+library `globs`, scripts, or test drivers in other packages, and does not mark
+production modules merely because the test driver imports them.
 
 ### Supporting Additional Languages
 
