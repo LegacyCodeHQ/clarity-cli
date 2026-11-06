@@ -104,12 +104,20 @@ jobs:
       - name: Add OSXCross to PATH
         run: echo "/tmp/osxcross/target/bin" >> $GITHUB_PATH
 
+      - name: Select curated release notes when available
+        id: release-notes
+        run: |
+          notes="docs/release-notes-${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            echo "flags=--release-notes=$notes" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean
+          args: release --clean ${{ steps.release-notes.outputs.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

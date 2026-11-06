@@ -60,9 +60,24 @@ builds:
 archives:
   - id: clarity-archive
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
     files:
       - LICENSE
       - README.md
+      - src: internal/tree_sitter/lean/LICENSE
+        dst: licenses/lean
+        strip_parent: true
+      - src: internal/tree_sitter/quint/LICENSE
+        dst: licenses/quint
+        strip_parent: true
+      - src: internal/tree_sitter/quint/NOTICE
+        dst: licenses/quint
+        strip_parent: true
+      - src: internal/tree_sitter/zig/LICENSE
+        dst: licenses/zig
+        strip_parent: true
 
 # Checksums for all archives
 checksum:

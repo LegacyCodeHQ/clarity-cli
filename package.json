@@ -16,7 +16,11 @@
   },
   "files": [
     "bin/clarity.js",
-    "scripts/postinstall.js"
+    "scripts/postinstall.js",
+    "internal/tree_sitter/lean/LICENSE",
+    "internal/tree_sitter/quint/LICENSE",
+    "internal/tree_sitter/quint/NOTICE",
+    "internal/tree_sitter/zig/LICENSE"
   ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
