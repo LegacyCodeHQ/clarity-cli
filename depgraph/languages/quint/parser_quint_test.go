@@ -1,10 +1,27 @@
 package quint
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestParseManyQuintImports(t *testing.T) {
+	var source strings.Builder
+	var expected []string
+	source.WriteString("module main {\n")
+	for i := 0; i < 300; i++ {
+		path := fmt.Sprintf("./library%d", i)
+		fmt.Fprintf(&source, "import Library as L%d from %q\n", i, path)
+		expected = append(expected, path)
+	}
+	source.WriteString("}\n")
+	got, err := ParseImports([]byte(source.String()))
+	require.NoError(t, err)
+	require.Equal(t, expected, got)
+}
 
 func TestParseImports(t *testing.T) {
 	tests := []struct {

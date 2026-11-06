@@ -25,6 +25,6 @@ func IsTestFile(filePath string, contentReader vcs.ContentReader) bool {
 	if err != nil {
 		return false
 	}
-	info, err := parseSource(content)
+	info, err := parseSource(content, true)
 	return err == nil && info.hasTests
 }

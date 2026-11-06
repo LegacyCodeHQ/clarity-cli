@@ -1,6 +1,7 @@
 package quint
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -15,10 +16,36 @@ type sourceInfo struct {
 	hasTests bool
 }
 
+var quintLanguage = tree_sitter_quint.GetLanguage()
+var quintImportQuery, quintTestQuery *sitter.Query
+
+func init() {
+	var err error
+	quintImportQuery, err = sitter.NewQuery([]byte(`
+[
+  (named_import_declaration source: (string_literal) @source)
+  (wildcard_import_declaration source: (string_literal) @source)
+  (module_import_declaration source: (string_literal) @source)
+  (instance_declaration source: (string_literal) @source)
+  (anonymous_instance_declaration source: (string_literal) @source)
+]`), quintLanguage)
+	if err != nil {
+		panic("failed to compile Quint import query: " + err.Error())
+	}
+	quintTestQuery, err = sitter.NewQuery([]byte(`
+[
+  (operator_definition name: (_) @name)
+  (value_definition name: (_) @name)
+]`), quintLanguage)
+	if err != nil {
+		panic("failed to compile Quint test query: " + err.Error())
+	}
+}
+
 var quintParserPool = sync.Pool{
 	New: func() any {
 		parser := sitter.NewParser()
-		parser.SetLanguage(tree_sitter_quint.GetLanguage())
+		parser.SetLanguage(quintLanguage)
 		return parser
 	},
 }
@@ -26,11 +53,22 @@ var quintParserPool = sync.Pool{
 // ParseImports extracts explicit from clauses, including module instances.
 // Quint string contents are literal, so backslashes are not unescaped.
 func ParseImports(sourceCode []byte) ([]string, error) {
-	info, err := parseSource(sourceCode)
+	info, err := parseSource(sourceCode, false)
 	return info.imports, err
 }
 
-func parseSource(sourceCode []byte) (sourceInfo, error) {
+func parseSource(sourceCode []byte, tests bool) (sourceInfo, error) {
+	query := quintImportQuery
+	marker := []byte("from")
+	if tests {
+		query = quintTestQuery
+		marker = []byte("Test")
+	}
+	// These are necessary literal tokens, not a replacement for syntax parsing.
+	// A positive match still goes through tree-sitter to exclude comments/strings.
+	if !bytes.Contains(sourceCode, marker) {
+		return sourceInfo{}, nil
+	}
 	parser, _ := quintParserPool.Get().(*sitter.Parser)
 	if parser == nil {
 		return sourceInfo{}, fmt.Errorf("failed to acquire Quint parser")
@@ -44,36 +82,49 @@ func parseSource(sourceCode []byte) (sourceInfo, error) {
 
 	var info sourceInfo
 	seen := make(map[string]bool)
+	cursor := sitter.NewQueryCursor()
+	defer cursor.Close()
 	root := tree.RootNode()
-	for i := 0; i < int(root.NamedChildCount()); i++ {
-		module := root.NamedChild(i)
-		if module.Type() != "module_definition" {
+	cursor.Exec(query, root)
+	for {
+		match, ok := cursor.NextMatch()
+		if !ok {
+			break
+		}
+		node := match.Captures[0].Node
+		if node.IsMissing() {
 			continue
 		}
-		for j := 0; j < int(module.NamedChildCount()); j++ {
-			node := module.NamedChild(j)
-			switch node.Type() {
-			case "named_import_declaration", "wildcard_import_declaration", "module_import_declaration",
-				"instance_declaration", "anonymous_instance_declaration":
-				source := node.ChildByFieldName("source")
-				if source == nil || source.IsMissing() || source.HasError() {
-					continue
-				}
-				literal := source.Content(sourceCode)
-				if len(literal) < 3 || literal[0] != '"' || literal[len(literal)-1] != '"' {
-					continue
-				}
-				path := literal[1 : len(literal)-1]
-				if !seen[path] {
-					seen[path] = true
-					info.imports = append(info.imports, path)
-				}
-			case "operator_definition", "value_definition":
-				name := node.ChildByFieldName("name")
-				if name != nil && !name.IsMissing() && strings.HasSuffix(name.Content(sourceCode), "Test") {
-					info.hasTests = true
-				}
+		declaration := node.Parent()
+		if declaration == nil {
+			continue
+		}
+		module := declaration.Parent()
+		if module == nil || module.Type() != "module_definition" {
+			continue
+		}
+		parent := module.Parent()
+		if parent == nil || !parent.Equal(root) {
+			continue
+		}
+		if tests {
+			if strings.HasSuffix(node.Content(sourceCode), "Test") {
+				info.hasTests = true
+				return info, nil
 			}
+			continue
+		}
+		if node.HasError() {
+			continue
+		}
+		literal := node.Content(sourceCode)
+		if len(literal) < 3 || literal[0] != '"' || literal[len(literal)-1] != '"' {
+			continue
+		}
+		path := literal[1 : len(literal)-1]
+		if !seen[path] {
+			seen[path] = true
+			info.imports = append(info.imports, path)
 		}
 	}
 	return info, nil

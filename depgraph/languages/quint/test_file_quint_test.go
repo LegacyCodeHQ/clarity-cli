@@ -1,11 +1,25 @@
 package quint
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestQuintTestDefinitionAfterManyDeclarations(t *testing.T) {
+	var source strings.Builder
+	source.WriteString("module checks {\n")
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&source, "pure val value%d = %d\n", i, i)
+	}
+	source.WriteString("run finalTest = true\n}\n")
+	require.True(t, IsTestFile("/project/checks.qnt", func(string) ([]byte, error) {
+		return []byte(source.String()), nil
+	}))
+}
 
 func TestQuintTestFilePaths(t *testing.T) {
 	for _, path := range []string{"counterTest.qnt", "counterTests.qnt", "counter_test.qnt", "counter_tests.qnt", "test_counter.qnt", "/project/tests/counter.qnt", "tests/counter.qnt"} {
