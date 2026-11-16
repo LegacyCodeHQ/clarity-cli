@@ -796,3 +796,43 @@ func TestResolveRustProjectImports_CrateRootReExportThroughModule(t *testing.T) 
 	require.NoError(t, err)
 	assert.Contains(t, imports, filepath.Join(root, "src/walk/inner.rs"))
 }
+
+// Regression: inside `mod tests`, `super::decode()` names replay.rs's own
+// function and `super::super::profiler::run()` names ui/profiler.rs. Resolving
+// both from file scope invented replay.rs -> ui/mod.rs and missed
+// canvas.rs -> profiler.rs.
+func TestResolveRustProjectImports_InlineTestModuleRelativePaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	crateRoot := filepath.Join(tmpDir, "mycrate")
+	uiDir := filepath.Join(crateRoot, "src", "ui")
+	require.NoError(t, os.MkdirAll(uiDir, 0755))
+
+	cargoToml := filepath.Join(crateRoot, "Cargo.toml")
+	mainFile := filepath.Join(crateRoot, "src", "main.rs")
+	modFile := filepath.Join(uiDir, "mod.rs")
+	canvasFile := filepath.Join(uiDir, "canvas.rs")
+	profilerFile := filepath.Join(uiDir, "profiler.rs")
+	replayFile := filepath.Join(uiDir, "replay.rs")
+
+	files := map[string]string{
+		cargoToml:    "[package]\nname = \"mycrate\"\n",
+		mainFile:     "mod ui;\nfn main() {}\n",
+		modFile:      "pub mod canvas;\npub mod profiler;\npub mod replay;\n",
+		profilerFile: "pub fn run() { crate::ui::canvas::draw(); }\n",
+		canvasFile:   "pub fn draw() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn profile() { super::super::profiler::run(); }\n}\n",
+		replayFile:   "pub fn decode() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn decodes() { super::decode(); }\n}\n",
+	}
+	supplied := map[string]bool{}
+	for path, content := range files {
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+		supplied[path] = true
+	}
+
+	canvasImports, err := ResolveRustProjectImports(canvasFile, canvasFile, supplied, os.ReadFile)
+	require.NoError(t, err)
+	assert.Contains(t, canvasImports, profilerFile)
+
+	replayImports, err := ResolveRustProjectImports(replayFile, replayFile, supplied, os.ReadFile)
+	require.NoError(t, err)
+	assert.NotContains(t, replayImports, modFile)
+}

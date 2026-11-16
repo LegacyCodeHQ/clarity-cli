@@ -102,6 +102,10 @@ func parseRustImportsFast(sourceCode []byte) ([]RustImport, bool) {
 	// and `mod` declarations mean something different there — see
 	// parseRustImportStatementBytes.
 	stmtDepth := 0
+	// Inline `mod name { … }` blocks enclosing the scanner, innermost last;
+	// only these change what `self::`/`super::` mean.
+	var modBlocks []bool
+	modDepth := 0
 	// True once we've entered a `{` whose enclosing statement is a `use`. We
 	// then have to preserve the brace group's contents in `stmt` so
 	// `parseRustImportStatementBytes` can expand them — unlike other brace
@@ -201,6 +205,11 @@ func parseRustImportsFast(sourceCode []byte) ([]RustImport, bool) {
 					// A block that is not a `use` group — a `mod` body, a
 					// function body, a struct literal. Descend into it and
 					// begin a fresh statement at the deeper level.
+					isMod := isRustInlineModHeader(stmt)
+					modBlocks = append(modBlocks, isMod)
+					if isMod {
+						modDepth++
+					}
 					stmt = stmt[:0]
 					stmtDepth = depth + 1
 				}
@@ -219,6 +228,12 @@ func parseRustImportsFast(sourceCode []byte) ([]RustImport, bool) {
 			} else {
 				// Leaving a block; anything unterminated inside it is not a
 				// statement of the enclosing scope.
+				if n := len(modBlocks); n > 0 {
+					if modBlocks[n-1] {
+						modDepth--
+					}
+					modBlocks = modBlocks[:n-1]
+				}
 				stmt = stmt[:0]
 				stmtDepth = depth
 			}
@@ -226,7 +241,7 @@ func parseRustImportsFast(sourceCode []byte) ([]RustImport, bool) {
 		}
 
 		if c == ';' {
-			if imps, ok := parseRustImportStatementBytes(stmt, stmtDepth); ok {
+			if imps, ok := parseRustImportStatementBytes(stmt, stmtDepth, modDepth); ok {
 				imports = append(imports, imps...)
 			}
 			stmt = stmt[:0]
@@ -249,16 +264,16 @@ func parseRustImportsFast(sourceCode []byte) ([]RustImport, bool) {
 
 // parseRustImportStatementBytes interprets a single statement. depth is the
 // brace depth the statement was written at: 0 is file scope, anything deeper is
-// inside an inner `mod` block or a function body. Nested statements still
-// declare real coupling, but two shapes are scope-sensitive and so are dropped
-// rather than misattributed to the file:
+// inside an inner `mod` block or a function body. modDepth counts only the
+// enclosing inline `mod` blocks. Nested statements still declare real coupling,
+// but two shapes are scope-sensitive:
 //
 //   - `self::`/`super::` are relative to the enclosing module. Inside
-//     `mod status { … }`, `super::X` is the file itself, not its parent, so
-//     resolving it as a file-scope path invents an edge to the wrong module.
+//     `mod status { … }`, `super::X` is the file itself, not its parent. Such
+//     paths are rebased to file scope, and dropped when they stay in the file.
 //   - `mod foo;` inside an inner module names a file under that module's own
-//     directory, not a sibling of the current file.
-func parseRustImportStatementBytes(stmt []byte, depth int) ([]RustImport, bool) {
+//     directory, not a sibling of the current file, so it is dropped.
+func parseRustImportStatementBytes(stmt []byte, depth, modDepth int) ([]RustImport, bool) {
 	s := trimSpaceBytes(stmt)
 	if len(s) == 0 {
 		return nil, false
@@ -280,10 +295,11 @@ func parseRustImportStatementBytes(stmt []byte, depth int) ([]RustImport, bool) 
 			if len(p) == 0 {
 				continue
 			}
-			if depth > 0 && isRustModuleRelativePath(p) {
+			path, ok := rebaseRustInlineModulePath(string(p), modDepth)
+			if !ok {
 				continue
 			}
-			result = append(result, RustImport{Path: string(p), Kind: RustImportUse, Nested: depth > 0})
+			result = append(result, RustImport{Path: path, Kind: RustImportUse, Nested: depth > 0})
 		}
 		if len(result) == 0 {
 			return nil, false
@@ -309,20 +325,77 @@ func parseRustImportStatementBytes(stmt []byte, depth int) ([]RustImport, bool) 
 	}
 }
 
-// isRustModuleRelativePath reports whether a use path is resolved relative to
-// the module it is written in (`self::…`, `super::…`, or a bare `self`/`super`)
-// rather than to the crate root or an external crate.
-func isRustModuleRelativePath(path []byte) bool {
-	for _, prefix := range [][]byte{[]byte("self"), []byte("super")} {
-		if !bytes.HasPrefix(path, prefix) {
-			continue
-		}
-		rest := path[len(prefix):]
-		if len(rest) == 0 || bytes.HasPrefix(rest, []byte("::")) {
-			return true
-		}
+// rebaseRustInlineModulePath rewrites a path written inside modDepth inline
+// `mod` blocks into the equivalent path written at file scope. Each leading
+// `super` first climbs out of one inline block; only the remainder leaves the
+// file. For example, inside `mod tests { … }`, `super::super::profiler::run`
+// becomes `super::profiler::run`. It reports false for a relative path that
+// stays within the file (`super::decode` there, or any `self::` path), since
+// that names the file's own items rather than another file. Paths not starting
+// with `self` or `super` are returned unchanged.
+func rebaseRustInlineModulePath(path string, modDepth int) (string, bool) {
+	if modDepth == 0 {
+		return path, true
 	}
-	return false
+	segments := strings.Split(path, "::")
+	if segments[0] != "self" && segments[0] != "super" {
+		return path, true
+	}
+	ups := 0
+	rest := segments
+	for len(rest) > 0 && (rest[0] == "self" || rest[0] == "super") {
+		if rest[0] == "super" {
+			ups++
+		}
+		rest = rest[1:]
+	}
+	if ups <= modDepth || len(rest) == 0 {
+		return "", false
+	}
+	rebased := make([]string, 0, ups-modDepth+len(rest))
+	for i := 0; i < ups-modDepth; i++ {
+		rebased = append(rebased, "super")
+	}
+	return strings.Join(append(rebased, rest...), "::"), true
+}
+
+// isRustInlineModHeader reports whether stmt, the text before a `{`, opens an
+// inline module (`#[cfg(test)] pub(crate) mod tests`).
+func isRustInlineModHeader(stmt []byte) bool {
+	s := stripRustVisibilityPrefixBytes(stripLeadingRustAttributesBytes(stmt))
+	if !bytes.HasPrefix(s, []byte("mod")) {
+		return false
+	}
+	name := trimSpaceBytes(s[len("mod"):])
+	if len(name) == len(s)-len("mod") {
+		return false // `modular`, not `mod ular`
+	}
+	ident := leadingRustIdentBytes(name)
+	return len(ident) > 0 && len(ident) == len(name)
+}
+
+// isRustInlineModBraceAt reports whether the `{` at open in sanitized source
+// opens an inline module: it follows `mod <name>`, ignoring whitespace.
+func isRustInlineModBraceAt(cleaned []byte, open int) bool {
+	i := open - 1
+	for i >= 0 && isRustWhitespace(cleaned[i]) {
+		i--
+	}
+	end := i + 1
+	for i >= 0 && isRustIdentChar(cleaned[i]) {
+		i--
+	}
+	if end == i+1 {
+		return false
+	}
+	for i >= 0 && isRustWhitespace(cleaned[i]) {
+		i--
+	}
+	keywordEnd := i + 1
+	for i >= 0 && isRustIdentChar(cleaned[i]) {
+		i--
+	}
+	return string(cleaned[i+1:keywordEnd]) == "mod"
 }
 
 func trimSpaceBytes(b []byte) []byte {
@@ -596,14 +669,40 @@ func parseRustQualifiedPathRefsFast(sourceCode []byte) []RustImport {
 	}
 
 	refs := make([]RustImport, 0, len(matches))
+	// Track enclosing inline `mod` blocks up to each match so relative paths
+	// can be rebased to file scope. Braces are walked once, in source order.
+	var modBlocks []bool
+	modDepth := 0
+	scanned := 0
 	for _, m := range matches {
 		start, end := m[0], m[1]
+		for ; scanned < start; scanned++ {
+			switch cleaned[scanned] {
+			case '{':
+				isMod := isRustInlineModBraceAt(cleaned, scanned)
+				modBlocks = append(modBlocks, isMod)
+				if isMod {
+					modDepth++
+				}
+			case '}':
+				if n := len(modBlocks); n > 0 {
+					if modBlocks[n-1] {
+						modDepth--
+					}
+					modBlocks = modBlocks[:n-1]
+				}
+			}
+		}
 		if isUsePathReference(cleaned, start) {
 			continue
 		}
 		path := strings.TrimPrefix(string(cleaned[start:end]), "::")
 		path = strings.TrimSpace(path)
 		if path == "" {
+			continue
+		}
+		path, ok := rebaseRustInlineModulePath(path, modDepth)
+		if !ok {
 			continue
 		}
 		refs = append(refs, RustImport{Path: path, Kind: RustImportUse})

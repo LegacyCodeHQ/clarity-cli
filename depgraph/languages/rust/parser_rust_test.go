@@ -285,3 +285,57 @@ func TestParseRustImports_FallsBackWhenScannerFails(t *testing.T) {
 	assert.Contains(t, imports, RustImport{Path: "crate::alpha::Thing", Kind: RustImportUse},
 		"top-level use should survive via the tree-sitter fallback")
 }
+
+// Inside an inline `mod tests { … }` block, each `super` first climbs out of
+// that block. `super::decode()` there names the file's own item, not the
+// parent module, so it must not become a file-scope `super::decode` path.
+func TestParseRustImports_RebasesQualifiedPathsInInlineModules(t *testing.T) {
+	source := `
+pub fn decode() {}
+
+fn file_scope() {
+    super::sibling::run();
+}
+
+#[cfg(test)]
+mod tests {
+    fn decodes() {
+        super::decode();
+        self::helper();
+        super::super::profiler::run();
+        crate::ui::canvas::draw();
+    }
+    mod deeper {
+        fn reaches() {
+            super::super::super::scene::paint();
+        }
+    }
+}
+`
+	imports, err := ParseRustImports([]byte(source))
+	require.NoError(t, err)
+
+	assert.Equal(t, []RustImport{
+		{Path: "super::sibling::run", Kind: RustImportUse},
+		{Path: "super::profiler::run", Kind: RustImportUse},
+		{Path: "crate::ui::canvas::draw", Kind: RustImportUse},
+		{Path: "super::scene::paint", Kind: RustImportUse},
+	}, imports)
+}
+
+// The same rebasing applies to `use` statements written in inline modules.
+func TestParseRustImports_RebasesNestedRelativeUseThatLeavesTheFile(t *testing.T) {
+	source := `
+mod tests {
+    use super::Helper;
+    use super::super::profiler::{self, Profiler};
+}
+`
+	imports, err := ParseRustImports([]byte(source))
+	require.NoError(t, err)
+
+	assert.Equal(t, []RustImport{
+		{Path: "super::profiler", Kind: RustImportUse, Nested: true},
+		{Path: "super::profiler::Profiler", Kind: RustImportUse, Nested: true},
+	}, imports)
+}
