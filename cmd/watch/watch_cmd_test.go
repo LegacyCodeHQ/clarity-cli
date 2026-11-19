@@ -455,6 +455,36 @@ func TestBuildGraph_ProducesOutput(t *testing.T) {
 	assert.Contains(t, dot, "main.go")
 }
 
+func TestBuildGraph_RustWorkingSetDoesNotManufactureCrateRootCycle(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	src := filepath.Join(dir, "src")
+	require.NoError(t, os.MkdirAll(src, 0o755))
+	lib := filepath.Join(src, "lib.rs")
+	consumer := filepath.Join(src, "consumer.rs")
+	definition := filepath.Join(src, "definition.rs")
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "Cargo.toml"),
+		[]byte("[package]\nname = \"scoped-rust\"\nversion = \"0.1.0\"\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(lib, []byte("mod consumer;\nmod definition;\npub use definition::Shared;\n"), 0o644))
+	require.NoError(t, os.WriteFile(consumer, []byte("use crate::Shared;\n"), 0o644))
+	require.NoError(t, os.WriteFile(definition, []byte("pub struct Shared;\n"), 0o644))
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "fixture")
+	require.NoError(t, os.WriteFile(lib, []byte("mod consumer;\nmod definition;\npub use definition::Shared;\n\n"), 0o644))
+	require.NoError(t, os.WriteFile(consumer, []byte("use crate::Shared;\n\n"), 0o644))
+
+	formatter, err := formatters.NewFormatter("dot")
+	require.NoError(t, err)
+	dot, err := buildGraph(dir, &watchOptions{noStats: true}, formatter)
+	require.NoError(t, err)
+	assert.NotContains(t, dot, "// Cyclic paths:")
+	assert.NotContains(t, dot, "color=red")
+	assert.Contains(t, dot, `"src/lib.rs" -> "src/consumer.rs"`)
+}
+
 func TestBuildGraph_MermaidFormat(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)

@@ -237,7 +237,12 @@ func runGraph(cmd *cobra.Command, opts *graphOptions) error {
 		}
 	}
 
-	graph, err := depgraph.BuildDependencyGraph(filePaths, contentReader)
+	resolutionFiles, err := snapshot.TreeFiles()
+	if err != nil {
+		return fmt.Errorf("failed to expand dependency resolution universe: %w", err)
+	}
+	resolutionFiles = unionPaths(resolutionFiles, filePaths)
+	graph, err := depgraph.BuildDependencyGraphInUniverse(filePaths, resolutionFiles, contentReader)
 	if err != nil {
 		return fmt.Errorf("failed to build dependency graph: %w", err)
 	}

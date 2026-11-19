@@ -72,6 +72,46 @@ func TestGraphPositionalPath_RendersDependencyEdges(t *testing.T) {
 	}
 }
 
+func TestGraphWorkingSet_RustReExportDoesNotManufactureCycle(t *testing.T) {
+	repoDir := t.TempDir()
+	gitInitRepo(t, repoDir)
+	src := filepath.Join(repoDir, "src")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(src, "lib.rs")
+	consumer := filepath.Join(src, "consumer.rs")
+	definition := filepath.Join(src, "definition.rs")
+	files := map[string]string{
+		filepath.Join(repoDir, "Cargo.toml"): "[package]\nname = \"scoped-rust\"\nversion = \"0.1.0\"\n",
+		lib:                                  "mod consumer;\nmod definition;\npub use definition::Shared;\n",
+		consumer:                             "use crate::Shared;\n",
+		definition:                           "pub struct Shared;\n",
+	}
+	for path, contents := range files {
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitRun(t, repoDir, "add", ".")
+	gitRun(t, repoDir, "commit", "-m", "fixture")
+
+	if err := os.WriteFile(lib, []byte(files[lib]+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(consumer, []byte(files[consumer]+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := runShow(t, "-r", repoDir, "-f", "dot", "--no-stats")
+	if strings.Contains(out, "// Cyclic paths:") || strings.Contains(out, "color=red") {
+		t.Fatalf("working-set scope manufactured a Rust crate-root cycle:\n%s", out)
+	}
+	if !strings.Contains(out, `"src/lib.rs" -> "src/consumer.rs"`) {
+		t.Fatalf("expected the surviving induced dependency, got:\n%s", out)
+	}
+}
+
 func TestGraphReachDown_AliasesFileScope(t *testing.T) {
 	repoDir := writeTypeScriptReachFixture(t)
 

@@ -107,6 +107,46 @@ func TestBuildDependencyGraph(t *testing.T) {
 	assert.Empty(t, validatorDeps)
 }
 
+func TestBuildDependencyGraphInUniverse_RustScopeDoesNotManufactureCrateRootCycle(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src")
+	require.NoError(t, os.MkdirAll(src, 0o755))
+
+	lib := filepath.Join(src, "lib.rs")
+	consumer := filepath.Join(src, "consumer.rs")
+	definition := filepath.Join(src, "definition.rs")
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "Cargo.toml"),
+		[]byte("[package]\nname = \"scoped-rust\"\nversion = \"0.1.0\"\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
+		lib,
+		[]byte("mod consumer;\nmod definition;\npub use definition::Shared;\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(consumer, []byte("use crate::Shared;\n"), 0o644))
+	require.NoError(t, os.WriteFile(definition, []byte("pub struct Shared;\n"), 0o644))
+
+	universe := []string{lib, consumer, definition}
+	graph, err := depgraph.BuildDependencyGraphInUniverse(
+		[]string{lib, consumer},
+		universe,
+		vcs.FilesystemContentReader(),
+	)
+	require.NoError(t, err)
+
+	adjacency := mustAdjacency(t, graph)
+	assert.ElementsMatch(t, []string{consumer}, adjacency[lib])
+	assert.Empty(t, adjacency[consumer])
+	assert.NotContains(t, adjacency[consumer], lib,
+		"a scoped resolver must not fall back from a re-export to lib.rs")
+
+	fileGraph, err := depgraph.NewFileDependencyGraph(graph, nil, vcs.FilesystemContentReader())
+	require.NoError(t, err)
+	assert.Empty(t, fileGraph.Meta.Cycles)
+}
+
 func TestBuildDependencyGraph_KotlinSamePackageReferences(t *testing.T) {
 	tmpDir := t.TempDir()
 

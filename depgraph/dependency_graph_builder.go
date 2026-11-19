@@ -26,6 +26,45 @@ func BuildDependencyGraph(filePaths []string, contentReader vcs.ContentReader) (
 	return BuildDependencyGraphWithResolver(filePaths, NewDefaultDependencyResolver(ctx, contentReader))
 }
 
+// BuildDependencyGraphInUniverse resolves the files in scope against a larger,
+// authoritative file universe, then returns only the induced scope graph.
+// Dependency meaning must not change merely because a renderer shows fewer
+// files: in particular, Rust crate-root re-exports need the complete crate in
+// the resolver context even when only the working set is visible.
+func BuildDependencyGraphInUniverse(
+	filePaths []string,
+	universeFilePaths []string,
+	contentReader vcs.ContentReader,
+) (DependencyGraph, error) {
+	ctx, err := buildDependencyGraphContext(universeFilePaths, contentReader)
+	if err != nil {
+		return nil, err
+	}
+
+	graph, err := BuildDependencyGraphWithResolver(
+		filePaths,
+		NewDefaultDependencyResolver(ctx, contentReader),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	adjacency, err := AdjacencyList(graph)
+	if err != nil {
+		return nil, err
+	}
+	keep := make(map[string]bool, len(filePaths))
+	for _, path := range filePaths {
+		absolute, absErr := filepath.Abs(path)
+		if absErr != nil {
+			return nil, fmt.Errorf("failed to resolve path %s: %w", path, absErr)
+		}
+		keep[absolute] = true
+	}
+
+	return extractSubgraph(adjacency, keep), nil
+}
+
 // BuildDependencyGraphWithResolver builds a graph using the provided DependencyResolver implementation.
 func BuildDependencyGraphWithResolver(
 	filePaths []string,

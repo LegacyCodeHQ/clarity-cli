@@ -82,7 +82,12 @@ func buildGraph(worktreePath string, opts *watchOptions, formatter formatters.Fo
 
 	contentReader := deletedAwareContentReader(deletedContent)
 
-	graph, err := depgraph.BuildDependencyGraph(filePaths, contentReader)
+	resolutionFiles, err := expandWatchPaths([]string{worktreePath}, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to expand dependency resolution universe: %w", err)
+	}
+	resolutionFiles = unionWatchPaths(resolutionFiles, filePaths)
+	graph, err := depgraph.BuildDependencyGraphInUniverse(filePaths, resolutionFiles, contentReader)
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependency graph: %w", err)
 	}
